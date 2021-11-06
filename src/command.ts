@@ -20,8 +20,7 @@ export class CommandBuffer {
 
   insert(timestampedCommand: Timestamped<Command>) {
     const incomingTimestamp = timestampedCommand.timestamp()
-    console.log(JSON.stringify(incomingTimestamp))
-    console.debug(this.acceptableTimestampRange())
+
     if (this.acceptableTimestampRange().some(t => t.cmp(incomingTimestamp) === 0)) {
       const commandsExist = this.map.get(incomingTimestamp)
       if (!commandsExist) {
