@@ -34,10 +34,10 @@ export class Timestamp {
     return this.value * timestepSeconds
   }
 
-  comparableRangeWithMidpoint(midpoint: Timestamp) {
+  comparableRangeWithMidpoint() {
     const maxDistanceFromMidpoint = Timestamp.MAX / 2
-    const min = midpoint.value - maxDistanceFromMidpoint
-    const max = midpoint.value + maxDistanceFromMidpoint
+    const min = this.value - maxDistanceFromMidpoint
+    const max = this.value + maxDistanceFromMidpoint
     const range: number[] = []
     for (let i = min; i <= max; i++) {
       range.push(i)
