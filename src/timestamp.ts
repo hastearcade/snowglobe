@@ -103,7 +103,7 @@ export class FloatTimestamp {
   }
 
   floor() {
-    return new Timestamp(Math.ceil(this._value))
+    return new Timestamp(Math.floor(this._value))
   }
 
   subFloatTimestamp(rhs: FloatTimestamp) {
