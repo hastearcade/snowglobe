@@ -38,11 +38,7 @@ export class Timestamp {
     const maxDistanceFromMidpoint = Timestamp.MAX / 2
     const min = this.value - maxDistanceFromMidpoint
     const max = this.value + maxDistanceFromMidpoint
-    const range: number[] = []
-    for (let i = min; i <= max; i++) {
-      range.push(i)
-    }
-    return range
+    return Array.from({ length: max - min }, (v, k) => new Timestamp(k + min))
   }
 
   add(rhs: number) {
