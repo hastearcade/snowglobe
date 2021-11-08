@@ -8,6 +8,9 @@ import { Config, TweeningMethod } from "./lib"
 import { Timestamp } from "./timestamp"
 import { makeTimestamps } from "./timestamp.spec"
 
+const cartesian = (...a: any[]) =>
+  a.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat())))
+
 const config: Config = {
   lagCompensationLatency: 0.3,
   blendLatency: 0.2,
@@ -32,7 +35,7 @@ class MockStepper implements FixedTimestepper {
   }
   step() {
     this.steps += 1
-    this._lastCompletedTimestamp.increment
+    this._lastCompletedTimestamp.increment()
   }
   lastCompletedTimestamp() {
     return this._lastCompletedTimestamp
@@ -105,9 +108,7 @@ describe("FixedTimestepper", () => {
     expect(timekeeper.stepper.steps).toBe(2)
   })
   describe("when update with timestamp drifted within the frame then timestamp drift is ignored", () => {
-    const cartesian = (...a: any[]) =>
-      a.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat())))
-    for (const [
+    for (let [
       smallDriftSeconds,
       initialWrappedCount,
       initialTimestamp,
@@ -124,6 +125,7 @@ describe("FixedTimestepper", () => {
       makeTimestamps(),
       [1, 1.7, 2, 2.5],
     )) {
+      initialTimestamp = Timestamp.from(initialTimestamp)
       test(`Subtest [drift: ${smallDriftSeconds} wrapped count: ${initialWrappedCount}, initial timestamp: ${JSON.stringify(
         initialTimestamp,
       )}, frames per update: ${framesPerUpdate}]`, () => {
@@ -152,9 +154,9 @@ describe("FixedTimestepper", () => {
         timekeeper.update(deltaSeconds, driftedSecondsSinceStartup)
 
         // THEN the TimeKeeper does not correct this time drift.
-        // expect(timekeeper.timestampDriftSeconds(driftedSecondsSinceStartup)).toBeCloseTo(
-        //   smallDriftSeconds,
-        // )
+        expect(timekeeper.timestampDriftSeconds(driftedSecondsSinceStartup)).toBeCloseTo(
+          smallDriftSeconds,
+        )
 
         // THEN the TimeKeeper steps through all the needed frames.
         expect(timekeeper.stepper.steps).toEqual(Math.ceil(framesPerUpdate))
