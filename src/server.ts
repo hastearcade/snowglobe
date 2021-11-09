@@ -1,11 +1,15 @@
-import { CommandOf, World } from "./world"
 import { TimeKeeper } from "./fixed_timestepper"
-import { InitializationType, Simulation } from "./world/simulation"
 import { Config, lagCompensationFrameCount } from "./lib"
-import { Timestamp, Timestamped } from "./timestamp"
+import {
+  ClockSyncMessage,
+  CLOCK_SYNC_MESSAGE_TYPE_ID,
+  COMMAND_MESSAGE_TYPE_ID,
+  SNAPSHOT_MESSAGE_TYPE_ID,
+} from "./message"
 import { ConnectionHandle, NetworkResource } from "./network_resource"
-import { Command } from "./command"
-import { ClockSyncMessage } from "./clock_sync"
+import { Timestamp, Timestamped } from "./timestamp"
+import { CommandOf, World } from "./world"
+import { InitializationType, Simulation } from "./world/simulation"
 
 export class Server<$World extends World> {
   private timekeepingSimulation: TimeKeeper<Simulation<$World>>
@@ -54,7 +58,7 @@ export class Server<$World extends World> {
       if (commandSource === handle) {
         continue
       }
-      const result = connection.send(command.clone())
+      const result = connection.send(COMMAND_MESSAGE_TYPE_ID, command.clone())
       connection.flush(this.messageType)
       if (result) {
         console.error(`Failed to relay command to ${handle}: ${result}`)
@@ -105,16 +109,16 @@ export class Server<$World extends World> {
       )
     }
     const newCommands: [Timestamped<CommandOf<$World>>, ConnectionHandle][] = []
-    const clockSyncs: [ConnectionHandle, Timestamped<ClockSyncMessage>][] = []
+    const clockSyncs: [ConnectionHandle, ClockSyncMessage][] = []
     for (const [handle, connection] of net.connections()) {
       let command: Timestamped<CommandOf<$World>> | undefined
-      let clockSyncMessage: Timestamped<ClockSyncMessage> | undefined
+      let clockSyncMessage: ClockSyncMessage | undefined
       while ((command = connection.recvCommand())) {
         newCommands.push([command, handle])
       }
       while ((clockSyncMessage = connection.recvClockSync())) {
-        clockSyncMessage.inner().serverSecondsSinceStartup = secondsSinceStartup
-        clockSyncMessage.inner().clientId = handle
+        clockSyncMessage.serverSecondsSinceStartup = secondsSinceStartup
+        clockSyncMessage.clientId = handle
         clockSyncs.push([handle, clockSyncMessage])
       }
     }
@@ -122,7 +126,7 @@ export class Server<$World extends World> {
       this.receiveCommand(command, commandSource, net)
     }
     for (const [handle, clockSyncMessage] of clockSyncs) {
-      if (net.sendMessage(handle, clockSyncMessage)) {
+      if (net.sendMessage(handle, CLOCK_SYNC_MESSAGE_TYPE_ID, clockSyncMessage)) {
         console.error(
           "Connection from which clocksync request came from should still exist",
         )
@@ -132,7 +136,10 @@ export class Server<$World extends World> {
     this.secondsSinceLastSnapshot += positiveDeltaSeconds
     if (this.secondsSinceLastSnapshot > this.config.snapshotSendPeriod) {
       this.secondsSinceLastSnapshot = 0
-      net.broadcastMessage(this.timekeepingSimulation.stepper.lastCompletedTimestamp())
+      net.broadcastMessage(
+        SNAPSHOT_MESSAGE_TYPE_ID,
+        this.timekeepingSimulation.stepper.lastCompletedSnapshot(),
+      )
     }
   }
 }

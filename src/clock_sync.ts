@@ -7,12 +7,7 @@ import { World } from "./world"
 import { NetworkResource } from "./network_resource"
 import { Option } from "./types"
 import { Timestamped } from "./timestamp"
-
-export type ClockSyncMessage = {
-  clientSendSecondsSinceStartup: number
-  serverSecondsSinceStartup: number
-  clientId: number
-}
+import { ClockSyncMessage, CLOCK_SYNC_MESSAGE_TYPE_ID } from "./message"
 
 export class ClockSyncer {
   private _serverSecondsOffset: Option<number>
@@ -30,7 +25,7 @@ export class ClockSyncer {
     this._secondsSinceLastRequestSent += deltaSeconds
     if (this._secondsSinceLastRequestSent > this._config.clockSyncRequestPeriod) {
       this._secondsSinceLastRequestSent = 0
-      net.broadcastMessage({
+      net.broadcastMessage(CLOCK_SYNC_MESSAGE_TYPE_ID, {
         clientSendSecondsSinceStartup: secondsSinceStartup,
         serverSecondsSinceStartup: 0,
         clientId: 0,
@@ -39,10 +34,10 @@ export class ClockSyncer {
 
     let latestServerSecondsOffset: Option<number>
     for (const [, connection] of net.connections()) {
-      let sync: Timestamped<ClockSyncMessage> | undefined
+      let sync: ClockSyncMessage | undefined
       while ((sync = connection.recvClockSync())) {
         const { clientId, clientSendSecondsSinceStartup, serverSecondsSinceStartup } =
-          sync.inner()
+          sync
         let receivedTime = secondsSinceStartup
         let correspondingClientTime = (clientSendSecondsSinceStartup + receivedTime) / 2
         let offset = serverSecondsSinceStartup - correspondingClientTime

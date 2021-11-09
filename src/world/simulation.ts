@@ -51,6 +51,10 @@ export class Simulation<$World extends World> implements FixedTimestepper {
     this.hasInitialized = true
   }
 
+  lastCompletedSnapshot() {
+    return new Timestamped(this.world.snapshot(), this.lastCompletedTimestamp())
+  }
+
   lastCompletedTimestamp() {
     return this.commandBuffer.timestamp()
   }
