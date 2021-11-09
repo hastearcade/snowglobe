@@ -45,6 +45,7 @@ describe("Command", () => {
     expect(buffer.length()).toBe(1)
     expect(buffer.commandsAt(timestamp)?.length).toBe(3)
   })
+
   test("insert command for invalid timestamp", () => {
     const cmd = {} as Command
     const timestamp = new Timestamp(Timestamp.MAX)
@@ -52,6 +53,42 @@ describe("Command", () => {
     const buffer = new CommandBuffer()
 
     expect(() => buffer.insert(timestampedCommand)).toThrowError(RangeError)
+
+    expect(buffer.length()).toBe(0)
+  })
+
+  test("update timestamp no stale commands", () => {
+    const cmd = {} as Command
+    const timestampedCommand = new Timestamped<Command>(cmd, new Timestamp())
+    const buffer = new CommandBuffer()
+
+    buffer.insert(timestampedCommand)
+
+    buffer.updateTimestamp(new Timestamp(1))
+
+    expect(buffer.length()).toBe(1)
+  })
+
+  test("update timestamp stale commands before", () => {
+    const cmd = {} as Command
+    const timestampedCommand = new Timestamped<Command>(cmd, new Timestamp())
+    const buffer = new CommandBuffer()
+
+    buffer.insert(timestampedCommand)
+
+    buffer.updateTimestamp(new Timestamp(Timestamp.MAX / 2 + 5))
+
+    expect(buffer.length()).toBe(0)
+  })
+
+  test("update timestamp stale commands after", () => {
+    const cmd = {} as Command
+    const timestampedCommand = new Timestamped<Command>(cmd, new Timestamp())
+    const buffer = new CommandBuffer()
+
+    buffer.insert(timestampedCommand)
+
+    buffer.updateTimestamp(new Timestamp(Timestamp.MIN / 2 - 5))
 
     expect(buffer.length()).toBe(0)
   })
