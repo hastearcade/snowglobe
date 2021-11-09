@@ -22,6 +22,12 @@ export type SnapshotOf<$World> = $World extends World<infer _, infer $Snapshot>
   ? $Snapshot
   : never
 
-export type CommandOf<$World> = $World extends World<infer $Command, infer _>
-  ? $Command
+export type CommandOf<$World> = $World extends World<infer $Command> ? $Command : never
+
+export type DisplayStateOf<$World> = $World extends World<
+  infer _,
+  infer __,
+  infer $DisplayState
+>
+  ? $DisplayState
   : never

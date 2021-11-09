@@ -1,7 +1,7 @@
+import { Command, CommandBuffer } from "../command"
 import { FixedTimestepper } from "../fixed_timestepper"
 import { Timestamp, Timestamped } from "../timestamp"
 import { CommandOf, SnapshotOf, World } from "../world"
-import { Command, CommandBuffer } from "../command"
 
 export enum InitializationType {
   PreInitialized,
@@ -71,6 +71,7 @@ export class Simulation<$World extends World> implements FixedTimestepper {
     if (this.hasInitialized) {
       return new Timestamped(this.world.displayState(), this.lastCompletedTimestamp())
     }
+    return undefined
   }
 
   bufferedCommands() {
