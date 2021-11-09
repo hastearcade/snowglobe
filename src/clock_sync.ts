@@ -22,7 +22,7 @@ export class ClockSyncer {
 
   constructor(private _config: Config) {}
 
-  update<$World extends World, $Net extends NetworkResource<World>>(
+  update<$World extends World, $Net extends NetworkResource<$World>>(
     deltaSeconds: number,
     secondsSinceStartup: number,
     net: $Net,
