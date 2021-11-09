@@ -23,10 +23,11 @@ export class CommandBuffer {
 
     if (this.acceptableTimestampRange().some(t => t.cmp(incomingTimestamp) === 0)) {
       const commandsExist = this.map.get(incomingTimestamp)
+
       if (!commandsExist) {
-        this.map.set(incomingTimestamp, [timestampedCommand.inner])
+        this.map.set(incomingTimestamp, [timestampedCommand.inner()])
       } else {
-        this.map.set(incomingTimestamp, [...commandsExist, timestampedCommand.inner])
+        this.map.set(incomingTimestamp, [...commandsExist, timestampedCommand.inner()])
       }
     } else {
       throw new RangeError(
