@@ -1,21 +1,27 @@
 import { Timestamp, Timestamped } from "./timestamp"
 
-export type Command = {}
+export interface Command {
+  clone(): this
+}
 
-export class CommandBuffer {
+export class CommandBuffer<$Command extends Command> {
   private map: Map<Timestamp, Command[]>
-  timestamp: Timestamp
+  private _timestamp: Timestamp
 
   constructor() {
     // The original crystalorb implementation used a more effecient datatype
     // to insert commands in reverse timestamp order.
     // TODO investigate whether map is too slow here
-    this.map = new Map<Timestamp, Command[]>()
-    this.timestamp = new Timestamp()
+    this.map = new Map<Timestamp, $Command[]>()
+    this._timestamp = new Timestamp()
   }
 
   acceptableTimestampRange() {
-    return this.timestamp.comparableRangeWithMidpoint()
+    return this._timestamp.comparableRangeWithMidpoint()
+  }
+
+  timestamp() {
+    return this._timestamp
   }
 
   private filterStaleTimestamps(timestamp: Timestamp | undefined, before: boolean) {
@@ -29,7 +35,7 @@ export class CommandBuffer {
   }
 
   updateTimestamp(timestamp: Timestamp) {
-    this.timestamp = timestamp
+    this._timestamp = timestamp
     const acceptableRange = this.acceptableTimestampRange()
     this.filterStaleTimestamps(acceptableRange[0], true)
     this.filterStaleTimestamps(acceptableRange[acceptableRange.length - 1], false)
@@ -50,7 +56,7 @@ export class CommandBuffer {
     return filteredCommands.map(tc => tc[1]).flat()
   }
 
-  insert(timestampedCommand: Timestamped<Command>) {
+  insert(timestampedCommand: Timestamped<$Command>) {
     const incomingTimestamp = timestampedCommand.timestamp()
 
     if (this.acceptableTimestampRange().some(t => t.cmp(incomingTimestamp) === 0)) {
@@ -74,5 +80,9 @@ export class CommandBuffer {
 
   length() {
     return this.map.size
+  }
+
+  [Symbol.iterator]() {
+    return this.map.entries()
   }
 }

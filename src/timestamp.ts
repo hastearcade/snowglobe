@@ -1,9 +1,10 @@
 import { Stepper } from "./fixed_timestepper"
 import { remEuclid } from "./math"
+import { Cloneable } from "./cloneable"
 
 const i16 = new Int16Array(1)
 
-export class Timestamp {
+export class Timestamp implements Cloneable<Timestamp> {
   static MAX = 32767
   static MIN = -32768
 
@@ -67,10 +68,14 @@ export class Timestamp {
   partialCmp(other: Timestamp) {
     return this.cmp(other)
   }
+
+  clone() {
+    return Timestamp.from(this)
+  }
 }
 
-export class FloatTimestamp {
-  static from(timestamp: Timestamp) {
+export class FloatTimestamp implements Cloneable<FloatTimestamp> {
+  static from(timestamp: FloatTimestamp | Timestamp) {
     return new FloatTimestamp(timestamp.value)
   }
 
@@ -105,10 +110,14 @@ export class FloatTimestamp {
   subFloatTimestamp(rhs: FloatTimestamp) {
     return FloatTimestamp.fromUnwrapped(this._value - rhs._value)
   }
+
+  clone() {
+    return FloatTimestamp.from(this)
+  }
 }
 
-export class Timestamped<T> {
-  constructor(protected _inner: T, protected _timestamp: Timestamp) {}
+export class Timestamped<$Inner> implements Cloneable<Timestamped<$Inner>> {
+  constructor(protected _inner: $Inner, protected _timestamp: Timestamp) {}
 
   inner() {
     return this._inner
@@ -120,6 +129,10 @@ export class Timestamped<T> {
 
   setTimestamp(timestamp: Timestamp) {
     this._timestamp = timestamp
+  }
+
+  clone() {
+    return new Timestamped(this._inner, this._timestamp.clone())
   }
 }
 
