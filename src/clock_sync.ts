@@ -6,6 +6,7 @@ import {
 import { World } from "./world"
 import { NetworkResource } from "./network_resource"
 import { Option } from "./types"
+import { Timestamped } from "./timestamp"
 
 export type ClockSyncMessage = {
   clientSendSecondsSinceStartup: number
@@ -37,16 +38,17 @@ export class ClockSyncer {
     }
 
     let latestServerSecondsOffset: Option<number>
-    for (const connection of net.connections) {
-      let sync: ClockSyncMessage
+    for (const [, connection] of net.connections()) {
+      let sync: Timestamped<ClockSyncMessage> | undefined
       while ((sync = connection.recvClockSync())) {
+        const { clientId, clientSendSecondsSinceStartup, serverSecondsSinceStartup } =
+          sync.inner()
         let receivedTime = secondsSinceStartup
-        let correspondingClientTime =
-          (sync.clientSendSecondsSinceStartup + receivedTime) / 2
-        let offset = sync.serverSecondsSinceStartup - correspondingClientTime
+        let correspondingClientTime = (clientSendSecondsSinceStartup + receivedTime) / 2
+        let offset = serverSecondsSinceStartup - correspondingClientTime
         latestServerSecondsOffset = offset
-        let existingId = this._clientId ?? (this._clientId = sync.clientId)
-        console.assert(existingId === sync.clientId)
+        let existingId = this._clientId ?? (this._clientId = clientId)
+        console.assert(existingId === clientId)
       }
     }
 
