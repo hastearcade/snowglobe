@@ -30,11 +30,25 @@ export class CommandBuffer {
 
   updateTimestamp(timestamp: Timestamp) {
     this.timestamp = timestamp
-    console.log(this.timestamp)
     const acceptableRange = this.acceptableTimestampRange()
-    console.log(acceptableRange[0])
     this.filterStaleTimestamps(acceptableRange[0], true)
     this.filterStaleTimestamps(acceptableRange[acceptableRange.length - 1], false)
+  }
+
+  drainAll() {
+    const sortedCommands = [...this.map.entries()].sort((a, b) => a[0].cmp(b[0]))
+    this.map.clear()
+    return sortedCommands.map(tc => tc[1]).flat()
+  }
+
+  drainUpTo(timestamp: Timestamp) {
+    const sortedCommands = [...this.map.entries()].sort((a, b) => a[0].cmp(b[0]))
+
+    const filteredCommands = sortedCommands.filter(tc => tc[0].cmp(timestamp) < 0)
+
+    console.log(JSON.stringify(filteredCommands))
+    this.map.clear()
+    return filteredCommands.map(tc => tc[1]).flat()
   }
 
   insert(timestampedCommand: Timestamped<Command>) {

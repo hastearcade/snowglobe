@@ -92,4 +92,73 @@ describe("Command", () => {
 
     expect(buffer.length()).toBe(0)
   })
+
+  test("test drain all inserts in order", () => {
+    const cmd = {} as Command
+    const timestamp = new Timestamp()
+    const timestampTwo = new Timestamp(1)
+    const timestampThree = new Timestamp(2)
+
+    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
+    const timestampedCommandTwo = new Timestamped<Command>(cmd, timestampTwo)
+    const timestampedCommandThree = new Timestamped<Command>(cmd, timestampThree)
+
+    const buffer = new CommandBuffer()
+
+    buffer.insert(timestampedCommand)
+    buffer.insert(timestampedCommandTwo)
+    buffer.insert(timestampedCommandThree)
+    buffer.insert(timestampedCommandThree) // duplicate so the internal buffer is more intersting
+
+    const allCommands = buffer.drainAll()
+
+    expect(allCommands.length).toBe(4)
+    expect(buffer.length()).toBe(0)
+  })
+
+  test("test drain all inserts out of order", () => {
+    const cmd = {} as Command
+    const timestamp = new Timestamp()
+    const timestampTwo = new Timestamp(1)
+    const timestampThree = new Timestamp(2)
+
+    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
+    const timestampedCommandTwo = new Timestamped<Command>(cmd, timestampTwo)
+    const timestampedCommandThree = new Timestamped<Command>(cmd, timestampThree)
+
+    const buffer = new CommandBuffer()
+
+    buffer.insert(timestampedCommand)
+    buffer.insert(timestampedCommandThree)
+    buffer.insert(timestampedCommandThree) // duplicate so the internal buffer is more intersting
+    buffer.insert(timestampedCommandTwo)
+
+    const allCommands = buffer.drainAll()
+
+    expect(allCommands.length).toBe(4)
+    expect(buffer.length()).toBe(0)
+  })
+
+  test("test drain up to timestamp inserts out of order", () => {
+    const cmd = {} as Command
+    const timestamp = new Timestamp()
+    const timestampTwo = new Timestamp(1)
+    const timestampThree = new Timestamp(2)
+
+    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
+    const timestampedCommandTwo = new Timestamped<Command>(cmd, timestampTwo)
+    const timestampedCommandThree = new Timestamped<Command>(cmd, timestampThree)
+
+    const buffer = new CommandBuffer()
+
+    buffer.insert(timestampedCommand)
+    buffer.insert(timestampedCommandThree)
+    buffer.insert(timestampedCommandThree) // duplicate so the internal buffer is more intersting
+    buffer.insert(timestampedCommandTwo)
+
+    const allCommands = buffer.drainUpTo(new Timestamp(2))
+
+    expect(allCommands.length).toBe(2)
+    expect(buffer.length()).toBe(0)
+  })
 })
