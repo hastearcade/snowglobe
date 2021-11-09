@@ -1,10 +1,11 @@
+import { Cloneable } from "./cloneable"
 import { Command } from "./command"
 import { Stepper } from "./fixed_timestepper"
 
 export interface Snapshot {
   clone(): this
 }
-export type DisplayState = {}
+export interface DisplayState extends Cloneable<DisplayState> {}
 
 export type World<
   $Command extends Command = Command,

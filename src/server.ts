@@ -19,7 +19,6 @@ export class Server<$World extends World> {
     private world: $World,
     private config: Config,
     secondsSinceStartup: number,
-    private messageType: number,
   ) {
     this.timekeepingSimulation = new TimeKeeper(
       new Simulation(world, InitializationType.PreInitialized),
@@ -59,7 +58,7 @@ export class Server<$World extends World> {
         continue
       }
       const result = connection.send(COMMAND_MESSAGE_TYPE_ID, command.clone())
-      connection.flush(this.messageType)
+      connection.flush(COMMAND_MESSAGE_TYPE_ID)
       if (result) {
         console.error(`Failed to relay command to ${handle}: ${result}`)
       }

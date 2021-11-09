@@ -1,4 +1,4 @@
-import { ClockSyncMessage } from "../src/clock_sync"
+import { ClockSyncMessage } from "../src/message"
 import { Connection, ConnectionHandle, NetworkResource } from "../src/network_resource"
 import { Timestamped } from "../src/timestamp"
 import { TypeId } from "../src/types"
@@ -30,11 +30,11 @@ class DelayedQueue<$Type> implements DelayedChannel {
   }
 
   tick(deltaSeconds: number) {
-    while (this.incoming[0][1] >= this.delay) {
-      this.outgoing.push(this.incoming.shift()[0])
+    while (this.incoming[0]?.[1]! >= this.delay) {
+      this.outgoing.push(this.incoming.shift()![0])
     }
     for (let i = 0; i < this.incoming.length; i++) {
-      this.incoming[i][1] += Math.max(deltaSeconds, 0)
+      this.incoming[i]![1] += Math.max(deltaSeconds, 0)
     }
   }
 
@@ -83,8 +83,8 @@ class MockChannel<$Type> implements DelayedChannel {
   }
 }
 
-class MockNetwork<$World extends World> implements NetworkResource<$World> {
-  _connections: Map<ConnectionHandle, MockConnection<$World>>
+export class MockNetwork<$World extends World> implements NetworkResource<$World> {
+  _connections = new Map<ConnectionHandle, MockConnection<$World>>()
 
   connect() {
     for (const [, connection] of this._connections) {
@@ -119,7 +119,7 @@ class MockNetwork<$World extends World> implements NetworkResource<$World> {
   }
 
   sendMessage<$Type>(handle: ConnectionHandle, typeId: TypeId<$Type>, message: $Type) {
-    return this.getConnection(handle).send(typeId, message)
+    return this.getConnection(handle)!.send(typeId, message)
   }
 
   broadcastMessage<$Type>(typeId: TypeId<$Type>, message: $Type) {}
@@ -152,9 +152,7 @@ class MockConnection<$World extends World> implements DelayedChannel, Connection
 
   recvClockSync() {
     console.assert(this.isConnected)
-    return (
-      this.channels.get(CLOCK_SYNC_TYPEID) as MockChannel<Timestamped<ClockSyncMessage>>
-    ).recv()
+    return (this.channels.get(CLOCK_SYNC_TYPEID) as MockChannel<ClockSyncMessage>).recv()
   }
 
   recvSnapshot() {
@@ -174,7 +172,10 @@ class MockConnection<$World extends World> implements DelayedChannel, Connection
   }
 }
 
-function makeMockNetwork() {
+export function makeMockNetwork<$World extends World>(): [
+  MockNetwork<$World>,
+  [MockNetwork<$World>, MockNetwork<$World>],
+] {
   const client1Net = new MockNetwork()
   const client2Net = new MockNetwork()
   const serverNet = new MockNetwork()
@@ -182,19 +183,19 @@ function makeMockNetwork() {
   const [client1Connection, server1Connection] = makeMockConnectionPair()
   const [client2Connection, server2Connection] = makeMockConnectionPair()
 
-  registerChannel(client1Connection, server1Connection, CLOCK_SYNC_TYPEID)
-  registerChannel(client2Connection, server2Connection, CLOCK_SYNC_TYPEID)
+  registerChannel(client1Connection!, server1Connection!, CLOCK_SYNC_TYPEID)
+  registerChannel(client2Connection!, server2Connection!, CLOCK_SYNC_TYPEID)
 
-  registerChannel(client1Connection, server1Connection, SNAPSHOT_TYPEID)
-  registerChannel(client2Connection, server2Connection, SNAPSHOT_TYPEID)
+  registerChannel(client1Connection!, server1Connection!, SNAPSHOT_TYPEID)
+  registerChannel(client2Connection!, server2Connection!, SNAPSHOT_TYPEID)
 
-  registerChannel(client1Connection, server1Connection, COMMAND_TYPEID)
-  registerChannel(client2Connection, server2Connection, COMMAND_TYPEID)
+  registerChannel(client1Connection!, server1Connection!, COMMAND_TYPEID)
+  registerChannel(client2Connection!, server2Connection!, COMMAND_TYPEID)
 
-  client1Net._connections.set(0, client1Connection)
-  client2Net._connections.set(0, client2Connection)
-  serverNet._connections.set(0, server1Connection)
-  serverNet._connections.set(1, server2Connection)
+  client1Net._connections.set(0, client1Connection!)
+  client2Net._connections.set(0, client2Connection!)
+  serverNet._connections.set(0, server1Connection!)
+  serverNet._connections.set(1, server2Connection!)
 
   return [serverNet, [client1Net, client2Net]]
 }
@@ -216,6 +217,6 @@ function registerChannel<$World extends World>(
   typeId: TypeId<unknown>,
 ) {
   const [channel1, channel2] = makeMockChannelPair()
-  connection1.channels.set(typeId, channel1)
-  connection2.channels.set(typeId, channel2)
+  connection1.channels.set(typeId, channel1!)
+  connection2.channels.set(typeId, channel2!)
 }
