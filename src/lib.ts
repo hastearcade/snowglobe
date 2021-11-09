@@ -30,6 +30,10 @@ export function shapeInterpolationT(method: TweeningMethod, t: number) {
   }
 }
 
+export function lagCompensationFrameCount(config: Config) {
+  return Math.round(config.lagCompensationLatency / config.timestepSeconds)
+}
+
 export function clockSyncSamplesToDiscardPerExtreme(config: Config) {
   return Math.ceil(
     Math.max(

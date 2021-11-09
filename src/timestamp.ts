@@ -9,8 +9,8 @@ export class Timestamp {
 
   private _value: number
 
-  static from(floatTimestamp: FloatTimestamp) {
-    return new Timestamp(floatTimestamp.value)
+  static from(timestamp: Timestamp | FloatTimestamp) {
+    return new Timestamp(timestamp.value)
   }
 
   static fromSeconds(seconds: number, timestepSeconds: number) {

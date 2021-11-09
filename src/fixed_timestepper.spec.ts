@@ -8,8 +8,10 @@ import { Config, TweeningMethod } from "./lib"
 import { Timestamp } from "./timestamp"
 import { makeTimestamps } from "./timestamp.spec"
 
-const cartesian = (...a: any[]) =>
-  a.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat())))
+const cartesian = <T extends unknown[][]>(
+  ...a: T
+): { [K in keyof T]: T[K] extends (infer _)[] ? _ : never }[] =>
+  a.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat()))) as any
 
 const config: Config = {
   lagCompensationLatency: 0.3,
@@ -44,6 +46,17 @@ class MockStepper implements FixedTimestepper {
     this._lastCompletedTimestamp = correctedTimestamp
   }
   postUpdate() {}
+}
+
+function makeTestTitle(
+  drift: number,
+  wrappedCount: number,
+  initialTimestamp: Timestamp,
+  framesPerUpdate: number,
+) {
+  return `Subtest [drift: ${drift} wrapped count: ${wrappedCount}, initial timestamp: ${JSON.stringify(
+    initialTimestamp,
+  )}, frames per update: ${framesPerUpdate}]`
 }
 
 describe("FixedTimestepper", () => {
@@ -125,13 +138,16 @@ describe("FixedTimestepper", () => {
       makeTimestamps(),
       [1, 1.7, 2, 2.5],
     )) {
-      initialTimestamp = Timestamp.from(initialTimestamp)
-      test(`Subtest [drift: ${smallDriftSeconds} wrapped count: ${initialWrappedCount}, initial timestamp: ${JSON.stringify(
+      const title = makeTestTitle(
+        smallDriftSeconds,
+        initialWrappedCount,
         initialTimestamp,
-      )}, frames per update: ${framesPerUpdate}]`, () => {
+        framesPerUpdate,
+      )
+      test(title, () => {
         // GIVEN a TimeKeeper starting at an interesting initial timestamp.
         const timekeeper = new TimeKeeper(
-          new MockStepper(initialTimestamp),
+          new MockStepper(Timestamp.from(initialTimestamp)),
           config,
           TerminationCondition.FirstOvershoot,
         )
@@ -160,6 +176,159 @@ describe("FixedTimestepper", () => {
 
         // THEN the TimeKeeper steps through all the needed frames.
         expect(timekeeper.stepper.steps).toEqual(Math.ceil(framesPerUpdate))
+      })
+    }
+  })
+
+  describe("when update with timestamp drifted beyond a frame then timestamp gets corrected", () => {
+    for (let [
+      moderateDriftSeconds,
+      initialWrappedCount,
+      initialTimestamp,
+      framesPerUpdate,
+    ] of cartesian(
+      [config.timestepSeconds * 0.5, -config.timestepSeconds * 0.5],
+      [0, 1],
+      makeTimestamps(),
+      [1, 1.7, 2, 2.5],
+    )) {
+      const title = makeTestTitle(
+        moderateDriftSeconds,
+        initialWrappedCount,
+        initialTimestamp,
+        framesPerUpdate,
+      )
+      test(title, () => {
+        // GIVEN a TimeKeeper starting at an interesting initial timestamp.
+        const timekeeper = new TimeKeeper(
+          new MockStepper(Timestamp.from(initialTimestamp)),
+          config,
+          TerminationCondition.FirstOvershoot,
+        )
+        const initialSecondsSinceStartup =
+          initialTimestamp.asSeconds(config.timestepSeconds) +
+          initialWrappedCount * Math.pow(2, 16) * config.timestepSeconds
+        expect(timekeeper.timestampDriftSeconds(initialSecondsSinceStartup)).toBeCloseTo(
+          0,
+        )
+        expect(
+          timekeeper.timestampDriftSeconds(
+            initialSecondsSinceStartup - moderateDriftSeconds,
+          ),
+        ).toBeCloseTo(moderateDriftSeconds)
+
+        // WHEN updating the TimeKeeper with a drift at least half a timestep.
+        const deltaSeconds = config.timestepSeconds * framesPerUpdate
+        const driftedSecondsSinceStartup =
+          initialSecondsSinceStartup + deltaSeconds - moderateDriftSeconds
+        timekeeper.update(deltaSeconds, driftedSecondsSinceStartup)
+
+        // THEN all of the drift will be corrected after the update.
+        expect(timekeeper.timestampDriftSeconds(driftedSecondsSinceStartup)).toBeCloseTo(
+          0,
+        )
+
+        // THEN the TimeKeeper steps through all the needed frames.
+        expect(timekeeper.stepper.steps).toEqual(
+          timekeeper.stepper.lastCompletedTimestamp().subTimestamp(initialTimestamp)
+            .value,
+        )
+      })
+    }
+  })
+
+  describe("when update with timestamp drifting beyond threshold then timestampes are skipped", () => {
+    const MINIMUM_SKIPPABLE_DELTA_SECONDS =
+      config.timestampSkipThresholdSeconds + config.updateDeltaSecondsMax
+    for (let [
+      bigDriftSeconds,
+      initialWrappedCount,
+      initialTimestamp,
+      framesPerUpdate,
+    ] of cartesian(
+      [
+        MINIMUM_SKIPPABLE_DELTA_SECONDS,
+        -MINIMUM_SKIPPABLE_DELTA_SECONDS,
+        MINIMUM_SKIPPABLE_DELTA_SECONDS * 2,
+        -MINIMUM_SKIPPABLE_DELTA_SECONDS * 2,
+      ],
+      [0, 1],
+      makeTimestamps(),
+      [1, 1.7, 2, 2.5],
+    )) {
+      const title = makeTestTitle(
+        bigDriftSeconds,
+        initialWrappedCount,
+        initialTimestamp,
+        framesPerUpdate,
+      )
+      test(title, () => {
+        // GIVEN a TimeKeeper starting at an interesting initial timestamp.
+        const timekeeper = new TimeKeeper(
+          new MockStepper(Timestamp.from(initialTimestamp)),
+          config,
+          TerminationCondition.FirstOvershoot,
+        )
+        const initialSecondsSinceStartup =
+          initialTimestamp.asSeconds(config.timestepSeconds) +
+          initialWrappedCount * Math.pow(2, 16) * config.timestepSeconds
+        expect(timekeeper.timestampDriftSeconds(initialSecondsSinceStartup)).toBeCloseTo(
+          0,
+        )
+        expect(
+          timekeeper.timestampDriftSeconds(initialSecondsSinceStartup - bigDriftSeconds),
+        ).toBeCloseTo(bigDriftSeconds)
+
+        // WHEN updating the TimeKeeper with a drift beyond the timeskip threshold.
+        const deltaSeconds = config.timestepSeconds * framesPerUpdate
+        const driftedSecondsSinceStartup =
+          initialSecondsSinceStartup + deltaSeconds - bigDriftSeconds
+        timekeeper.update(deltaSeconds, driftedSecondsSinceStartup)
+
+        // THEN all of the drift will be corrected after the update.
+        expect(timekeeper.timestampDriftSeconds(driftedSecondsSinceStartup)).toBeCloseTo(
+          0,
+        )
+
+        // THEN the TimeKeeper would not have stepped past its configured limit.
+        const expectedStepCount =
+          bigDriftSeconds >= 0
+            ? 0
+            : Math.ceil(config.updateDeltaSecondsMax / config.timestepSeconds) + 1
+        expect(timekeeper.stepper.steps).toBe(expectedStepCount)
+      })
+    }
+  })
+
+  describe("while updating with changing delta seconds then timestamp should not be drifting", () => {
+    for (const [initialWrappedCount, initialTimestamp] of cartesian(
+      [0, 1],
+      makeTimestamps(),
+    )) {
+      const title = `Subtest [wrapped count: ${initialWrappedCount}, initial timestep: ${JSON.stringify(
+        initialTimestamp,
+      )}]`
+      test(title, () => {
+        // GIVEN a TimeKeeper starting at an interesting initial timestamp.
+        const timekeeper = new TimeKeeper(
+          new MockStepper(Timestamp.from(initialTimestamp)),
+          config,
+          TerminationCondition.FirstOvershoot,
+        )
+        let secondsSinceStartup =
+          initialTimestamp.asSeconds(config.timestepSeconds) +
+          initialWrappedCount * Math.pow(2, 16) * config.timestepSeconds
+
+        expect(timekeeper.timestampDriftSeconds(secondsSinceStartup)).toBeCloseTo(0)
+
+        for (const framesPerUpdate of [1, 1.7, 0.5, 2.5, 2]) {
+          // WHEN updating the TimeKeeper with different delta_seconds.
+          const deltaSeconds = config.timestepSeconds * framesPerUpdate
+          secondsSinceStartup += deltaSeconds
+          timekeeper.update(deltaSeconds, secondsSinceStartup)
+          // THEN the time drift should always have remained at zero.
+          expect(timekeeper.timestampDriftSeconds(secondsSinceStartup)).toBeCloseTo(0)
+        }
       })
     }
   })
