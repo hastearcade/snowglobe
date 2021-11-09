@@ -46,7 +46,6 @@ export class CommandBuffer {
 
     const filteredCommands = sortedCommands.filter(tc => tc[0].cmp(timestamp) < 0)
 
-    console.log(JSON.stringify(filteredCommands))
     this.map.clear()
     return filteredCommands.map(tc => tc[1]).flat()
   }
