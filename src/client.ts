@@ -1,7 +1,7 @@
 import { ClockSyncer } from "./clock_sync"
 import { Command, CommandBuffer } from "./command"
 import { FixedTimestepper, TerminationCondition, TimeKeeper } from "./fixed_timestepper"
-import { Config } from "./lib"
+import { Config, lagCompensationFrameCount, shapeInterpolationT } from "./lib"
 import { NetworkResource } from "./network_resource"
 import { OldNew } from "./old_new"
 import { Timestamp, Timestamped } from "./timestamp"
@@ -11,6 +11,7 @@ import {
   FromInterpolationFn,
   timestampedFromInterpolation,
   Tweened,
+  tweenedFromInterpolation,
 } from "./world/display_state"
 import { Simulation } from "./world/simulation"
 
@@ -179,11 +180,10 @@ export class ActiveClient<
         this.timekeepingSimulations.stepper.receiveCommand(cmd)
         cmd = conn[1].recvCommand()
       }
-
       let snapshot = conn[1].recvSnapshot()
       while (snapshot !== undefined) {
         this.timekeepingSimulations.stepper.receiveSnapshot(snapshot)
-        cmd = conn[1].recvCommand()
+        snapshot = conn[1].recvSnapshot()
       }
     }
     const timeSinceSync = this.clockSyncer.serverSecondsSinceStartup(secondsSinceStartup)
@@ -225,7 +225,6 @@ class ClientWorldSimulations<
       new OldNew(new Simulation(world), new Simulation(world))).get()
     oldWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     newWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
-    newWorldSimulation.displayState()
     this.blendOldNewInterpolationT = 0
     this.states = new OldNew(undefined, undefined)
     this.fromInterpolation = fromInterpolation
@@ -425,5 +424,34 @@ class ClientWorldSimulations<
     }
   }
 
-  postUpdate() {}
+  postUpdate(timestepOvershootSeconds: number) {
+    const { old: optionalUndershotState, new: optionalOvershotState } = this.states.get()
+    const tweenT = shapeInterpolationT(
+      this.config.tweeningMethod,
+      1 - timestepOvershootSeconds / this.config.timestepSeconds,
+    )
+
+    if (optionalUndershotState && optionalOvershotState) {
+      this.displayState = tweenedFromInterpolation(
+        optionalUndershotState,
+        optionalOvershotState,
+        tweenT,
+        this.fromInterpolation,
+      )
+    }
+
+    this.baseCommandBuffer.updateTimestamp(this.lastCompletedTimestamp())
+
+    if (this.lastQueuedSnapshotTimestamp) {
+      const comparableRange = this.lastCompletedTimestamp().comparableRangeWithMidpoint()
+      if (
+        !comparableRange.includes(this.lastQueuedSnapshotTimestamp) ||
+        this.lastQueuedSnapshotTimestamp.cmp(this.lastCompletedTimestamp()) === 1
+      ) {
+        this.lastQueuedSnapshotTimestamp = this.lastCompletedTimestamp().sub(
+          lagCompensationFrameCount(this.config) * 2,
+        )
+      }
+    }
+  }
 }
