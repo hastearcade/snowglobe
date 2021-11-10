@@ -2,7 +2,8 @@ import { Client, StageState } from "../src/client"
 import { Cloneable } from "../src/cloneable"
 import { Config } from "../src/lib"
 import { Server } from "../src/server"
-import { World } from "../src/world"
+import { DisplayState, World } from "../src/world"
+import { FromInterpolationFn } from "../src/world/display_state"
 import { makeMockNetwork, MockNetwork } from "./mock_network"
 
 export class MockWorld
@@ -68,7 +69,27 @@ export function mockWorldFromInterpolation(
   }
 }
 
+export class MockDisplayState implements DisplayState {
+  value: number
+
+  constructor(value: number) {
+    this.value = value
+  }
+
+  clone() {
+    return new MockDisplayState(this.value)
+  }
+}
+
 type MockCommand = Cloneable<MockCommand> & { value: number }
+
+export function makeMockDisplayState(value: number) {
+  return new MockDisplayState(value)
+}
+
+export const mockFromInterpolation: FromInterpolationFn<MockDisplayState> = jest.fn(
+  (state1, state2, t) => makeMockDisplayState(state1.value * t + state2.value * (1 - t)),
+)
 
 export class MockClientServer {
   config: Config
@@ -86,8 +107,8 @@ export class MockClientServer {
     const [serverNet, [client1Net, client2Net]] = makeMockNetwork()
     const clockInitial = config.timestepSeconds * 0.25
     this.config = { ...config }
-    this.client1 = new Client<MockWorld>(world, { ...config })
-    this.client2 = new Client<MockWorld>(world, { ...config })
+    this.client1 = new Client<MockWorld>(world, { ...config }, mockFromInterpolation)
+    this.client2 = new Client<MockWorld>(world, { ...config }, mockFromInterpolation)
     this.server = new Server<MockWorld>(world, { ...config }, clockInitial)
     this.serverNet = serverNet
     this.client1Net = client1Net

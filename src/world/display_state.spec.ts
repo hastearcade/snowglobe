@@ -1,24 +1,6 @@
+import { makeMockDisplayState, mockFromInterpolation } from "../../test/mocks"
 import { Timestamp, Timestamped } from "../timestamp"
-import {
-  DisplayState,
-  FromInterpolationFn,
-  timestampedFromInterpolation,
-} from "./display_state"
-
-type MockDisplayState = DisplayState & { value: number }
-
-function makeMockDisplayState(value: number) {
-  return {
-    value,
-    clone() {
-      return makeMockDisplayState(value)
-    },
-  }
-}
-
-const mockFromInterpolation: FromInterpolationFn<MockDisplayState> = jest.fn(
-  (state1, state2, t) => makeMockDisplayState(state1.value * t + state2.value * (1 - t)),
-)
+import { timestampedFromInterpolation } from "./display_state"
 
 describe("timestampedFromInterpolation", () => {
   test("when interpolating DisplayState with t=0 then state1 is returned", () => {

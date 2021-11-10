@@ -6,8 +6,12 @@ import { NetworkResource } from "./network_resource"
 import { OldNew } from "./old_new"
 import { Timestamp, Timestamped } from "./timestamp"
 import { Option } from "./types"
-import { CommandOf, DisplayStateOf, SnapshotOf, World } from "./world"
-import { Tweened } from "./world/display_state"
+import { CommandOf, DisplayState, DisplayStateOf, SnapshotOf, World } from "./world"
+import {
+  FromInterpolationFn,
+  timestampedFromInterpolation,
+  Tweened,
+} from "./world/display_state"
 import { Simulation } from "./world/simulation"
 
 export enum StageState {
@@ -36,8 +40,8 @@ export type ReconciliationStatus = {
 
 export type StageOwned = {
   clockSyncer: ClockSyncer
-  initStateSync: Option<ActiveClient<World>>
-  ready: Option<ActiveClient<World>>
+  initStateSync: Option<ActiveClient<World, DisplayState>>
+  ready: Option<ActiveClient<World, DisplayState>>
 }
 
 export class Client<$World extends World> {
@@ -45,10 +49,16 @@ export class Client<$World extends World> {
   private _stage: StageOwned
   private _world: $World
   private _config: Config
+  fromInterpolation: FromInterpolationFn<DisplayState>
 
-  constructor(world: $World, config: Config) {
+  constructor(
+    world: $World,
+    config: Config,
+    fromInterpolation: FromInterpolationFn<DisplayState>,
+  ) {
     this._world = world
     this._config = config
+    this.fromInterpolation = fromInterpolation
     this._stage = {
       clockSyncer: new ClockSyncer(config),
       initStateSync: undefined,
@@ -82,6 +92,7 @@ export class Client<$World extends World> {
             secondsSinceStartup,
             config,
             this._stage.clockSyncer,
+            this.fromInterpolation,
           )
           this._state = StageState.SyncingInitialState
         }
@@ -100,14 +111,15 @@ export class Client<$World extends World> {
   }
 }
 
-export class ActiveClient<$World extends World> {
+export class ActiveClient<$World extends World, $DisplayState extends DisplayState> {
   clockSyncer: ClockSyncer
-  timekeepingSimulations: TimeKeeper<ClientWorldSimulations<$World>>
+  timekeepingSimulations: TimeKeeper<ClientWorldSimulations<$World, $DisplayState>>
   constructor(
     world: $World,
     secondsSinceStartup: number,
     config: Config,
     clockSyncer: ClockSyncer,
+    fromInterpolation: FromInterpolationFn<$DisplayState>,
   ) {
     const serverTime = clockSyncer.serverSecondsSinceStartup(secondsSinceStartup)
     console.assert(
@@ -118,7 +130,7 @@ export class ActiveClient<$World extends World> {
     const initialTimestamp = Timestamp.fromSeconds(serverTime!, config.timestepSeconds)
     this.clockSyncer = clockSyncer
     this.timekeepingSimulations = new TimeKeeper(
-      new ClientWorldSimulations(world, config, initialTimestamp),
+      new ClientWorldSimulations(world, config, initialTimestamp, fromInterpolation),
       config,
       TerminationCondition.FirstOvershoot,
     )
@@ -169,7 +181,9 @@ export class ActiveClient<$World extends World> {
   }
 }
 
-class ClientWorldSimulations<$World extends World> implements FixedTimestepper {
+class ClientWorldSimulations<$World extends World, $DisplayState extends DisplayState>
+  implements FixedTimestepper
+{
   queuedSnapshot: Option<Timestamped<SnapshotOf<$World>>>
   lastQueuedSnapshotTimestamp: Option<Timestamp>
   lastReceivedSnapshotTimestamp: Option<Timestamp>
@@ -177,15 +191,22 @@ class ClientWorldSimulations<$World extends World> implements FixedTimestepper {
   worldSimulations: OldNew<Simulation<$World>>
   displayState: Option<Tweened<DisplayStateOf<$World>>>
   blendOldNewInterpolationT: number
-  states: OldNew<Option<Timestamped<DisplayStateOf<$World>>>>
+  states: OldNew<Option<Timestamped<$DisplayState>>>
+  fromInterpolation: FromInterpolationFn<$DisplayState>
 
-  constructor(world: $World, private config: Config, initialTimestamp: Timestamp) {
+  constructor(
+    world: $World,
+    private config: Config,
+    initialTimestamp: Timestamp,
+    fromInterpolation: FromInterpolationFn<$DisplayState>,
+  ) {
     const { old: oldWorldSimulation, new: newWorldSimulation } = (this.worldSimulations =
       new OldNew(new Simulation(world), new Simulation(world))).get()
     oldWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     newWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     this.blendOldNewInterpolationT = 0
     this.states = new OldNew(undefined, undefined)
+    this.fromInterpolation = fromInterpolation
   }
 
   inferCurrentReconciliationStatus(): ReconciliationStatus {
@@ -230,7 +251,103 @@ class ClientWorldSimulations<$World extends World> implements FixedTimestepper {
     }
   }
 
-  step() {}
+  step() {
+    const loadSnapshot = (snapshot: Timestamped<SnapshotOf<$World>>) => {
+      const worldSimulation = this.worldSimulations.get()
+      this.baseCommandBuffer.drainUpTo(snapshot.timestamp())
+      worldSimulation.new.applyCompletedSnapshot(snapshot, this.baseCommandBuffer) // TODO Should this be cloned?
+
+      if (
+        worldSimulation.new
+          .lastCompletedTimestamp()
+          .cmp(worldSimulation.old.lastCompletedTimestamp()) === 1
+      ) {
+        console.warn(`Server's snapshot is newer than client!`)
+      }
+
+      this.blendOldNewInterpolationT = 0
+    }
+
+    const simulateNextFrame = () => {
+      const worldSimulation = this.worldSimulations.get()
+      worldSimulation.old.step()
+      worldSimulation.new.tryCompletingSimulationsUpTo(
+        worldSimulation.old.lastCompletedTimestamp(),
+        this.config.fastForwardMaxPerStep,
+      )
+    }
+
+    const publishOldState = () => {
+      this.states.swap()
+      this.states.setNew(this.worldSimulations.get().old.displayState())
+    }
+
+    const publishBlendedState = () => {
+      const worldSimulation = this.worldSimulations.get()
+
+      let stateToPublish
+      const oldDisplayState = worldSimulation.old.displayState()
+      const newDisplayState = worldSimulation.new.displayState()
+      if (oldDisplayState && newDisplayState) {
+        stateToPublish = timestampedFromInterpolation(
+          oldDisplayState,
+          newDisplayState,
+          this.blendOldNewInterpolationT,
+          this.fromInterpolation,
+        )
+      } else if (!oldDisplayState && newDisplayState) {
+        stateToPublish = newDisplayState
+      }
+
+      this.states.swap()
+      this.states.setNew(stateToPublish)
+    }
+
+    const status = this.inferCurrentReconciliationStatus()
+    if (status.state === ReconciliationState.Blending) {
+      this.blendOldNewInterpolationT +=
+        this.config.timestepSeconds / this.config.blendLatency
+      // clamp it 0, 1
+      this.blendOldNewInterpolationT = Math.min(
+        Math.max(this.blendOldNewInterpolationT, 0),
+        1,
+      )
+
+      simulateNextFrame()
+      publishBlendedState()
+    } else if (status.state === ReconciliationState.AwaitingSnapshot) {
+      const snapshot = this.queuedSnapshot
+
+      if (snapshot) {
+        this.worldSimulations.swap()
+        loadSnapshot(snapshot)
+        simulateNextFrame()
+        publishOldState()
+      } else {
+        simulateNextFrame()
+        publishBlendedState()
+      }
+    } else if (status.state === ReconciliationState.Fastforwarding) {
+      if (status.fastForwardHealth === FastFowardingHealth.Obsolete) {
+        const snapshot = this.queuedSnapshot
+        if (snapshot) {
+          loadSnapshot(snapshot)
+          simulateNextFrame()
+          publishOldState()
+        }
+      } else if (status.fastForwardHealth === FastFowardingHealth.Healthy) {
+        simulateNextFrame()
+        publishOldState()
+      } else {
+        const worldSimulation = this.worldSimulations.get()
+        worldSimulation.new.resetLastCompletedTimestamp(
+          worldSimulation.old.lastCompletedTimestamp(),
+        )
+        simulateNextFrame()
+        publishBlendedState()
+      }
+    }
+  }
 
   lastCompletedTimestamp() {
     return this.worldSimulations.get().old.lastCompletedTimestamp()

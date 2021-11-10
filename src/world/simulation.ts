@@ -2,6 +2,7 @@ import { Command, CommandBuffer } from "../command"
 import { FixedTimestepper } from "../fixed_timestepper"
 import { Timestamp, Timestamped } from "../timestamp"
 import { CommandOf, SnapshotOf, World } from "../world"
+import { DisplayState } from "./display_state"
 
 export enum InitializationType {
   PreInitialized,
