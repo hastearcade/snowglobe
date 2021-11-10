@@ -7,7 +7,7 @@ import { FromInterpolationFn } from "../src/world/display_state"
 import { makeMockNetwork, MockNetwork } from "./mock_network"
 
 export class MockWorld
-  implements World<MockCommand, MockWorld, MockWorld>, Cloneable<MockWorld>
+  implements World<MockCommand, MockWorld, MockSnapshot>, Cloneable<MockWorld>
 {
   initialEmptyTicks = 0
   commandHistory: MockCommand[][] = [[]]
@@ -57,6 +57,8 @@ export class MockWorld
   }
 }
 
+type MockSnapshot = MockWorld
+
 export function mockWorldFromInterpolation(
   state1: MockWorld,
   state2: MockWorld,
@@ -77,18 +79,21 @@ const mockFromInterpolation: FromInterpolationFn<MockWorld> = jest.fn(
 
 export class MockClientServer {
   config: Config
-  server: Server<MockCommand, MockWorld, MockWorld>
-  client1: Client<MockCommand, MockWorld, MockWorld>
-  client2: Client<MockCommand, MockWorld, MockWorld>
-  serverNet: MockNetwork<MockWorld>
-  client1Net: MockNetwork<MockWorld>
-  client2Net: MockNetwork<MockWorld>
+  server: Server<MockCommand, MockWorld, MockSnapshot>
+  client1: Client<MockCommand, MockWorld, MockSnapshot>
+  client2: Client<MockCommand, MockWorld, MockSnapshot>
+  serverNet: MockNetwork<MockCommand, MockSnapshot>
+  client1Net: MockNetwork<MockCommand, MockSnapshot>
+  client2Net: MockNetwork<MockCommand, MockSnapshot>
   clock: number
   client1ClockOffset: number
   client2ClockOffset: number
 
   constructor(world: MockWorld, config: Config) {
-    const [serverNet, [client1Net, client2Net]] = makeMockNetwork()
+    const [serverNet, [client1Net, client2Net]] = makeMockNetwork<
+      MockCommand,
+      MockWorld
+    >()
     const clockInitial = config.timestepSeconds * 0.25
     this.config = { ...config }
     this.client1 = new Client(world, { ...config }, mockFromInterpolation)

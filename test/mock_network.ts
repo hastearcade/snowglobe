@@ -1,8 +1,9 @@
+import { Command } from "../src/command"
 import { ClockSyncMessage } from "../src/message"
 import { Connection, ConnectionHandle, NetworkResource } from "../src/network_resource"
 import { Timestamped } from "../src/timestamp"
 import { TypeId } from "../src/types"
-import { CommandOf, SnapshotOf, World } from "../src/world"
+import { Snapshot, World } from "../src/world"
 
 let nextTypeId = 0
 
@@ -83,8 +84,10 @@ class MockChannel<$Type> implements DelayedChannel {
   }
 }
 
-export class MockNetwork<$World extends World> implements NetworkResource<$World> {
-  _connections = new Map<ConnectionHandle, MockConnection<$World>>()
+export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
+  implements NetworkResource<$Command, $Snapshot>
+{
+  _connections = new Map<ConnectionHandle, MockConnection<$Command, $Snapshot>>()
 
   connect() {
     for (const [, connection] of this._connections) {
@@ -125,7 +128,9 @@ export class MockNetwork<$World extends World> implements NetworkResource<$World
   broadcastMessage<$Type>(typeId: TypeId<$Type>, message: $Type) {}
 }
 
-class MockConnection<$World extends World> implements DelayedChannel, Connection<$World> {
+class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
+  implements DelayedChannel, Connection<$Command, $Snapshot>
+{
   constructor(
     public channels: Map<TypeId<unknown>, MockChannel<unknown>>,
     public isConnected: boolean,
@@ -146,7 +151,7 @@ class MockConnection<$World extends World> implements DelayedChannel, Connection
   recvCommand() {
     console.assert(this.isConnected)
     return (
-      this.channels.get(COMMAND_TYPEID) as MockChannel<Timestamped<CommandOf<$World>>>
+      this.channels.get(COMMAND_TYPEID) as MockChannel<Timestamped<$Command>>
     ).recv()
   }
 
@@ -158,7 +163,7 @@ class MockConnection<$World extends World> implements DelayedChannel, Connection
   recvSnapshot() {
     console.assert(this.isConnected)
     return (
-      this.channels.get(SNAPSHOT_TYPEID) as MockChannel<Timestamped<SnapshotOf<$World>>>
+      this.channels.get(SNAPSHOT_TYPEID) as MockChannel<Timestamped<$Snapshot>>
     ).recv()
   }
 
@@ -172,16 +177,19 @@ class MockConnection<$World extends World> implements DelayedChannel, Connection
   }
 }
 
-export function makeMockNetwork<$World extends World>(): [
-  MockNetwork<$World>,
-  [MockNetwork<$World>, MockNetwork<$World>],
-] {
-  const client1Net = new MockNetwork()
-  const client2Net = new MockNetwork()
-  const serverNet = new MockNetwork()
+export function makeMockNetwork<$Command extends Command, $Snapshot extends Snapshot>() {
+  const client1Net = new MockNetwork<$Command, $Snapshot>()
+  const client2Net = new MockNetwork<$Command, $Snapshot>()
+  const serverNet = new MockNetwork<$Command, $Snapshot>()
 
-  const [client1Connection, server1Connection] = makeMockConnectionPair()
-  const [client2Connection, server2Connection] = makeMockConnectionPair()
+  const [client1Connection, server1Connection] = makeMockConnectionPair<
+    $Command,
+    $Snapshot
+  >()
+  const [client2Connection, server2Connection] = makeMockConnectionPair<
+    $Command,
+    $Snapshot
+  >()
 
   registerChannel(client1Connection!, server1Connection!, CLOCK_SYNC_TYPEID)
   registerChannel(client2Connection!, server2Connection!, CLOCK_SYNC_TYPEID)
@@ -197,7 +205,7 @@ export function makeMockNetwork<$World extends World>(): [
   serverNet._connections.set(0, server1Connection!)
   serverNet._connections.set(1, server2Connection!)
 
-  return [serverNet, [client1Net, client2Net]]
+  return [serverNet, [client1Net, client2Net]] as const
 }
 
 function makeMockChannelPair() {
@@ -207,13 +215,16 @@ function makeMockChannelPair() {
   ]
 }
 
-function makeMockConnectionPair() {
-  return [new MockConnection(new Map(), false), new MockConnection(new Map(), false)]
+function makeMockConnectionPair<$Command extends Command, $Snapshot extends Snapshot>() {
+  return [
+    new MockConnection<$Command, $Snapshot>(new Map(), false),
+    new MockConnection<$Command, $Snapshot>(new Map(), false),
+  ]
 }
 
-function registerChannel<$World extends World>(
-  connection1: MockConnection<$World>,
-  connection2: MockConnection<$World>,
+function registerChannel<$Command extends Command, $Snapshot extends Snapshot>(
+  connection1: MockConnection<$Command, $Snapshot>,
+  connection2: MockConnection<$Command, $Snapshot>,
   typeId: TypeId<unknown>,
 ) {
   const [channel1, channel2] = makeMockChannelPair()

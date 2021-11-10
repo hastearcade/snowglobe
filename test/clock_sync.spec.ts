@@ -28,28 +28,22 @@ describe("ClockSync", () => {
 
       // GIVEN that the client is ready and synced up.
       mockClientServer.updateUntilClientsReady(TIMESTEP_SECONDS)
-      switch (mockClientServer.client1.state()) {
-        case StageState.Ready:
-          // TODO
-          // expect(mockClientServer.client1.stage)
-          break
-        default:
-          throw new Error()
-      }
+      expect(mockClientServer.client1.state()).toBe(StageState.Ready)
+      expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toBe(
+        mockClientServer.server.estimatedClientLastCompletedTimestamp().add(1),
+      )
 
+      // WHEN the client and server clocks are desynchronized.
       mockClientServer.client1ClockOffset = desyncSeconds
 
+      // THEN the client should quickly offset its own clock to agree with the server.
       for (let i = 0; i < UPDATE_COUNT; i++) {
         mockClientServer.update(TIMESTEP_SECONDS)
       }
 
-      switch (mockClientServer.client1.state()) {
-        case StageState.Ready:
-          // expect(mockClientServer.client1.lastCompletedTiemstamp())
-          break
-        default:
-          throw new Error()
-      }
+      expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toBe(
+        mockClientServer.server.estimatedClientLastCompletedTimestamp().add(1),
+      )
     }
   })
 })

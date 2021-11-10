@@ -53,7 +53,7 @@ export class Client<
   $Snapshot extends Snapshot,
   $DisplayState extends DisplayState,
 > {
-  private _state: StageState = StageState.Ready
+  private _state: StageState = StageState.SyncingClock
   private _stage: StageOwned<$Command, $Snapshot, $DisplayState>
   private _world: World<$Command, $Snapshot, $DisplayState>
   private _config: Config
