@@ -1,4 +1,4 @@
-import { Client, Stage } from "../src/client"
+import { Client, StageState } from "../src/client"
 import { Cloneable } from "../src/cloneable"
 import { Config } from "../src/lib"
 import { Server } from "../src/server"
@@ -86,8 +86,8 @@ export class MockClientServer {
     const [serverNet, [client1Net, client2Net]] = makeMockNetwork()
     const clockInitial = config.timestepSeconds * 0.25
     this.config = { ...config }
-    this.client1 = new Client<MockWorld>({ ...config })
-    this.client2 = new Client<MockWorld>({ ...config })
+    this.client1 = new Client<MockWorld>(world, { ...config })
+    this.client2 = new Client<MockWorld>(world, { ...config })
     this.server = new Server<MockWorld>(world, { ...config }, clockInitial)
     this.serverNet = serverNet
     this.client1Net = client1Net
@@ -98,7 +98,10 @@ export class MockClientServer {
   }
 
   updateUntilClientsReady(deltaSeconds: number) {
-    while (this.client1.stage() !== Stage.Ready || this.client2.stage() !== Stage.Ready) {
+    while (
+      this.client1.state() !== StageState.Ready ||
+      this.client2.state() !== StageState.Ready
+    ) {
       this.update(deltaSeconds)
     }
   }
