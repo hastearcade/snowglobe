@@ -16,6 +16,24 @@ export enum StageState {
   Ready,
 }
 
+export enum ReconciliationState {
+  AwaitingSnapshot,
+  Fastforwarding,
+  Blending,
+}
+
+export enum FastFowardingHealth {
+  Healthy,
+  Obsolete,
+  Overshot,
+}
+
+export type ReconciliationStatus = {
+  state: ReconciliationState
+  fastForwardHealth?: FastFowardingHealth
+  blend?: number
+}
+
 export type StageOwned = {
   clockSyncer: ClockSyncer
   initStateSync: Option<ActiveClient<World>>
@@ -158,12 +176,58 @@ class ClientWorldSimulations<$World extends World> implements FixedTimestepper {
   baseCommandBuffer = new CommandBuffer<CommandOf<$World>>()
   worldSimulations: OldNew<Simulation<$World>>
   displayState: Option<Tweened<DisplayStateOf<$World>>>
+  blendOldNewInterpolationT: number
+  states: OldNew<Option<Timestamped<DisplayStateOf<$World>>>>
 
   constructor(world: $World, private config: Config, initialTimestamp: Timestamp) {
     const { old: oldWorldSimulation, new: newWorldSimulation } = (this.worldSimulations =
       new OldNew(new Simulation(world), new Simulation(world))).get()
     oldWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     newWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
+    this.blendOldNewInterpolationT = 0
+    this.states = new OldNew(undefined, undefined)
+  }
+
+  inferCurrentReconciliationStatus(): ReconciliationStatus {
+    const worldSimulation = this.worldSimulations.get()
+
+    if (
+      worldSimulation.new.lastCompletedTimestamp() ===
+      worldSimulation.old.lastCompletedTimestamp()
+    ) {
+      if (this.blendOldNewInterpolationT < 1) {
+        return {
+          state: ReconciliationState.Blending,
+          blend: this.blendOldNewInterpolationT,
+        }
+      } else {
+        return {
+          state: ReconciliationState.AwaitingSnapshot,
+        }
+      }
+    } else {
+      const isSnapshotNewer =
+        this.queuedSnapshot &&
+        this.queuedSnapshot
+          ?.timestamp()
+          .cmp(worldSimulation.new.lastCompletedTimestamp()) === 1
+      let fastForwardStatus = FastFowardingHealth.Healthy
+
+      if (
+        worldSimulation.new
+          .lastCompletedTimestamp()
+          .cmp(worldSimulation.old.lastCompletedTimestamp()) === 1
+      ) {
+        fastForwardStatus = FastFowardingHealth.Overshot
+      } else if (isSnapshotNewer) {
+        fastForwardStatus = FastFowardingHealth.Obsolete
+      }
+
+      return {
+        state: ReconciliationState.Fastforwarding,
+        fastForwardHealth: fastForwardStatus,
+      }
+    }
   }
 
   step() {}
@@ -173,11 +237,30 @@ class ClientWorldSimulations<$World extends World> implements FixedTimestepper {
   }
 
   receiveCommand(cmd: Timestamped<CommandOf<$World>>) {
-    console.log(`received command ${JSON.stringify(cmd)}`)
+    const worldSimulation = this.worldSimulations.get()
+    this.baseCommandBuffer.insert(cmd)
+    worldSimulation.old.scheduleCommand(cmd)
+    worldSimulation.new.scheduleCommand(cmd)
   }
 
   receiveSnapshot(snapshot: Timestamped<SnapshotOf<$World>>) {
-    console.log(`receive snapshot ${JSON.stringify(snapshot)}`)
+    this.lastReceivedSnapshotTimestamp = snapshot.timestamp()
+
+    if (snapshot.timestamp().cmp(this.lastCompletedTimestamp()) === 1) {
+      return // Snap shot is from the future
+    }
+
+    if (!this.lastQueuedSnapshotTimestamp) {
+      this.queuedSnapshot = snapshot
+    } else {
+      if (snapshot.timestamp().cmp(this.queuedSnapshot!.timestamp()) === 1) {
+        this.queuedSnapshot = snapshot
+      }
+    }
+
+    if (this.queuedSnapshot) {
+      this.lastQueuedSnapshotTimestamp = this.queuedSnapshot.timestamp()
+    }
   }
 
   resetLastCompletedTimestamp(correctedTimestamp: Timestamp) {
