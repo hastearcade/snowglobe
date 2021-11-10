@@ -17,13 +17,14 @@ export class ClockSyncer {
 
   update(deltaSeconds: number, secondsSinceStartup: number, net: NetworkResource) {
     this._secondsSinceLastRequestSent += deltaSeconds
+
     if (this._secondsSinceLastRequestSent > this._config.clockSyncRequestPeriod) {
       this._secondsSinceLastRequestSent = 0
       net.broadcastMessage(CLOCK_SYNC_MESSAGE_TYPE_ID, {
         clientSendSecondsSinceStartup: secondsSinceStartup,
         serverSecondsSinceStartup: 0,
         clientId: 0,
-      } as ClockSyncMessage)
+      })
     }
 
     let latestServerSecondsOffset: Option<number>
@@ -47,7 +48,7 @@ export class ClockSyncer {
   }
 
   isReady() {
-    return this.serverSecondsOffset !== undefined && this.clientId !== undefined
+    return this._serverSecondsOffset !== undefined && this._clientId !== undefined
   }
 
   sampleCount() {
@@ -74,10 +75,12 @@ export class ClockSyncer {
 
   addSample(measuredSecondsOffset: number) {
     this._serverSecondsOffsetSamples.unshift(measuredSecondsOffset)
+
     console.assert(
       this._serverSecondsOffsetSamples.length <=
         clockSyncSamplesNeededToStore(this._config),
     )
+
     if (
       this._serverSecondsOffsetSamples.length >=
       clockSyncSamplesNeededToStore(this._config)
@@ -93,6 +96,7 @@ export class ClockSyncer {
       if (isInitialSync || hasDesynced) {
         this._serverSecondsOffset = rollingMeanOffsetSeconds
       }
+
       this._serverSecondsOffsetSamples.pop()
     }
   }

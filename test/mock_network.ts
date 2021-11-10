@@ -1,19 +1,14 @@
 import { Command } from "../src/command"
-import { ClockSyncMessage } from "../src/message"
+import {
+  ClockSyncMessage,
+  CLOCK_SYNC_MESSAGE_TYPE_ID,
+  COMMAND_MESSAGE_TYPE_ID,
+  SNAPSHOT_MESSAGE_TYPE_ID,
+} from "../src/message"
 import { Connection, ConnectionHandle, NetworkResource } from "../src/network_resource"
 import { Timestamped } from "../src/timestamp"
 import { TypeId } from "../src/types"
-import { Snapshot, World } from "../src/world"
-
-let nextTypeId = 0
-
-function makeTypeId<$Type>() {
-  return ++nextTypeId as TypeId<$Type>
-}
-
-const CLOCK_SYNC_TYPEID = makeTypeId()
-const SNAPSHOT_TYPEID = makeTypeId()
-const COMMAND_TYPEID = makeTypeId()
+import { Snapshot } from "../src/world"
 
 interface DelayedChannel {
   tick(deltaSeconds: number): void
@@ -31,8 +26,8 @@ class DelayedQueue<$Type> implements DelayedChannel {
   }
 
   tick(deltaSeconds: number) {
-    while (this.incoming[0]?.[1]! >= this.delay) {
-      this.outgoing.push(this.incoming.shift()![0])
+    while (this.incoming[this.incoming.length - 1]?.[1]! >= this.delay) {
+      this.outgoing.unshift(this.incoming.pop()![0])
     }
     for (let i = 0; i < this.incoming.length; i++) {
       this.incoming[i]![1] += Math.max(deltaSeconds, 0)
@@ -41,11 +36,11 @@ class DelayedQueue<$Type> implements DelayedChannel {
 
   send(message: $Type) {
     this._newActivityCount += 1
-    this.incoming.push([message, 0])
+    this.incoming.unshift([message, 0])
   }
 
   recv() {
-    return this.outgoing.shift()
+    return this.outgoing.pop()
   }
 
   newActivityCount() {
@@ -125,7 +120,12 @@ export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
     return this.getConnection(handle)!.send(typeId, message)
   }
 
-  broadcastMessage<$Type>(typeId: TypeId<$Type>, message: $Type) {}
+  broadcastMessage<$Type>(typeId: TypeId<$Type>, message: $Type) {
+    for (const [, connection] of this.connections()) {
+      connection.send(typeId, message)
+      connection.flush(typeId)
+    }
+  }
 }
 
 class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
@@ -151,19 +151,21 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
   recvCommand() {
     console.assert(this.isConnected)
     return (
-      this.channels.get(COMMAND_TYPEID) as MockChannel<Timestamped<$Command>>
+      this.channels.get(COMMAND_MESSAGE_TYPE_ID) as MockChannel<Timestamped<$Command>>
     ).recv()
   }
 
   recvClockSync() {
     console.assert(this.isConnected)
-    return (this.channels.get(CLOCK_SYNC_TYPEID) as MockChannel<ClockSyncMessage>).recv()
+    return (
+      this.channels.get(CLOCK_SYNC_MESSAGE_TYPE_ID) as MockChannel<ClockSyncMessage>
+    ).recv()
   }
 
   recvSnapshot() {
     console.assert(this.isConnected)
     return (
-      this.channels.get(SNAPSHOT_TYPEID) as MockChannel<Timestamped<$Snapshot>>
+      this.channels.get(SNAPSHOT_MESSAGE_TYPE_ID) as MockChannel<Timestamped<$Snapshot>>
     ).recv()
   }
 
@@ -172,7 +174,7 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
     return (this.channels.get(typeId) as MockChannel<$Type>).send(message)
   }
 
-  flush() {
+  flush<$Type>(typeId: TypeId<$Type>) {
     console.assert(this.isConnected)
   }
 }
@@ -191,14 +193,14 @@ export function makeMockNetwork<$Command extends Command, $Snapshot extends Snap
     $Snapshot
   >()
 
-  registerChannel(client1Connection!, server1Connection!, CLOCK_SYNC_TYPEID)
-  registerChannel(client2Connection!, server2Connection!, CLOCK_SYNC_TYPEID)
+  registerChannel(client1Connection!, server1Connection!, CLOCK_SYNC_MESSAGE_TYPE_ID)
+  registerChannel(client2Connection!, server2Connection!, CLOCK_SYNC_MESSAGE_TYPE_ID)
 
-  registerChannel(client1Connection!, server1Connection!, SNAPSHOT_TYPEID)
-  registerChannel(client2Connection!, server2Connection!, SNAPSHOT_TYPEID)
+  registerChannel(client1Connection!, server1Connection!, SNAPSHOT_MESSAGE_TYPE_ID)
+  registerChannel(client2Connection!, server2Connection!, SNAPSHOT_MESSAGE_TYPE_ID)
 
-  registerChannel(client1Connection!, server1Connection!, COMMAND_TYPEID)
-  registerChannel(client2Connection!, server2Connection!, COMMAND_TYPEID)
+  registerChannel(client1Connection!, server1Connection!, COMMAND_MESSAGE_TYPE_ID)
+  registerChannel(client2Connection!, server2Connection!, COMMAND_MESSAGE_TYPE_ID)
 
   client1Net._connections.set(0, client1Connection!)
   client2Net._connections.set(0, client2Connection!)
@@ -209,17 +211,21 @@ export function makeMockNetwork<$Command extends Command, $Snapshot extends Snap
 }
 
 function makeMockChannelPair() {
-  return [
-    new MockChannel(new DelayedQueue(), new DelayedQueue()),
-    new MockChannel(new DelayedQueue(), new DelayedQueue()),
-  ]
+  const inbox = new DelayedQueue()
+  const outbox = new DelayedQueue()
+  return [new MockChannel(inbox, outbox), new MockChannel(outbox, inbox)]
 }
 
 function makeMockConnectionPair<$Command extends Command, $Snapshot extends Snapshot>() {
-  return [
+  const clientConnection = new MockConnection<$Command, $Snapshot>(new Map(), false)
+  const serverConnection = Object.defineProperty(
     new MockConnection<$Command, $Snapshot>(new Map(), false),
-    new MockConnection<$Command, $Snapshot>(new Map(), false),
-  ]
+    "isConnected",
+    {
+      get: () => clientConnection.isConnected,
+    },
+  )
+  return [clientConnection, serverConnection]
 }
 
 function registerChannel<$Command extends Command, $Snapshot extends Snapshot>(

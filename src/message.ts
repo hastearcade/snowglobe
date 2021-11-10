@@ -6,7 +6,7 @@ import { Snapshot } from "./world"
 let nextTypeId = 0
 
 export function makeTypeId<$MessageType>() {
-  return ++nextTypeId as TypeId<$MessageType>
+  return nextTypeId++ as TypeId<$MessageType>
 }
 
 export type ClockSyncMessage = {

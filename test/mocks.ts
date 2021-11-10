@@ -73,9 +73,8 @@ export function mockWorldFromInterpolation(
 
 type MockCommand = Cloneable<MockCommand> & { value: number }
 
-const mockFromInterpolation: FromInterpolationFn<MockWorld> = jest.fn(
-  (state1, state2, t) => (t === 1 ? state2.clone() : state1.clone()),
-)
+const mockFromInterpolation: FromInterpolationFn<MockWorld> = (state1, state2, t) =>
+  t === 1 ? state2.clone() : state1.clone()
 
 export class MockClientServer {
   config: Config
