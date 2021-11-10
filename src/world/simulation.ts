@@ -1,7 +1,7 @@
 import { Command, CommandBuffer } from "../command"
 import { FixedTimestepper } from "../fixed_timestepper"
 import { Timestamp, Timestamped } from "../timestamp"
-import { CommandOf, SnapshotOf, World } from "../world"
+import { Snapshot, World } from "../world"
 import { DisplayState } from "./display_state"
 
 export enum InitializationType {
@@ -9,11 +9,19 @@ export enum InitializationType {
   NeedsInitialization,
 }
 
-export class Simulation<$World extends World> implements FixedTimestepper {
-  private commandBuffer = new CommandBuffer()
+export class Simulation<
+  $Command extends Command,
+  $Snapshot extends Snapshot,
+  $DisplayState extends DisplayState,
+> implements FixedTimestepper
+{
+  private commandBuffer = new CommandBuffer<$Command>()
   hasInitialized: boolean
 
-  constructor(private world: $World, initializationType?: InitializationType) {
+  constructor(
+    private world: World<$Command, $Snapshot, $DisplayState>,
+    initializationType?: InitializationType,
+  ) {
     this.hasInitialized = initializationType === InitializationType.PreInitialized
   }
 
@@ -29,7 +37,7 @@ export class Simulation<$World extends World> implements FixedTimestepper {
     return this.lastCompletedTimestamp().add(1)
   }
 
-  scheduleCommand(command: Timestamped<Command>) {
+  scheduleCommand(command: Timestamped<$Command>) {
     this.commandBuffer.insert(command)
   }
 
@@ -43,8 +51,8 @@ export class Simulation<$World extends World> implements FixedTimestepper {
   }
 
   applyCompletedSnapshot(
-    completedSnapshot: Timestamped<SnapshotOf<$World>>,
-    rewoundCommandBuffer: CommandBuffer<CommandOf<$World>>,
+    completedSnapshot: Timestamped<$Snapshot>,
+    rewoundCommandBuffer: CommandBuffer<$Command>,
   ) {
     this.world.applySnapshot(completedSnapshot.inner().clone())
     this.commandBuffer = rewoundCommandBuffer

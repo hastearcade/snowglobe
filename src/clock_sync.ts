@@ -3,11 +3,9 @@ import {
   clockSyncSamplesToDiscardPerExtreme,
   Config,
 } from "./lib"
-import { World } from "./world"
+import { ClockSyncMessage, CLOCK_SYNC_MESSAGE_TYPE_ID } from "./message"
 import { NetworkResource } from "./network_resource"
 import { Option } from "./types"
-import { Timestamped } from "./timestamp"
-import { ClockSyncMessage, CLOCK_SYNC_MESSAGE_TYPE_ID } from "./message"
 
 export class ClockSyncer {
   private _serverSecondsOffset: Option<number>
@@ -17,11 +15,7 @@ export class ClockSyncer {
 
   constructor(private _config: Config) {}
 
-  update<$World extends World, $Net extends NetworkResource<$World>>(
-    deltaSeconds: number,
-    secondsSinceStartup: number,
-    net: $Net,
-  ) {
+  update(deltaSeconds: number, secondsSinceStartup: number, net: NetworkResource) {
     this._secondsSinceLastRequestSent += deltaSeconds
     if (this._secondsSinceLastRequestSent > this._config.clockSyncRequestPeriod) {
       this._secondsSinceLastRequestSent = 0

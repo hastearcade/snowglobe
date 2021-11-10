@@ -1,3 +1,4 @@
+import { Command } from "./command"
 import { TimeKeeper } from "./fixed_timestepper"
 import { Config, lagCompensationFrameCount } from "./lib"
 import {
@@ -8,15 +9,22 @@ import {
 } from "./message"
 import { ConnectionHandle, NetworkResource } from "./network_resource"
 import { Timestamp, Timestamped } from "./timestamp"
-import { CommandOf, World } from "./world"
+import { CommandOf, Snapshot, World } from "./world"
+import { DisplayState } from "./world/display_state"
 import { InitializationType, Simulation } from "./world/simulation"
 
-export class Server<$World extends World> {
-  private timekeepingSimulation: TimeKeeper<Simulation<$World>>
+export class Server<
+  $Command extends Command,
+  $Snapshot extends Snapshot,
+  $DisplayState extends DisplayState,
+> {
+  private timekeepingSimulation: TimeKeeper<
+    Simulation<$Command, $Snapshot, $DisplayState>
+  >
   private secondsSinceLastSnapshot = 0
 
   constructor(
-    private world: $World,
+    private world: World<$Command, $Snapshot, $DisplayState>,
     private config: Config,
     secondsSinceStartup: number,
   ) {
@@ -47,10 +55,10 @@ export class Server<$World extends World> {
     return this.lastCompletedTimestamp().add(lagCompensationFrameCount(this.config))
   }
 
-  applyValidatedCommand<$Net extends NetworkResource<$World>>(
-    command: Timestamped<CommandOf<$World>>,
+  applyValidatedCommand(
+    command: Timestamped<$Command>,
     commandSource: ConnectionHandle | undefined,
-    net: NetworkResource<$World>,
+    net: NetworkResource<$Command>,
   ) {
     this.timekeepingSimulation.stepper.scheduleCommand(command)
     for (const [handle, connection] of net.connections()) {
@@ -65,20 +73,17 @@ export class Server<$World extends World> {
     }
   }
 
-  receiveCommand<$Net extends NetworkResource<$World>>(
-    command: Timestamped<CommandOf<$World>>,
+  receiveCommand<$Net extends NetworkResource<$Command>>(
+    command: Timestamped<$Command>,
     commandSource: ConnectionHandle,
     net: $Net,
   ) {
-    if (this.world.commandIsValid(command, commandSource)) {
+    if (this.world.commandIsValid(command.inner(), commandSource)) {
       this.applyValidatedCommand(command, commandSource, net)
     }
   }
 
-  issueCommand<$Net extends NetworkResource<$World>>(
-    command: CommandOf<$World>,
-    net: $Net,
-  ) {
+  issueCommand<$Net extends NetworkResource<$Command>>(command: $Command, net: $Net) {
     this.applyValidatedCommand(
       new Timestamped(command, this.estimatedClientSimulatingTimestamp()),
       undefined,
@@ -96,7 +101,7 @@ export class Server<$World extends World> {
     return displayState
   }
 
-  update<$Net extends NetworkResource<$World>>(
+  update<$Net extends NetworkResource<$Command>>(
     deltaSeconds: number,
     secondsSinceStartup: number,
     net: $Net,
@@ -107,10 +112,10 @@ export class Server<$World extends World> {
         "Attempted to update client with a negative delta seconds. Clamping it to zero.",
       )
     }
-    const newCommands: [Timestamped<CommandOf<$World>>, ConnectionHandle][] = []
+    const newCommands: [Timestamped<$Command>, ConnectionHandle][] = []
     const clockSyncs: [ConnectionHandle, ClockSyncMessage][] = []
     for (const [handle, connection] of net.connections()) {
-      let command: Timestamped<CommandOf<$World>> | undefined
+      let command: Timestamped<$Command> | undefined
       let clockSyncMessage: ClockSyncMessage | undefined
       while ((command = connection.recvCommand())) {
         newCommands.push([command, handle])

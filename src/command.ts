@@ -5,7 +5,7 @@ export interface Command {
 }
 
 export class CommandBuffer<$Command extends Command> {
-  private map: Map<Timestamp, Command[]>
+  private map: Map<Timestamp, $Command[]>
   private _timestamp: Timestamp
 
   constructor() {
@@ -49,7 +49,6 @@ export class CommandBuffer<$Command extends Command> {
 
   drainUpTo(timestamp: Timestamp) {
     const sortedCommands = [...this.map.entries()].sort((a, b) => a[0].cmp(b[0]))
-
     const filteredCommands = sortedCommands.filter(tc => tc[0].cmp(timestamp) < 0)
 
     this.map.clear()

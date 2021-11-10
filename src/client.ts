@@ -1,12 +1,12 @@
 import { ClockSyncer } from "./clock_sync"
-import { CommandBuffer } from "./command"
+import { Command, CommandBuffer } from "./command"
 import { FixedTimestepper, TerminationCondition, TimeKeeper } from "./fixed_timestepper"
 import { Config } from "./lib"
 import { NetworkResource } from "./network_resource"
 import { OldNew } from "./old_new"
 import { Timestamp, Timestamped } from "./timestamp"
 import { Option } from "./types"
-import { CommandOf, DisplayState, DisplayStateOf, SnapshotOf, World } from "./world"
+import { DisplayState, Snapshot, World } from "./world"
 import {
   FromInterpolationFn,
   timestampedFromInterpolation,
@@ -38,23 +38,31 @@ export type ReconciliationStatus = {
   blend?: number
 }
 
-export type StageOwned = {
+export type StageOwned<
+  $Command extends Command,
+  $Snapshot extends Snapshot,
+  $DisplayState extends DisplayState,
+> = {
   clockSyncer: ClockSyncer
-  initStateSync: Option<ActiveClient<World, DisplayState>>
-  ready: Option<ActiveClient<World, DisplayState>>
+  initStateSync: Option<ActiveClient<$Command, $Snapshot, $DisplayState>>
+  ready: Option<ActiveClient<$Command, $Snapshot, $DisplayState>>
 }
 
-export class Client<$World extends World> {
+export class Client<
+  $Command extends Command,
+  $Snapshot extends Snapshot,
+  $DisplayState extends DisplayState,
+> {
   private _state: StageState = StageState.Ready
-  private _stage: StageOwned
-  private _world: $World
+  private _stage: StageOwned<$Command, $Snapshot, $DisplayState>
+  private _world: World<$Command, $Snapshot, $DisplayState>
   private _config: Config
-  fromInterpolation: FromInterpolationFn<DisplayState>
+  fromInterpolation: FromInterpolationFn<$DisplayState>
 
   constructor(
-    world: $World,
+    world: World<$Command, $Snapshot, $DisplayState>,
     config: Config,
-    fromInterpolation: FromInterpolationFn<DisplayState>,
+    fromInterpolation: FromInterpolationFn<$DisplayState>,
   ) {
     this._world = world
     this._config = config
@@ -70,10 +78,14 @@ export class Client<$World extends World> {
     return this._state
   }
 
+  stage() {
+    return this._stage
+  }
+
   update(
     deltaSeconds: number,
     secondsSinceStartup: number,
-    net: NetworkResource<$World>,
+    net: NetworkResource<$Command, $Snapshot>,
   ) {
     if (deltaSeconds < 0) {
       console.warn(
@@ -111,11 +123,17 @@ export class Client<$World extends World> {
   }
 }
 
-export class ActiveClient<$World extends World, $DisplayState extends DisplayState> {
+export class ActiveClient<
+  $Command extends Command,
+  $Snapshot extends Snapshot,
+  $DisplayState extends DisplayState,
+> {
   clockSyncer: ClockSyncer
-  timekeepingSimulations: TimeKeeper<ClientWorldSimulations<$World, $DisplayState>>
+  timekeepingSimulations: TimeKeeper<
+    ClientWorldSimulations<$Command, $Snapshot, $DisplayState>
+  >
   constructor(
-    world: $World,
+    world: World<$Command, $Snapshot, $DisplayState>,
     secondsSinceStartup: number,
     config: Config,
     clockSyncer: ClockSyncer,
@@ -151,7 +169,7 @@ export class ActiveClient<$World extends World, $DisplayState extends DisplaySta
   update(
     deltaSeconds: number,
     secondsSinceStartup: number,
-    net: NetworkResource<$World>,
+    net: NetworkResource<$Command, $Snapshot>,
   ) {
     this.clockSyncer.update(deltaSeconds, secondsSinceStartup, net)
 
@@ -181,21 +199,24 @@ export class ActiveClient<$World extends World, $DisplayState extends DisplaySta
   }
 }
 
-class ClientWorldSimulations<$World extends World, $DisplayState extends DisplayState>
-  implements FixedTimestepper
+class ClientWorldSimulations<
+  $Command extends Command,
+  $Snapshot extends Snapshot,
+  $DisplayState extends DisplayState,
+> implements FixedTimestepper
 {
-  queuedSnapshot: Option<Timestamped<SnapshotOf<$World>>>
+  queuedSnapshot: Option<Timestamped<$Snapshot>>
   lastQueuedSnapshotTimestamp: Option<Timestamp>
   lastReceivedSnapshotTimestamp: Option<Timestamp>
-  baseCommandBuffer = new CommandBuffer<CommandOf<$World>>()
-  worldSimulations: OldNew<Simulation<$World>>
-  displayState: Option<Tweened<DisplayStateOf<$World>>>
+  baseCommandBuffer = new CommandBuffer<$Command>()
+  worldSimulations: OldNew<Simulation<$Command, $Snapshot, $DisplayState>>
+  displayState: Option<Tweened<$DisplayState>>
   blendOldNewInterpolationT: number
   states: OldNew<Option<Timestamped<$DisplayState>>>
   fromInterpolation: FromInterpolationFn<$DisplayState>
 
   constructor(
-    world: $World,
+    world: World<$Command, $Snapshot, $DisplayState>,
     private config: Config,
     initialTimestamp: Timestamp,
     fromInterpolation: FromInterpolationFn<$DisplayState>,
@@ -204,6 +225,7 @@ class ClientWorldSimulations<$World extends World, $DisplayState extends Display
       new OldNew(new Simulation(world), new Simulation(world))).get()
     oldWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     newWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
+    newWorldSimulation.displayState()
     this.blendOldNewInterpolationT = 0
     this.states = new OldNew(undefined, undefined)
     this.fromInterpolation = fromInterpolation
@@ -252,7 +274,7 @@ class ClientWorldSimulations<$World extends World, $DisplayState extends Display
   }
 
   step() {
-    const loadSnapshot = (snapshot: Timestamped<SnapshotOf<$World>>) => {
+    const loadSnapshot = (snapshot: Timestamped<$Snapshot>) => {
       const worldSimulation = this.worldSimulations.get()
       this.baseCommandBuffer.drainUpTo(snapshot.timestamp())
       worldSimulation.new.applyCompletedSnapshot(snapshot, this.baseCommandBuffer) // TODO Should this be cloned?
@@ -353,14 +375,14 @@ class ClientWorldSimulations<$World extends World, $DisplayState extends Display
     return this.worldSimulations.get().old.lastCompletedTimestamp()
   }
 
-  receiveCommand(cmd: Timestamped<CommandOf<$World>>) {
+  receiveCommand(cmd: Timestamped<$Command>) {
     const worldSimulation = this.worldSimulations.get()
     this.baseCommandBuffer.insert(cmd)
     worldSimulation.old.scheduleCommand(cmd)
     worldSimulation.new.scheduleCommand(cmd)
   }
 
-  receiveSnapshot(snapshot: Timestamped<SnapshotOf<$World>>) {
+  receiveSnapshot(snapshot: Timestamped<$Snapshot>) {
     this.lastReceivedSnapshotTimestamp = snapshot.timestamp()
 
     if (snapshot.timestamp().cmp(this.lastCompletedTimestamp()) === 1) {
