@@ -44,6 +44,48 @@ describe("ClockSync", () => {
       expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toEqual(
         mockClientServer.server.estimatedClientLastCompletedTimestamp().add(1),
       )
+
+      console.log(
+        mockClientServer.client1.stage().ready!.timekeepingSimulations.updates,
+        mockClientServer.client1.stage().ready!.timekeepingSimulations.steps,
+      )
+    }
+  })
+
+  test("when client connects then client calculates correct initial clock offset", () => {
+    const TIMESTEP_SECONDS = 1 / 64
+    for (const desyncSeconds of [
+      0, 0.5, 1, 100, 1000, 10000, -0.5, -1, -100, -1000, -10000,
+    ]) {
+      // GIVEN a server and client in a perfect network.
+      const world = new MockWorld()
+      const mockClientServer = new MockClientServer(world, {
+        lagCompensationLatency: TIMESTEP_SECONDS * 16,
+        blendLatency: 0.2,
+        timestepSeconds: TIMESTEP_SECONDS,
+        clockSyncNeededSampleCount: 8,
+        clockSyncRequestPeriod: 0,
+        clockSyncAssumedOutlierRate: 0.2,
+        maxTolerableClockDeviation: 0.1,
+        snapshotSendPeriod: 0.1,
+        updateDeltaSecondsMax: 0.5,
+        timestampSkipThresholdSeconds: 1,
+        fastForwardMaxPerStep: 10,
+        tweeningMethod: TweeningMethod.MostRecentlyPassed,
+      })
+      mockClientServer.client1Net.connect()
+      mockClientServer.client2Net.connect()
+
+      // GIVEN that the client and server clocks initially disagree.
+      mockClientServer.client1ClockOffset = desyncSeconds
+
+      // WHEN the client initially connects.
+      mockClientServer.updateUntilClientsReady(TIMESTEP_SECONDS)
+
+      // THEN the client should accurately offset its own clock to agree with the server.
+      expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toEqual(
+        mockClientServer.server.estimatedClientLastCompletedTimestamp().add(1),
+      )
     }
   })
 })

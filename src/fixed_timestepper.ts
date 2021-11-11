@@ -65,7 +65,11 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
     this.terminationCondition = terminationCondition
   }
 
+  updates = 0
+  steps = 0
+
   update(deltaSeconds: number, serverSecondsSinceStartup: number) {
+    this.updates++
     const compensatedDeltaSeconds = this.deltaSecondsCompensateForDrift(
       deltaSeconds,
       serverSecondsSinceStartup,
@@ -141,6 +145,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
         break
       }
       this.stepper.step()
+      this.steps++
       this.timestepOvershootSeconds = nextOvershootSeconds
     }
   }
