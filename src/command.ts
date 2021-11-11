@@ -1,19 +1,20 @@
+import { Cloneable } from "./cloneable"
 import { Timestamp, Timestamped } from "./timestamp"
 
 export interface Command {
   clone(): this
 }
 
-export class CommandBuffer<$Command extends Command> {
-  private map: Map<Timestamp, $Command[]>
-  private _timestamp: Timestamp
-
-  constructor() {
+export class CommandBuffer<$Command extends Command>
+  implements Cloneable<CommandBuffer<$Command>>
+{
+  constructor(
+    private map: Map<Timestamp, $Command[]> = new Map(),
+    private _timestamp: Timestamp = new Timestamp(),
+  ) {
     // The original crystalorb implementation used a more effecient datatype
     // to insert commands in reverse timestamp order.
     // TODO investigate whether map is too slow here
-    this.map = new Map<Timestamp, $Command[]>()
-    this._timestamp = new Timestamp()
   }
 
   acceptableTimestampRange() {
@@ -83,5 +84,9 @@ export class CommandBuffer<$Command extends Command> {
 
   [Symbol.iterator]() {
     return this.map.entries()
+  }
+
+  clone() {
+    return new CommandBuffer(new Map(this.map.entries()), this._timestamp.clone())
   }
 }

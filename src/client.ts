@@ -287,7 +287,7 @@ class ClientWorldSimulations<
     const loadSnapshot = (snapshot: Timestamped<$Snapshot>) => {
       const worldSimulation = this.worldSimulations.get()
       this.baseCommandBuffer.drainUpTo(snapshot.timestamp())
-      worldSimulation.new.applyCompletedSnapshot(snapshot, this.baseCommandBuffer) // TODO Should this be cloned?
+      worldSimulation.new.applyCompletedSnapshot(snapshot, this.baseCommandBuffer.clone())
 
       if (
         worldSimulation.new
@@ -349,11 +349,11 @@ class ClientWorldSimulations<
     } else if (status.state === ReconciliationState.AwaitingSnapshot) {
       const snapshot = this.queuedSnapshot
       if (snapshot) {
+        this.queuedSnapshot = undefined
         this.worldSimulations.swap()
         loadSnapshot(snapshot)
         simulateNextFrame()
         publishOldState()
-        this.queuedSnapshot = undefined
       } else {
         simulateNextFrame()
         publishBlendedState()

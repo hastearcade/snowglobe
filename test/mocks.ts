@@ -108,8 +108,9 @@ export class MockClientServer {
 
   updateUntilClientsReady(deltaSeconds: number) {
     while (
-      this.client1.state() !== StageState.Ready ||
-      this.client2.state() !== StageState.Ready
+      this.client1.state() !== StageState.Ready
+      // ||
+      // this.client2.state() !== StageState.Ready
     ) {
       this.update(deltaSeconds)
     }
@@ -123,14 +124,14 @@ export class MockClientServer {
       this.clock + this.client1ClockOffset,
       this.client1Net,
     )
-    this.client2.update(
-      deltaSeconds,
-      this.clock + this.client2ClockOffset,
-      this.client2Net,
-    )
+    // this.client2.update(
+    //   deltaSeconds,
+    //   this.clock + this.client2ClockOffset,
+    //   this.client2Net,
+    // )
 
     this.client1Net.tick(deltaSeconds)
-    this.client2Net.tick(deltaSeconds)
+    // this.client2Net.tick(deltaSeconds)
     this.serverNet.tick(deltaSeconds)
   }
 }

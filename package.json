@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --collect-coverage"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@jest/console": "^27.3.1",
     "@types/jest": "^27.0.2",
     "jest": "^27.3.1",
     "ts-jest": "^27.0.7",
