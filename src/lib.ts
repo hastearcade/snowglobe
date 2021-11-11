@@ -48,3 +48,7 @@ export function clockSyncSamplesNeededToStore(config: Config) {
     config.clockSyncNeededSampleCount + clockSyncSamplesToDiscardPerExtreme(config) * 2
   )
 }
+
+export function blendProgressPerFrame(config: Config) {
+  return config.timestepSeconds / config.blendLatency
+}

@@ -6,7 +6,7 @@ describe("ClockSync", () => {
   test("when server and client clocks desync then client should resync quickly", () => {
     const UPDATE_COUNT = 200
     const TIMESTEP_SECONDS = 1 / 64
-    for (const desyncSeconds of [0 /*, 0.5, -0.5, -1, -100, -1000, -10000 */]) {
+    for (const desyncSeconds of [0, 0.5, -0.5, -1, -100, -1000, -10000]) {
       // GIVEN a server and client in a perfect network.
       const world = new MockWorld()
       const mockClientServer = new MockClientServer(world, {
@@ -41,7 +41,7 @@ describe("ClockSync", () => {
         mockClientServer.update(TIMESTEP_SECONDS)
       }
 
-      expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toBe(
+      expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toEqual(
         mockClientServer.server.estimatedClientLastCompletedTimestamp().add(1),
       )
     }

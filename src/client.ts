@@ -1,7 +1,17 @@
 import { ClockSyncer } from "./clock_sync"
 import { Command, CommandBuffer } from "./command"
-import { FixedTimestepper, TerminationCondition, TimeKeeper } from "./fixed_timestepper"
-import { Config, lagCompensationFrameCount, shapeInterpolationT } from "./lib"
+import {
+  FixedTimestepper,
+  Stepper,
+  TerminationCondition,
+  TimeKeeper,
+} from "./fixed_timestepper"
+import {
+  blendProgressPerFrame,
+  Config,
+  lagCompensationFrameCount,
+  shapeInterpolationT,
+} from "./lib"
 import { NetworkResource } from "./network_resource"
 import { OldNew } from "./old_new"
 import { Timestamp, Timestamped } from "./timestamp"
@@ -203,7 +213,7 @@ class ClientWorldSimulations<
   $Command extends Command,
   $Snapshot extends Snapshot,
   $DisplayState extends DisplayState,
-> implements FixedTimestepper
+> implements Stepper
 {
   queuedSnapshot: Option<Timestamped<$Snapshot>>
   lastQueuedSnapshotTimestamp: Option<Timestamp>
@@ -225,7 +235,7 @@ class ClientWorldSimulations<
       new OldNew(new Simulation(world), new Simulation(world))).get()
     oldWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     newWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
-    this.blendOldNewInterpolationT = 0
+    this.blendOldNewInterpolationT = 1
     this.states = new OldNew(undefined, undefined)
     this.fromInterpolation = fromInterpolation
   }
@@ -234,8 +244,9 @@ class ClientWorldSimulations<
     const worldSimulation = this.worldSimulations.get()
 
     if (
-      worldSimulation.new.lastCompletedTimestamp() ===
-      worldSimulation.old.lastCompletedTimestamp()
+      worldSimulation.new
+        .lastCompletedTimestamp()
+        .cmp(worldSimulation.old.lastCompletedTimestamp()) === 0
     ) {
       if (this.blendOldNewInterpolationT < 1) {
         return {
@@ -326,8 +337,7 @@ class ClientWorldSimulations<
 
     const status = this.inferCurrentReconciliationStatus()
     if (status.state === ReconciliationState.Blending) {
-      this.blendOldNewInterpolationT +=
-        this.config.timestepSeconds / this.config.blendLatency
+      this.blendOldNewInterpolationT += blendProgressPerFrame(this.config)
       // clamp it 0, 1
       this.blendOldNewInterpolationT = Math.min(
         Math.max(this.blendOldNewInterpolationT, 0),
@@ -338,12 +348,12 @@ class ClientWorldSimulations<
       publishBlendedState()
     } else if (status.state === ReconciliationState.AwaitingSnapshot) {
       const snapshot = this.queuedSnapshot
-
       if (snapshot) {
         this.worldSimulations.swap()
         loadSnapshot(snapshot)
         simulateNextFrame()
         publishOldState()
+        this.queuedSnapshot = undefined
       } else {
         simulateNextFrame()
         publishBlendedState()
@@ -385,13 +395,14 @@ class ClientWorldSimulations<
     this.lastReceivedSnapshotTimestamp = snapshot.timestamp()
 
     if (snapshot.timestamp().cmp(this.lastCompletedTimestamp()) === 1) {
-      return // Snap shot is from the future
+      console.warn("Received snapshot from the future! Ignoring snapshot.")
+      return
     }
 
     if (!this.lastQueuedSnapshotTimestamp) {
       this.queuedSnapshot = snapshot
     } else {
-      if (snapshot.timestamp().cmp(this.queuedSnapshot!.timestamp()) === 1) {
+      if (snapshot.timestamp().cmp(this.lastQueuedSnapshotTimestamp) === 1) {
         this.queuedSnapshot = snapshot
       }
     }

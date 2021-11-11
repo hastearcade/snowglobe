@@ -31,6 +31,7 @@ export class Simulation<
       this.world.applyCommand(command)
     }
     this.world.step()
+    this.commandBuffer.updateTimestamp(this.lastCompletedTimestamp().add(1))
   }
 
   simulatingTimestamp() {
@@ -43,7 +44,7 @@ export class Simulation<
 
   tryCompletingSimulationsUpTo(targetCompletedTimestamp: Timestamp, maxSteps: number) {
     for (let i = 0; i < maxSteps; i++) {
-      if (this.lastCompletedTimestamp() >= targetCompletedTimestamp) {
+      if (this.lastCompletedTimestamp().cmp(targetCompletedTimestamp) >= 0) {
         break
       }
       this.step()
