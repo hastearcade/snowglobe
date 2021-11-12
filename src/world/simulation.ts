@@ -1,6 +1,6 @@
 import { Command, CommandBuffer } from "../command"
 import { FixedTimestepper } from "../fixed_timestepper"
-import { Timestamp, Timestamped } from "../timestamp"
+import * as Timestamp from "../timestamp"
 import { Snapshot, World } from "../world"
 import { DisplayState } from "./display_state"
 
@@ -31,20 +31,23 @@ export class Simulation<
       this.world.applyCommand(command)
     }
     this.world.step()
-    this.commandBuffer.updateTimestamp(this.lastCompletedTimestamp().add(1))
+    this.commandBuffer.updateTimestamp(Timestamp.add(this.lastCompletedTimestamp(), 1))
   }
 
   simulatingTimestamp() {
-    return this.lastCompletedTimestamp().add(1)
+    return Timestamp.add(this.lastCompletedTimestamp(), 1)
   }
 
-  scheduleCommand(command: Timestamped<$Command>) {
+  scheduleCommand(command: Timestamp.Timestamped<$Command>) {
     this.commandBuffer.insert(command)
   }
 
-  tryCompletingSimulationsUpTo(targetCompletedTimestamp: Timestamp, maxSteps: number) {
+  tryCompletingSimulationsUpTo(
+    targetCompletedTimestamp: Timestamp.Timestamp,
+    maxSteps: number,
+  ) {
     for (let i = 0; i < maxSteps; i++) {
-      if (this.lastCompletedTimestamp().cmp(targetCompletedTimestamp) >= 0) {
+      if (this.lastCompletedTimestamp() >= targetCompletedTimestamp) {
         break
       }
       this.step()
@@ -52,28 +55,28 @@ export class Simulation<
   }
 
   applyCompletedSnapshot(
-    completedSnapshot: Timestamped<$Snapshot>,
+    completedSnapshot: Timestamp.Timestamped<$Snapshot>,
     rewoundCommandBuffer: CommandBuffer<$Command>,
   ) {
-    this.world.applySnapshot(completedSnapshot.inner().clone())
+    this.world.applySnapshot(completedSnapshot.clone())
     this.commandBuffer = rewoundCommandBuffer
-    this.commandBuffer.updateTimestamp(completedSnapshot.timestamp())
+    this.commandBuffer.updateTimestamp(Timestamp.get(completedSnapshot))
     this.hasInitialized = true
   }
 
   lastCompletedSnapshot() {
-    return new Timestamped(this.world.snapshot(), this.lastCompletedTimestamp())
+    return Timestamp.set(this.world.snapshot(), this.lastCompletedTimestamp())
   }
 
   lastCompletedTimestamp() {
     return this.commandBuffer.timestamp()
   }
 
-  resetLastCompletedTimestamp(timestamp: Timestamp) {
+  resetLastCompletedTimestamp(timestamp: Timestamp.Timestamp) {
     const oldTimestamp = this.lastCompletedTimestamp()
     this.commandBuffer.updateTimestamp(timestamp)
 
-    if (timestamp.cmp(oldTimestamp) < 0) {
+    if (timestamp < oldTimestamp) {
       const commands = this.commandBuffer.drainAll()
       for (const command of commands) {
         this.world.applyCommand(command)
@@ -83,7 +86,7 @@ export class Simulation<
 
   displayState() {
     if (this.hasInitialized) {
-      return new Timestamped(this.world.displayState(), this.lastCompletedTimestamp())
+      return Timestamp.set(this.world.displayState(), this.lastCompletedTimestamp())
     }
     return undefined
   }

@@ -1,16 +1,12 @@
 import { Cloneable } from "./cloneable"
-import { Timestamp, Timestamped } from "./timestamp"
+import * as Timestamp from "./timestamp"
 
-export interface Command {
-  clone(): this
-}
+export interface Command extends Cloneable {}
 
-export class CommandBuffer<$Command extends Command>
-  implements Cloneable<CommandBuffer<$Command>>
-{
+export class CommandBuffer<$Command extends Command> implements Cloneable {
   constructor(
-    private map: Map<Timestamp, $Command[]> = new Map(),
-    private _timestamp: Timestamp = new Timestamp(),
+    private map: Map<Timestamp.Timestamp, $Command[]> = new Map(),
+    private _timestamp = Timestamp.make(),
   ) {
     // The original crystalorb implementation used a more effecient datatype
     // to insert commands in reverse timestamp order.
@@ -18,24 +14,27 @@ export class CommandBuffer<$Command extends Command>
   }
 
   acceptableTimestampRange() {
-    return this._timestamp.comparableRangeWithMidpoint()
+    return Timestamp.comparableRangeWithMidpoint(this._timestamp)
   }
 
   timestamp() {
     return this._timestamp
   }
 
-  private filterStaleTimestamps(timestamp: Timestamp | undefined, before: boolean) {
+  private filterStaleTimestamps(
+    timestamp: Timestamp.Timestamp | undefined,
+    before: boolean,
+  ) {
     if (timestamp) {
       this.map.forEach((value, key) => {
-        if (key.cmp(timestamp) === (before ? -1 : 1)) {
+        if (Timestamp.cmp(key, timestamp) === (before ? -1 : 1)) {
           this.map.delete(key)
         }
       })
     }
   }
 
-  updateTimestamp(timestamp: Timestamp) {
+  updateTimestamp(timestamp: Timestamp.Timestamp) {
     this._timestamp = timestamp
     const acceptableRange = this.acceptableTimestampRange()
     this.filterStaleTimestamps(acceptableRange[0], true)
@@ -43,29 +42,35 @@ export class CommandBuffer<$Command extends Command>
   }
 
   drainAll() {
-    const sortedCommands = [...this.map.entries()].sort((a, b) => a[0].cmp(b[0]))
+    const sortedCommands = [...this.map.entries()].sort((a, b) =>
+      Timestamp.cmp(a[0], b[0]),
+    )
     this.map.clear()
     return sortedCommands.map(tc => tc[1]).flat()
   }
 
-  drainUpTo(timestamp: Timestamp) {
-    const sortedCommands = [...this.map.entries()].sort((a, b) => a[0].cmp(b[0]))
-    const filteredCommands = sortedCommands.filter(tc => tc[0].cmp(timestamp) < 0)
+  drainUpTo(timestamp: Timestamp.Timestamp) {
+    const sortedCommands = [...this.map.entries()].sort((a, b) =>
+      Timestamp.cmp(a[0], b[0]),
+    )
+    const filteredCommands = sortedCommands.filter(
+      tc => Timestamp.cmp(tc[0], timestamp) < 0,
+    )
 
     this.map.clear()
     return filteredCommands.map(tc => tc[1]).flat()
   }
 
-  insert(timestampedCommand: Timestamped<$Command>) {
-    const incomingTimestamp = timestampedCommand.timestamp()
+  insert(timestampedCommand: Timestamp.Timestamped<$Command>) {
+    const incomingTimestamp = Timestamp.get(timestampedCommand)
 
-    if (this.acceptableTimestampRange().some(t => t.cmp(incomingTimestamp) === 0)) {
+    if (this.acceptableTimestampRange().some(t => t === incomingTimestamp)) {
       const commandsExist = this.map.get(incomingTimestamp)
 
       if (!commandsExist) {
-        this.map.set(incomingTimestamp, [timestampedCommand.inner()])
+        this.map.set(incomingTimestamp, [timestampedCommand])
       } else {
-        this.map.set(incomingTimestamp, [...commandsExist, timestampedCommand.inner()])
+        this.map.set(incomingTimestamp, [...commandsExist, timestampedCommand])
       }
     } else {
       throw new RangeError(
@@ -74,7 +79,7 @@ export class CommandBuffer<$Command extends Command>
     }
   }
 
-  commandsAt(timestamp: Timestamp) {
+  commandsAt(timestamp: Timestamp.Timestamp) {
     return this.map.get(timestamp)
   }
 
@@ -86,7 +91,10 @@ export class CommandBuffer<$Command extends Command>
     return this.map.entries()
   }
 
-  clone() {
-    return new CommandBuffer(new Map(this.map.entries()), this._timestamp.clone())
+  clone(): this {
+    return new CommandBuffer(
+      new Map(this.map.entries()),
+      Timestamp.make(this._timestamp),
+    ) as this
   }
 }

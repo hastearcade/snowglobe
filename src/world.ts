@@ -5,7 +5,7 @@ import { Stepper } from "./fixed_timestepper"
 export interface Snapshot {
   clone(): this
 }
-export interface DisplayState extends Cloneable<DisplayState> {}
+export interface DisplayState extends Cloneable {}
 
 export type World<
   $Command extends Command = Command,

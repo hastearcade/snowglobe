@@ -1,5 +1,5 @@
 import { Cloneable } from "../cloneable"
-import { Timestamped } from "../timestamp"
+import * as Timestamp from "../timestamp"
 
 export type FromInterpolationFn<$DisplayState extends DisplayState> = (
   state1: $DisplayState,
@@ -7,7 +7,7 @@ export type FromInterpolationFn<$DisplayState extends DisplayState> = (
   t: number,
 ) => $DisplayState
 
-export type DisplayState = Cloneable<DisplayState> & {}
+export type DisplayState = Cloneable
 
 export class Tweened<$DisplayState extends DisplayState> {
   constructor(private _displayState: $DisplayState, private timestamp: number) {}
@@ -20,41 +20,35 @@ export class Tweened<$DisplayState extends DisplayState> {
 }
 
 export function timestampedFromInterpolation<$DisplayState extends DisplayState>(
-  state1: Timestamped<$DisplayState>,
-  state2: Timestamped<$DisplayState>,
+  state1: Timestamp.Timestamped<$DisplayState>,
+  state2: Timestamp.Timestamped<$DisplayState>,
   t: number,
   fromInterpolation: FromInterpolationFn<$DisplayState>,
-) {
+): Timestamp.Timestamped<$DisplayState> {
   if (t === 0) {
-    return state1.clone()
+    return Timestamp.set(state1.clone(), Timestamp.get(state1))
   } else if (Math.abs(t - 1) < Number.EPSILON) {
-    return state2.clone()
+    return Timestamp.set(state2.clone(), Timestamp.get(state2))
   } else {
-    console.assert(state1.timestamp().cmp(state2.timestamp()) === 0)
-    return new Timestamped(
-      fromInterpolation(state1.inner(), state2.inner(), t),
-      state1.timestamp(),
-    )
+    console.assert(Timestamp.get(state1) === Timestamp.get(state2))
+    return Timestamp.set(fromInterpolation(state1, state2, t), Timestamp.get(state1))
   }
 }
 
 export function tweenedFromInterpolation<$DisplayState extends DisplayState>(
-  state1: Timestamped<$DisplayState>,
-  state2: Timestamped<$DisplayState>,
+  state1: Timestamp.Timestamped<$DisplayState>,
+  state2: Timestamp.Timestamped<$DisplayState>,
   t: number,
   fromInterpolation: FromInterpolationFn<$DisplayState>,
 ) {
-  const timestampDifference = state2.timestamp().subTimestamp(state1.timestamp()).value
+  const timestampDifference = Timestamp.sub(Timestamp.get(state2), Timestamp.get(state1))
   const timestampOffset = t * timestampDifference
-  const timestampInterpolated = state1.timestamp().value + timestampOffset
-  return new Tweened(
-    fromInterpolation(state1.inner(), state2.inner(), t),
-    timestampInterpolated,
-  )
+  const timestampInterpolated = Timestamp.add(Timestamp.get(state1), timestampOffset)
+  return new Tweened(fromInterpolation(state1, state2, t), timestampInterpolated)
 }
 
 export function tweenedFromTimestamped<$DisplayState extends DisplayState>(
-  timestamped: Timestamped<$DisplayState>,
+  timestamped: Timestamp.Timestamped<$DisplayState>,
 ) {
-  return new Tweened(timestamped.inner().clone(), timestamped.timestamp().value)
+  return new Tweened(timestamped.clone(), Timestamp.get(timestamped))
 }

@@ -1,4 +1,4 @@
-import { Timestamp, Timestamped } from "../timestamp"
+import * as Timestamp from "../timestamp"
 import {
   DisplayState,
   FromInterpolationFn,
@@ -13,7 +13,7 @@ class MockDisplayState implements DisplayState {
   }
 
   clone() {
-    return new MockDisplayState(this.value)
+    return new MockDisplayState(this.value) as this
   }
 }
 
@@ -23,8 +23,8 @@ const mockFromInterpolation: FromInterpolationFn<MockDisplayState> = jest.fn(
 
 describe("timestampedFromInterpolation", () => {
   test("when interpolating DisplayState with t=0 then state1 is returned", () => {
-    const state1 = new Timestamped(new MockDisplayState(4), new Timestamp().add(2))
-    const state2 = new Timestamped(new MockDisplayState(8), new Timestamp().add(5))
+    const state1 = Timestamp.set(new MockDisplayState(4), Timestamp.make(2))
+    const state2 = Timestamp.set(new MockDisplayState(8), Timestamp.make(5))
     const interpolated = timestampedFromInterpolation(
       state1,
       state2,
@@ -36,8 +36,8 @@ describe("timestampedFromInterpolation", () => {
   })
 
   test("when interpolating DisplayState with t=1 then state2 is returned", () => {
-    const state1 = new Timestamped(new MockDisplayState(4), new Timestamp().add(2))
-    const state2 = new Timestamped(new MockDisplayState(8), new Timestamp().add(5))
+    const state1 = Timestamp.set(new MockDisplayState(4), Timestamp.make(2))
+    const state2 = Timestamp.set(new MockDisplayState(8), Timestamp.make(5))
     const interpolated = timestampedFromInterpolation(
       state1,
       state2,

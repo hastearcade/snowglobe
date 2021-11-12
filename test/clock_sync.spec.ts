@@ -1,5 +1,6 @@
 import { StageState } from "../src/client"
 import { TweeningMethod } from "../src/lib"
+import * as Timestamp from "../src/timestamp"
 import { MockClientServer, MockWorld } from "./mocks"
 
 describe("ClockSync", () => {
@@ -30,7 +31,7 @@ describe("ClockSync", () => {
       mockClientServer.updateUntilClientsReady(TIMESTEP_SECONDS)
       expect(mockClientServer.client1.state()).toBe(StageState.Ready)
       expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toEqual(
-        mockClientServer.server.estimatedClientLastCompletedTimestamp().add(1),
+        Timestamp.add(mockClientServer.server.estimatedClientLastCompletedTimestamp(), 1),
       )
 
       // WHEN the client and server clocks are desynchronized.
@@ -42,12 +43,7 @@ describe("ClockSync", () => {
       }
 
       expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toEqual(
-        mockClientServer.server.estimatedClientLastCompletedTimestamp().add(1),
-      )
-
-      console.log(
-        mockClientServer.client1.stage().ready!.timekeepingSimulations.updates,
-        mockClientServer.client1.stage().ready!.timekeepingSimulations.steps,
+        Timestamp.add(mockClientServer.server.estimatedClientLastCompletedTimestamp(), 1),
       )
     }
   })
@@ -84,7 +80,7 @@ describe("ClockSync", () => {
 
       // THEN the client should accurately offset its own clock to agree with the server.
       expect(mockClientServer.client1.stage().ready!.lastCompletedTimestamp()).toEqual(
-        mockClientServer.server.estimatedClientLastCompletedTimestamp().add(1),
+        Timestamp.add(mockClientServer.server.estimatedClientLastCompletedTimestamp(), 1),
       )
     }
   })

@@ -1,28 +1,28 @@
-import { Timestamp } from "./timestamp"
+import * as Timestamp from "./timestamp"
 
 export function makeTimestamps() {
   return [
-    new Timestamp().add(Timestamp.MIN),
-    new Timestamp().add(Timestamp.MIN / 2),
-    new Timestamp().sub(1),
-    new Timestamp(),
-    new Timestamp().add(1),
-    new Timestamp().add(Timestamp.MAX / 2),
-    new Timestamp().add(Timestamp.MAX),
+    Timestamp.make(Timestamp.MIN),
+    Timestamp.make(Timestamp.MIN / 2),
+    Timestamp.make(-1),
+    Timestamp.make(),
+    Timestamp.make(1),
+    Timestamp.make(Timestamp.MAX / 2),
+    Timestamp.make(Timestamp.MAX),
   ]
 }
 
-function makeOffsets(initial: Timestamp) {
-  const plusOne = initial.add(1)
-  const plusLimit = initial.add(Timestamp.MAX)
-  const plusWrapped = plusLimit.add(1)
-  const plusWrappedLimit = plusLimit.sub(Timestamp.MIN)
-  const plusWrappedFull = plusWrappedLimit.add(1)
-  const minusOne = initial.sub(1)
-  const minusLimit = initial.add(Timestamp.MIN)
-  const minusWrapped = minusLimit.sub(1)
-  const minusWrappedLimit = minusLimit.sub(Timestamp.MAX)
-  const minusWrappedFull = minusWrappedLimit.sub(1)
+function makeOffsets(initial: Timestamp.Timestamp) {
+  const plusOne = Timestamp.add(initial, 1)
+  const plusLimit = Timestamp.add(initial, Timestamp.MAX)
+  const plusWrapped = Timestamp.add(plusLimit, 1)
+  const plusWrappedLimit = Timestamp.sub(plusLimit, Timestamp.MIN)
+  const plusWrappedFull = Timestamp.add(plusWrappedLimit, 1)
+  const minusOne = Timestamp.sub(initial, 1)
+  const minusLimit = Timestamp.add(initial, Timestamp.MIN)
+  const minusWrapped = Timestamp.sub(minusLimit, 1)
+  const minusWrappedLimit = Timestamp.sub(minusLimit, Timestamp.MAX)
+  const minusWrappedFull = Timestamp.sub(minusWrappedLimit, 1)
   return {
     plusOne,
     plusLimit,
@@ -39,18 +39,18 @@ function makeOffsets(initial: Timestamp) {
 
 describe("Timestamp", () => {
   test("order", () => {
-    function testTimestampOrderWithInitial(initial: Timestamp) {
+    function testTimestampOrderWithInitial(initial: Timestamp.Timestamp) {
       const offsets = makeOffsets(initial)
-      expect(offsets.plusOne.cmp(initial)).toBe(1)
-      expect(offsets.plusLimit.cmp(initial)).toBe(1)
-      expect(offsets.plusWrapped.cmp(initial)).toBe(-1)
-      expect(offsets.plusWrappedLimit.cmp(initial)).toBe(-1)
-      expect(offsets.plusWrappedFull.cmp(initial)).toBe(0)
-      expect(offsets.minusOne.cmp(initial)).toBe(-1)
-      expect(offsets.minusLimit.cmp(initial)).toBe(-1)
-      expect(offsets.minusWrapped.cmp(initial)).toBe(1)
-      expect(offsets.minusWrappedLimit.cmp(initial)).toBe(1)
-      expect(offsets.minusWrappedFull.cmp(initial)).toBe(0)
+      expect(Timestamp.cmp(offsets.plusOne, initial)).toBe(1)
+      expect(Timestamp.cmp(offsets.plusLimit, initial)).toBe(1)
+      expect(Timestamp.cmp(offsets.plusWrapped, initial)).toBe(-1)
+      expect(Timestamp.cmp(offsets.plusWrappedLimit, initial)).toBe(-1)
+      expect(Timestamp.cmp(offsets.plusWrappedFull, initial)).toBe(0)
+      expect(Timestamp.cmp(offsets.minusOne, initial)).toBe(-1)
+      expect(Timestamp.cmp(offsets.minusLimit, initial)).toBe(-1)
+      expect(Timestamp.cmp(offsets.minusWrapped, initial)).toBe(1)
+      expect(Timestamp.cmp(offsets.minusWrappedLimit, initial)).toBe(1)
+      expect(Timestamp.cmp(offsets.minusWrappedFull, initial)).toBe(0)
     }
 
     for (const timestamp of makeTimestamps()) {
@@ -58,36 +58,26 @@ describe("Timestamp", () => {
     }
   })
   test("difference", () => {
-    function testTimestampDifferenceWithInitial(initial: Timestamp) {
+    function testTimestampDifferenceWithInitial(initial: Timestamp.Timestamp) {
       const offsets = makeOffsets(initial)
-      expect(offsets.plusOne.subTimestamp(initial).value).toEqual(new Timestamp(1).value)
-      expect(offsets.plusLimit.subTimestamp(initial).value).toEqual(
-        new Timestamp().add(Timestamp.MAX).value,
+      expect(Timestamp.sub(offsets.plusOne, initial)).toEqual(Timestamp.make(1))
+      expect(Timestamp.sub(offsets.plusLimit, initial)).toEqual(
+        Timestamp.make(Timestamp.MAX),
       )
-      expect(offsets.plusWrapped.subTimestamp(initial).value).toEqual(
-        new Timestamp().add(Timestamp.MIN).value,
+      expect(Timestamp.sub(offsets.plusWrapped, initial)).toEqual(
+        Timestamp.make(Timestamp.MIN),
       )
-      expect(offsets.plusWrappedLimit.subTimestamp(initial).value).toEqual(
-        new Timestamp().sub(1).value,
+      expect(Timestamp.sub(offsets.plusWrappedLimit, initial)).toEqual(Timestamp.make(-1))
+      expect(Timestamp.sub(offsets.plusWrappedFull, initial)).toEqual(Timestamp.make())
+      expect(Timestamp.sub(offsets.minusOne, initial)).toEqual(Timestamp.make(-1))
+      expect(Timestamp.sub(offsets.minusLimit, initial)).toEqual(
+        Timestamp.make(Timestamp.MIN),
       )
-      expect(offsets.plusWrappedFull.subTimestamp(initial).value).toEqual(
-        new Timestamp().value,
+      expect(Timestamp.sub(offsets.minusWrapped, initial)).toEqual(
+        Timestamp.make(Timestamp.MAX),
       )
-      expect(offsets.minusOne.subTimestamp(initial).value).toEqual(
-        new Timestamp().sub(1).value,
-      )
-      expect(offsets.minusLimit.subTimestamp(initial).value).toEqual(
-        new Timestamp().add(Timestamp.MIN).value,
-      )
-      expect(offsets.minusWrapped.subTimestamp(initial).value).toEqual(
-        new Timestamp().add(Timestamp.MAX).value,
-      )
-      expect(offsets.minusWrappedLimit.subTimestamp(initial).value).toEqual(
-        new Timestamp().add(1).value,
-      )
-      expect(offsets.minusWrappedFull.subTimestamp(initial).value).toEqual(
-        new Timestamp().value,
-      )
+      expect(Timestamp.sub(offsets.minusWrappedLimit, initial)).toEqual(Timestamp.make(1))
+      expect(Timestamp.sub(offsets.minusWrappedFull, initial)).toEqual(Timestamp.make())
     }
 
     for (const timestamp of makeTimestamps()) {
@@ -96,46 +86,37 @@ describe("Timestamp", () => {
   })
   test("increment", () => {
     for (const timestamp of makeTimestamps()) {
-      const incremented = new Timestamp(timestamp.value)
-      incremented.increment()
-      expect(incremented.cmp(timestamp)).toBe(1)
-      expect(incremented.subTimestamp(timestamp).value).toBe(new Timestamp(1).value)
+      const incremented = Timestamp.increment(Timestamp.make(timestamp))
+      expect(Timestamp.cmp(incremented, timestamp)).toBe(1)
+      expect(Timestamp.sub(incremented, timestamp)).toBe(Timestamp.make(1))
     }
   })
   test("from seconds", () => {
-    expect(Timestamp.fromSeconds(0.0, 1.0).value).toEqual(new Timestamp().value)
-    expect(Timestamp.fromSeconds(1.0, 1.0).value).toEqual(new Timestamp().add(1).value)
-    expect(Timestamp.fromSeconds(0.25, 0.25).value).toEqual(new Timestamp().add(1).value)
-    expect(Timestamp.fromSeconds(-1.0, 1.0).value).toEqual(new Timestamp().sub(1).value)
-    expect(Timestamp.fromSeconds(Timestamp.MAX, 1.0).value).toEqual(
-      new Timestamp().add(Timestamp.MAX).value,
-    )
-    expect(Timestamp.fromSeconds(Timestamp.MAX + 1.0, 1.0).value).toEqual(
-      new Timestamp().add(Timestamp.MIN).value,
-    )
-    expect(Timestamp.fromSeconds(Timestamp.MIN, 1.0).value).toEqual(
-      new Timestamp().add(Timestamp.MIN).value,
-    )
-    expect(Timestamp.fromSeconds(Timestamp.MIN - 1.0, 1.0).value).toEqual(
-      new Timestamp().add(Timestamp.MAX).value,
-    )
+    expect(Timestamp.fromSeconds(0, 1)).toEqual(Timestamp.make())
+    expect(Timestamp.fromSeconds(1, 1)).toEqual(Timestamp.make(1))
+    expect(Timestamp.fromSeconds(0.25, 0.25)).toEqual(Timestamp.make(1))
+    expect(Timestamp.fromSeconds(-1, 1)).toEqual(Timestamp.make(-1))
+    expect(Timestamp.fromSeconds(Timestamp.MAX, 1)).toEqual(Timestamp.MAX)
+    expect(Timestamp.fromSeconds(Timestamp.MAX + 1, 1)).toEqual(Timestamp.MIN)
+    expect(Timestamp.fromSeconds(Timestamp.MIN, 1)).toEqual(Timestamp.MIN)
+    expect(Timestamp.fromSeconds(Timestamp.MIN - 1, 1)).toEqual(Timestamp.MAX)
   })
   test("as seconds", () => {
-    expect(Timestamp.fromSeconds(0.0, 1.0).asSeconds(1.0)).toEqual(0.0)
-    expect(Timestamp.fromSeconds(1.0, 1.0).asSeconds(1.0)).toEqual(1.0)
-    expect(Timestamp.fromSeconds(1.0, 1.0).asSeconds(0.25)).toEqual(0.25)
-    expect(Timestamp.fromSeconds(0.25, 0.25).asSeconds(0.25)).toEqual(0.25)
-    expect(Timestamp.fromSeconds(-1.0, 1.0).asSeconds(1.0)).toEqual(-1.0)
-    expect(Timestamp.fromSeconds(Timestamp.MAX, 1.0).asSeconds(1.0)).toEqual(
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(0, 1), 1)).toEqual(0)
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(1, 1), 1)).toEqual(1)
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(1, 1), 0.25)).toEqual(0.25)
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(0.25, 0.25), 0.25)).toEqual(0.25)
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(-1, 1), 1)).toEqual(-1)
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(Timestamp.MAX, 1), 1)).toEqual(
       Timestamp.MAX,
     )
-    expect(Timestamp.fromSeconds(Timestamp.MAX + 1.0, 1.0).asSeconds(1.0)).toEqual(
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(Timestamp.MAX + 1, 1), 1)).toEqual(
       Timestamp.MIN,
     )
-    expect(Timestamp.fromSeconds(Timestamp.MIN, 1.0).asSeconds(1.0)).toEqual(
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(Timestamp.MIN, 1), 1)).toEqual(
       Timestamp.MIN,
     )
-    expect(Timestamp.fromSeconds(Timestamp.MIN - 1.0, 1.0).asSeconds(1.0)).toEqual(
+    expect(Timestamp.asSeconds(Timestamp.fromSeconds(Timestamp.MIN - 1, 1), 1)).toEqual(
       Timestamp.MAX,
     )
   })

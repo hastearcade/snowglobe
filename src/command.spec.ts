@@ -1,10 +1,9 @@
 import { Command, CommandBuffer } from "./command"
-import { Timestamp, Timestamped } from "./timestamp"
+import * as Timestamp from "./timestamp"
 
 describe("Command", () => {
   test("insert single command", () => {
-    const cmd = {} as Command
-    const timestampedCommand = new Timestamped<Command>(cmd, new Timestamp())
+    const timestampedCommand = Timestamp.set({} as Command, Timestamp.make())
     const buffer = new CommandBuffer()
 
     buffer.insert(timestampedCommand)
@@ -13,14 +12,13 @@ describe("Command", () => {
   })
 
   test("insert multiple commands different timestamps", () => {
-    const cmd = {} as Command
-    const timestamp = new Timestamp()
-    const timestampTwo = new Timestamp()
-    const timestampThree = new Timestamp()
+    const timestamp = Timestamp.make()
+    const timestampTwo = Timestamp.make(1)
+    const timestampThree = Timestamp.make(2)
 
-    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
-    const timestampedCommandTwo = new Timestamped<Command>(cmd, timestampTwo)
-    const timestampedCommandThree = new Timestamped<Command>(cmd, timestampThree)
+    const timestampedCommand = Timestamp.set({} as Command, timestamp)
+    const timestampedCommandTwo = Timestamp.set({} as Command, timestampTwo)
+    const timestampedCommandThree = Timestamp.set({} as Command, timestampThree)
 
     const buffer = new CommandBuffer()
 
@@ -33,9 +31,8 @@ describe("Command", () => {
   })
 
   test("insert multiple commands same timestamps", () => {
-    const cmd = {} as Command
-    const timestamp = new Timestamp()
-    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
+    const timestamp = Timestamp.make()
+    const timestampedCommand = Timestamp.set({} as Command, timestamp)
     const buffer = new CommandBuffer()
 
     buffer.insert(timestampedCommand)
@@ -47,9 +44,8 @@ describe("Command", () => {
   })
 
   test("insert command for invalid timestamp", () => {
-    const cmd = {} as Command
-    const timestamp = new Timestamp(Timestamp.MAX)
-    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
+    const timestamp = Timestamp.make(Timestamp.MAX)
+    const timestampedCommand = Timestamp.set({} as Command, timestamp)
     const buffer = new CommandBuffer()
 
     expect(() => buffer.insert(timestampedCommand)).toThrowError(RangeError)
@@ -58,50 +54,46 @@ describe("Command", () => {
   })
 
   test("update timestamp no stale commands", () => {
-    const cmd = {} as Command
-    const timestampedCommand = new Timestamped<Command>(cmd, new Timestamp())
+    const timestampedCommand = Timestamp.set({} as Command, Timestamp.make())
     const buffer = new CommandBuffer()
 
     buffer.insert(timestampedCommand)
 
-    buffer.updateTimestamp(new Timestamp(1))
+    buffer.updateTimestamp(Timestamp.make(1))
 
     expect(buffer.length()).toBe(1)
   })
 
   test("update timestamp stale commands before", () => {
-    const cmd = {} as Command
-    const timestampedCommand = new Timestamped<Command>(cmd, new Timestamp())
+    const timestampedCommand = Timestamp.set({} as Command, Timestamp.make())
     const buffer = new CommandBuffer()
 
     buffer.insert(timestampedCommand)
 
-    buffer.updateTimestamp(new Timestamp(Timestamp.MAX / 2 + 5))
+    buffer.updateTimestamp(Timestamp.make(Timestamp.MAX / 2 + 5))
 
     expect(buffer.length()).toBe(0)
   })
 
   test("update timestamp stale commands after", () => {
-    const cmd = {} as Command
-    const timestampedCommand = new Timestamped<Command>(cmd, new Timestamp())
+    const timestampedCommand = Timestamp.set({} as Command, Timestamp.make())
     const buffer = new CommandBuffer()
 
     buffer.insert(timestampedCommand)
 
-    buffer.updateTimestamp(new Timestamp(Timestamp.MIN / 2 - 5))
+    buffer.updateTimestamp(Timestamp.make(Timestamp.MIN / 2 - 5))
 
     expect(buffer.length()).toBe(0)
   })
 
   test("test drain all inserts in order", () => {
-    const cmd = {} as Command
-    const timestamp = new Timestamp()
-    const timestampTwo = new Timestamp(1)
-    const timestampThree = new Timestamp(2)
+    const timestamp = Timestamp.make()
+    const timestampTwo = Timestamp.make(1)
+    const timestampThree = Timestamp.make(2)
 
-    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
-    const timestampedCommandTwo = new Timestamped<Command>(cmd, timestampTwo)
-    const timestampedCommandThree = new Timestamped<Command>(cmd, timestampThree)
+    const timestampedCommand = Timestamp.set({} as Command, timestamp)
+    const timestampedCommandTwo = Timestamp.set({} as Command, timestampTwo)
+    const timestampedCommandThree = Timestamp.set({} as Command, timestampThree)
 
     const buffer = new CommandBuffer()
 
@@ -117,14 +109,13 @@ describe("Command", () => {
   })
 
   test("test drain all inserts out of order", () => {
-    const cmd = {} as Command
-    const timestamp = new Timestamp()
-    const timestampTwo = new Timestamp(1)
-    const timestampThree = new Timestamp(2)
+    const timestamp = Timestamp.make()
+    const timestampTwo = Timestamp.make(1)
+    const timestampThree = Timestamp.make(2)
 
-    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
-    const timestampedCommandTwo = new Timestamped<Command>(cmd, timestampTwo)
-    const timestampedCommandThree = new Timestamped<Command>(cmd, timestampThree)
+    const timestampedCommand = Timestamp.set({} as Command, timestamp)
+    const timestampedCommandTwo = Timestamp.set({} as Command, timestampTwo)
+    const timestampedCommandThree = Timestamp.set({} as Command, timestampThree)
 
     const buffer = new CommandBuffer()
 
@@ -140,14 +131,13 @@ describe("Command", () => {
   })
 
   test("test drain up to timestamp inserts out of order", () => {
-    const cmd = {} as Command
-    const timestamp = new Timestamp()
-    const timestampTwo = new Timestamp(1)
-    const timestampThree = new Timestamp(2)
+    const timestamp = Timestamp.make()
+    const timestampTwo = Timestamp.make(1)
+    const timestampThree = Timestamp.make(2)
 
-    const timestampedCommand = new Timestamped<Command>(cmd, timestamp)
-    const timestampedCommandTwo = new Timestamped<Command>(cmd, timestampTwo)
-    const timestampedCommandThree = new Timestamped<Command>(cmd, timestampThree)
+    const timestampedCommand = Timestamp.set({} as Command, timestamp)
+    const timestampedCommandTwo = Timestamp.set({} as Command, timestampTwo)
+    const timestampedCommandThree = Timestamp.set({} as Command, timestampThree)
 
     const buffer = new CommandBuffer()
 
@@ -156,7 +146,7 @@ describe("Command", () => {
     buffer.insert(timestampedCommandThree) // duplicate so the internal buffer is more intersting
     buffer.insert(timestampedCommandTwo)
 
-    const allCommands = buffer.drainUpTo(new Timestamp(2))
+    const allCommands = buffer.drainUpTo(Timestamp.make(2))
 
     expect(allCommands.length).toBe(2)
     expect(buffer.length()).toBe(0)

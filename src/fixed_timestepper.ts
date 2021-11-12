@@ -1,13 +1,13 @@
 import { Config } from "./lib"
-import { FloatTimestamp, Timestamp } from "./timestamp"
+import * as Timestamp from "./timestamp"
 
 export interface Stepper {
   step(): void
 }
 
 export interface FixedTimestepper extends Stepper {
-  lastCompletedTimestamp(): Timestamp
-  resetLastCompletedTimestamp(correctedTimestamp: Timestamp): void
+  lastCompletedTimestamp(): Timestamp.Timestamp
+  resetLastCompletedTimestamp(correctedTimestamp: Timestamp.Timestamp): void
   postUpdate(timestepOvershootSeconds: number): void
 }
 
@@ -18,21 +18,22 @@ export enum TerminationCondition {
 
 export function decomposeFloatTimestamp(
   condition: TerminationCondition,
-  floatTimestamp: FloatTimestamp,
+  floatTimestamp: Timestamp.FloatTimestamp,
   timestepSeconds: number,
-): [Timestamp, number] {
-  let timestamp: Timestamp
+): [Timestamp.Timestamp, number] {
+  let timestamp: Timestamp.Timestamp
   switch (condition) {
     case TerminationCondition.LastUndershoot:
-      timestamp = floatTimestamp.floor()
+      timestamp = Timestamp.floor(floatTimestamp)
       break
     case TerminationCondition.FirstOvershoot:
-      timestamp = floatTimestamp.ceil()
+      timestamp = Timestamp.ceil(floatTimestamp)
       break
   }
-  let overshootSeconds = FloatTimestamp.from(timestamp)
-    .subFloatTimestamp(floatTimestamp)
-    .asSeconds(timestepSeconds)
+  let overshootSeconds = Timestamp.asSeconds(
+    Timestamp.subFloat(Timestamp.toFloat(timestamp), floatTimestamp),
+    timestepSeconds,
+  )
   return [timestamp, overshootSeconds]
 }
 
@@ -65,11 +66,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
     this.terminationCondition = terminationCondition
   }
 
-  updates = 0
-  steps = 0
-
   update(deltaSeconds: number, serverSecondsSinceStartup: number) {
-    this.updates++
     const compensatedDeltaSeconds = this.deltaSecondsCompensateForDrift(
       deltaSeconds,
       serverSecondsSinceStartup,
@@ -80,8 +77,9 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
   }
 
   currentLogicalTimestamp() {
-    return FloatTimestamp.from(this.stepper.lastCompletedTimestamp()).subFloatTimestamp(
-      FloatTimestamp.fromSeconds(
+    return Timestamp.subFloat(
+      Timestamp.toFloat(this.stepper.lastCompletedTimestamp()),
+      Timestamp.makeFromSecondsFloat(
         this.timestepOvershootSeconds,
         this.config.timestepSeconds,
       ),
@@ -89,17 +87,18 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
   }
 
   targetLogicalTimestamp(serverSecondsSinceStartup: number) {
-    return FloatTimestamp.fromSeconds(
+    return Timestamp.makeFromSecondsFloat(
       serverSecondsSinceStartup,
       this.config.timestepSeconds,
     )
   }
 
   timestampDriftSeconds(serverSecondsSinceStartup: number) {
-    const frameDrift = this.currentLogicalTimestamp().subFloatTimestamp(
+    const frameDrift = Timestamp.subFloat(
+      this.currentLogicalTimestamp(),
       this.targetLogicalTimestamp(serverSecondsSinceStartup),
     )
-    const secondsDrift = frameDrift.asSeconds(this.config.timestepSeconds)
+    const secondsDrift = Timestamp.asSeconds(frameDrift, this.config.timestepSeconds)
     return secondsDrift
   }
 
@@ -145,7 +144,6 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
         break
       }
       this.stepper.step()
-      this.steps++
       this.timestepOvershootSeconds = nextOvershootSeconds
     }
   }

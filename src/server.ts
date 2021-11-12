@@ -8,8 +8,8 @@ import {
   SNAPSHOT_MESSAGE_TYPE_ID,
 } from "./message"
 import { ConnectionHandle, NetworkResource } from "./network_resource"
-import { Timestamp, Timestamped } from "./timestamp"
-import { CommandOf, Snapshot, World } from "./world"
+import * as Timestamp from "./timestamp"
+import { Snapshot, World } from "./world"
 import { DisplayState } from "./world/display_state"
 import { InitializationType, Simulation } from "./world/simulation"
 
@@ -32,10 +32,11 @@ export class Server<
       new Simulation(world, InitializationType.PreInitialized),
       config,
     )
-    const initialTimestamp = Timestamp.fromSeconds(
-      secondsSinceStartup,
-      config.timestepSeconds,
-    ).sub(lagCompensationFrameCount(config))
+    const initialTimestamp = Timestamp.sub(
+      Timestamp.fromSeconds(secondsSinceStartup, config.timestepSeconds),
+      lagCompensationFrameCount(config),
+    )
+
     this.timekeepingSimulation.stepper.resetLastCompletedTimestamp(initialTimestamp)
   }
 
@@ -48,15 +49,21 @@ export class Server<
   }
 
   estimatedClientSimulatingTimestamp() {
-    return this.simulatingTimestamp().add(lagCompensationFrameCount(this.config))
+    return Timestamp.add(
+      this.simulatingTimestamp(),
+      lagCompensationFrameCount(this.config),
+    )
   }
 
   estimatedClientLastCompletedTimestamp() {
-    return this.lastCompletedTimestamp().add(lagCompensationFrameCount(this.config))
+    return Timestamp.add(
+      this.lastCompletedTimestamp(),
+      lagCompensationFrameCount(this.config),
+    )
   }
 
   applyValidatedCommand(
-    command: Timestamped<$Command>,
+    command: Timestamp.Timestamped<$Command>,
     commandSource: ConnectionHandle | undefined,
     net: NetworkResource<$Command>,
   ) {
@@ -65,7 +72,10 @@ export class Server<
       if (commandSource === handle) {
         continue
       }
-      const result = connection.send(COMMAND_MESSAGE_TYPE_ID, command.clone())
+      const result = connection.send(
+        COMMAND_MESSAGE_TYPE_ID,
+        Timestamp.set(command.clone(), Timestamp.get(command)),
+      )
       connection.flush(COMMAND_MESSAGE_TYPE_ID)
       if (result) {
         console.error(`Failed to relay command to ${handle}: ${result}`)
@@ -74,18 +84,18 @@ export class Server<
   }
 
   receiveCommand<$Net extends NetworkResource<$Command>>(
-    command: Timestamped<$Command>,
+    command: Timestamp.Timestamped<$Command>,
     commandSource: ConnectionHandle,
     net: $Net,
   ) {
-    if (this.world.commandIsValid(command.inner(), commandSource)) {
+    if (this.world.commandIsValid(command, commandSource)) {
       this.applyValidatedCommand(command, commandSource, net)
     }
   }
 
   issueCommand<$Net extends NetworkResource<$Command>>(command: $Command, net: $Net) {
     this.applyValidatedCommand(
-      new Timestamped(command, this.estimatedClientSimulatingTimestamp()),
+      Timestamp.set(command, this.estimatedClientSimulatingTimestamp()),
       undefined,
       net,
     )
@@ -112,10 +122,10 @@ export class Server<
         "Attempted to update client with a negative delta seconds. Clamping it to zero.",
       )
     }
-    const newCommands: [Timestamped<$Command>, ConnectionHandle][] = []
+    const newCommands: [Timestamp.Timestamped<$Command>, ConnectionHandle][] = []
     const clockSyncs: [ConnectionHandle, ClockSyncMessage][] = []
     for (const [handle, connection] of net.connections()) {
-      let command: Timestamped<$Command> | undefined
+      let command: Timestamp.Timestamped<$Command> | undefined
       let clockSyncMessage: ClockSyncMessage | undefined
       while ((command = connection.recvCommand())) {
         newCommands.push([command, handle])

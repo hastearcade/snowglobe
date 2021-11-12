@@ -1,3 +1,3 @@
-export interface Cloneable<$Type> {
-  clone(): $Type
+export interface Cloneable {
+  clone(): this
 }

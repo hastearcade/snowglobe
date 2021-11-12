@@ -1,11 +1,6 @@
-import {
-  FixedTimestepper,
-  Stepper,
-  TerminationCondition,
-  TimeKeeper,
-} from "./fixed_timestepper"
+import { FixedTimestepper, TerminationCondition, TimeKeeper } from "./fixed_timestepper"
 import { Config, TweeningMethod } from "./lib"
-import { Timestamp } from "./timestamp"
+import * as Timestamp from "./timestamp"
 import { makeTimestamps } from "./timestamp.spec"
 
 const cartesian = <T extends unknown[][]>(
@@ -30,19 +25,19 @@ const config: Config = {
 
 class MockStepper implements FixedTimestepper {
   steps: number
-  _lastCompletedTimestamp: Timestamp
-  constructor(timestamp: Timestamp) {
+  _lastCompletedTimestamp: Timestamp.Timestamp
+  constructor(timestamp: Timestamp.Timestamp) {
     this.steps = 0
     this._lastCompletedTimestamp = timestamp
   }
   step() {
     this.steps += 1
-    this._lastCompletedTimestamp.increment()
+    this._lastCompletedTimestamp = Timestamp.increment(this._lastCompletedTimestamp)
   }
   lastCompletedTimestamp() {
     return this._lastCompletedTimestamp
   }
-  resetLastCompletedTimestamp(correctedTimestamp: Timestamp) {
+  resetLastCompletedTimestamp(correctedTimestamp: Timestamp.Timestamp) {
     this._lastCompletedTimestamp = correctedTimestamp
   }
   postUpdate() {}
@@ -51,7 +46,7 @@ class MockStepper implements FixedTimestepper {
 function makeTestTitle(
   drift: number,
   wrappedCount: number,
-  initialTimestamp: Timestamp,
+  initialTimestamp: Timestamp.Timestamp,
   framesPerUpdate: number,
 ) {
   return `Subtest [drift: ${drift} wrapped count: ${wrappedCount}, initial timestamp: ${JSON.stringify(
@@ -61,7 +56,7 @@ function makeTestTitle(
 
 describe("FixedTimestepper", () => {
   test("last undershoot exact", () => {
-    const stepper = new MockStepper(new Timestamp())
+    const stepper = new MockStepper(Timestamp.make())
     const timekeeper = new TimeKeeper(
       stepper,
       config,
@@ -71,7 +66,7 @@ describe("FixedTimestepper", () => {
     expect(timekeeper.stepper.steps).toBe(1)
   })
   test("last undershoot below", () => {
-    const stepper = new MockStepper(new Timestamp())
+    const stepper = new MockStepper(Timestamp.make())
     const timekeeper = new TimeKeeper(
       stepper,
       config,
@@ -81,7 +76,7 @@ describe("FixedTimestepper", () => {
     expect(timekeeper.stepper.steps).toBe(0)
   })
   test("last undershoot above", () => {
-    const stepper = new MockStepper(new Timestamp())
+    const stepper = new MockStepper(Timestamp.make())
     const timekeeper = new TimeKeeper(
       stepper,
       config,
@@ -91,7 +86,7 @@ describe("FixedTimestepper", () => {
     expect(timekeeper.stepper.steps).toBe(1)
   })
   test("first overshoot exact", () => {
-    const stepper = new MockStepper(new Timestamp())
+    const stepper = new MockStepper(Timestamp.make())
     const timekeeper = new TimeKeeper(
       stepper,
       config,
@@ -101,7 +96,7 @@ describe("FixedTimestepper", () => {
     expect(timekeeper.stepper.steps).toBe(1)
   })
   test("first overshoot below", () => {
-    const stepper = new MockStepper(new Timestamp())
+    const stepper = new MockStepper(Timestamp.make())
     const timekeeper = new TimeKeeper(
       stepper,
       config,
@@ -111,7 +106,7 @@ describe("FixedTimestepper", () => {
     expect(timekeeper.stepper.steps).toBe(1)
   })
   test("first overshoot above", () => {
-    const stepper = new MockStepper(new Timestamp())
+    const stepper = new MockStepper(Timestamp.make())
     const timekeeper = new TimeKeeper(
       stepper,
       config,
@@ -147,12 +142,12 @@ describe("FixedTimestepper", () => {
       test(title, () => {
         // GIVEN a TimeKeeper starting at an interesting initial timestamp.
         const timekeeper = new TimeKeeper(
-          new MockStepper(Timestamp.from(initialTimestamp)),
+          new MockStepper(Timestamp.make(initialTimestamp)),
           config,
           TerminationCondition.FirstOvershoot,
         )
         const initialSecondsSinceStartup =
-          initialTimestamp.asSeconds(config.timestepSeconds) +
+          Timestamp.asSeconds(initialTimestamp, config.timestepSeconds) +
           initialWrappedCount * Math.pow(2, 16) * config.timestepSeconds
         expect(timekeeper.timestampDriftSeconds(initialSecondsSinceStartup)).toBeCloseTo(
           0,
@@ -201,12 +196,12 @@ describe("FixedTimestepper", () => {
       test(title, () => {
         // GIVEN a TimeKeeper starting at an interesting initial timestamp.
         const timekeeper = new TimeKeeper(
-          new MockStepper(Timestamp.from(initialTimestamp)),
+          new MockStepper(Timestamp.make(initialTimestamp)),
           config,
           TerminationCondition.FirstOvershoot,
         )
         const initialSecondsSinceStartup =
-          initialTimestamp.asSeconds(config.timestepSeconds) +
+          Timestamp.asSeconds(initialTimestamp, config.timestepSeconds) +
           initialWrappedCount * Math.pow(2, 16) * config.timestepSeconds
         expect(timekeeper.timestampDriftSeconds(initialSecondsSinceStartup)).toBeCloseTo(
           0,
@@ -230,8 +225,7 @@ describe("FixedTimestepper", () => {
 
         // THEN the TimeKeeper steps through all the needed frames.
         expect(timekeeper.stepper.steps).toEqual(
-          timekeeper.stepper.lastCompletedTimestamp().subTimestamp(initialTimestamp)
-            .value,
+          Timestamp.sub(timekeeper.stepper.lastCompletedTimestamp(), initialTimestamp),
         )
       })
     }
@@ -265,12 +259,12 @@ describe("FixedTimestepper", () => {
       test(title, () => {
         // GIVEN a TimeKeeper starting at an interesting initial timestamp.
         const timekeeper = new TimeKeeper(
-          new MockStepper(Timestamp.from(initialTimestamp)),
+          new MockStepper(Timestamp.make(initialTimestamp)),
           config,
           TerminationCondition.FirstOvershoot,
         )
         const initialSecondsSinceStartup =
-          initialTimestamp.asSeconds(config.timestepSeconds) +
+          Timestamp.asSeconds(initialTimestamp, config.timestepSeconds) +
           initialWrappedCount * Math.pow(2, 16) * config.timestepSeconds
         expect(timekeeper.timestampDriftSeconds(initialSecondsSinceStartup)).toBeCloseTo(
           0,
@@ -311,12 +305,12 @@ describe("FixedTimestepper", () => {
       test(title, () => {
         // GIVEN a TimeKeeper starting at an interesting initial timestamp.
         const timekeeper = new TimeKeeper(
-          new MockStepper(Timestamp.from(initialTimestamp)),
+          new MockStepper(Timestamp.make(initialTimestamp)),
           config,
           TerminationCondition.FirstOvershoot,
         )
         let secondsSinceStartup =
-          initialTimestamp.asSeconds(config.timestepSeconds) +
+          Timestamp.asSeconds(initialTimestamp, config.timestepSeconds) +
           initialWrappedCount * Math.pow(2, 16) * config.timestepSeconds
 
         expect(timekeeper.timestampDriftSeconds(secondsSinceStartup)).toBeCloseTo(0)
