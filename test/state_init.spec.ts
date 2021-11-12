@@ -44,7 +44,6 @@ describe("state init", () => {
 
       // THEN all clients' states are initialised to that server's state.
       for (const client of [mockClientServer.client1, mockClientServer.client2]) {
-        console.log("yay")
         const stage = client.stage().ready!
         expect(stage.displayState()?.dx).toBe(1234)
         expect(stage.displayState()?.initialEmptyTicks).toBe(
