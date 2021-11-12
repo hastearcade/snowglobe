@@ -1,6 +1,7 @@
 lockfileVersion: 5.3
 
 specifiers:
+  '@javelin/hrtime-loop': ^1.0.0-alpha.4
   '@jest/console': ^27.3.1
   '@types/jest': ^27.0.2
   jest: ^27.3.1
@@ -9,6 +10,7 @@ specifiers:
   typescript: ^4.4.4
 
 devDependencies:
+  '@javelin/hrtime-loop': 1.0.0-alpha.4
   '@jest/console': 27.3.1
   '@types/jest': 27.0.2
   jest: 27.3.1_ts-node@10.4.0
@@ -401,6 +403,10 @@ packages:
   /@istanbuljs/schema/0.1.3:
     resolution: {integrity: sha512-ZXRY4jNvVgSVQ8DL3LTcakaAtXwTVUxE81hslsyD2AtoXW/wVob10HkOJ1X/pAlcI7D+2YoZKg5do8G/w6RYgA==}
     engines: {node: '>=8'}
+    dev: true
+
+  /@javelin/hrtime-loop/1.0.0-alpha.4:
+    resolution: {integrity: sha512-u2nWSOFTd8yySCx/VzLuTWlg6FZmR+Mnr8T5o4QpZOKsL9KUaiR1BNf0Y+6Mt5lk1Gecz+Ucw60M6NIERtjedg==}
     dev: true
 
   /@jest/console/27.3.1:
