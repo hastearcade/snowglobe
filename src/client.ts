@@ -12,6 +12,7 @@ import {
   lagCompensationFrameCount,
   shapeInterpolationT,
 } from "./lib"
+import { clamp } from "./math"
 import { COMMAND_MESSAGE_TYPE_ID } from "./message"
 import { NetworkResource } from "./network_resource"
 import { OldNew } from "./old_new"
@@ -342,11 +343,7 @@ class ClientWorldSimulations<
     const status = this.inferCurrentReconciliationStatus()
     if (status.state === ReconciliationState.Blending) {
       this.blendOldNewInterpolationT += blendProgressPerFrame(this.config)
-      // clamp it 0, 1
-      this.blendOldNewInterpolationT = Math.min(
-        Math.max(this.blendOldNewInterpolationT, 0),
-        1,
-      )
+      this.blendOldNewInterpolationT = clamp(this.blendOldNewInterpolationT, 0, 1)
 
       simulateNextFrame()
       publishBlendedState()
