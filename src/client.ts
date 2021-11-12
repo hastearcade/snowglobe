@@ -66,16 +66,16 @@ export class Client<
 > {
   private _state: StageState = StageState.SyncingClock
   private _stage: StageOwned<$Command, $Snapshot, $DisplayState>
-  private _world: World<$Command, $Snapshot, $DisplayState>
+  private _makeWorld: () => World<$Command, $Snapshot, $DisplayState>
   private _config: Config
   fromInterpolation: FromInterpolationFn<$DisplayState>
 
   constructor(
-    world: World<$Command, $Snapshot, $DisplayState>,
+    makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
     config: Config,
     fromInterpolation: FromInterpolationFn<$DisplayState>,
   ) {
-    this._world = world
+    this._makeWorld = makeWorld
     this._config = config
     this.fromInterpolation = fromInterpolation
     this._stage = {
@@ -110,7 +110,7 @@ export class Client<
         this._stage.clockSyncer.update(deltaSeconds, secondsSinceStartup, net)
         if (this._stage.clockSyncer.isReady()) {
           this._stage.initStateSync = new ActiveClient(
-            this._world,
+            this._makeWorld,
             secondsSinceStartup,
             this._config,
             this._stage.clockSyncer,
@@ -143,7 +143,7 @@ export class ActiveClient<
     ClientWorldSimulations<$Command, $Snapshot, $DisplayState>
   >
   constructor(
-    world: World<$Command, $Snapshot, $DisplayState>,
+    makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
     secondsSinceStartup: number,
     config: Config,
     clockSyncer: ClockSyncer,
@@ -158,7 +158,7 @@ export class ActiveClient<
     const initialTimestamp = Timestamp.fromSeconds(serverTime!, config.timestepSeconds)
     this.clockSyncer = clockSyncer
     this.timekeepingSimulations = new TimeKeeper(
-      new ClientWorldSimulations(world, config, initialTimestamp, fromInterpolation),
+      new ClientWorldSimulations(makeWorld, config, initialTimestamp, fromInterpolation),
       config,
       TerminationCondition.FirstOvershoot,
     )
@@ -227,13 +227,13 @@ class ClientWorldSimulations<
   fromInterpolation: FromInterpolationFn<$DisplayState>
 
   constructor(
-    world: World<$Command, $Snapshot, $DisplayState>,
+    makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
     private config: Config,
     initialTimestamp: Timestamp.Timestamp,
     fromInterpolation: FromInterpolationFn<$DisplayState>,
   ) {
     const { old: oldWorldSimulation, new: newWorldSimulation } = (this.worldSimulations =
-      new OldNew(new Simulation(world), new Simulation(world))).get()
+      new OldNew(new Simulation(makeWorld()), new Simulation(makeWorld()))).get()
     oldWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     newWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     this.blendOldNewInterpolationT = 1

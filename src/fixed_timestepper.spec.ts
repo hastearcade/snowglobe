@@ -1,12 +1,8 @@
 import { FixedTimestepper, TerminationCondition, TimeKeeper } from "./fixed_timestepper"
 import { Config, TweeningMethod } from "./lib"
+import { cartesian } from "./math"
 import * as Timestamp from "./timestamp"
 import { makeTimestamps } from "./timestamp.spec"
-
-const cartesian = <T extends unknown[][]>(
-  ...a: T
-): { [K in keyof T]: T[K] extends (infer _)[] ? _ : never }[] =>
-  a.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat()))) as any
 
 const config: Config = {
   lagCompensationLatency: 0.3,

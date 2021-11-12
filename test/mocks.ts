@@ -74,6 +74,8 @@ export type MockCommand = Cloneable & { value: number }
 const mockFromInterpolation: FromInterpolationFn<MockWorld> = (state1, state2, t) =>
   t === 1 ? state2.clone() : state1.clone()
 
+const makeWorld = () => new MockWorld()
+
 export class MockClientServer {
   config: Config
   server: Server<MockCommand, MockWorld, MockSnapshot>
@@ -86,16 +88,16 @@ export class MockClientServer {
   client1ClockOffset: number
   client2ClockOffset: number
 
-  constructor(world: MockWorld, config: Config) {
+  constructor(config: Config) {
     const [serverNet, [client1Net, client2Net]] = makeMockNetwork<
       MockCommand,
       MockWorld
     >()
     const clockInitial = config.timestepSeconds * 0.25
     this.config = { ...config }
-    this.client1 = new Client(world, { ...config }, mockFromInterpolation)
-    this.client2 = new Client(world, { ...config }, mockFromInterpolation)
-    this.server = new Server(world, { ...config }, clockInitial)
+    this.client1 = new Client(makeWorld, { ...config }, mockFromInterpolation)
+    this.client2 = new Client(makeWorld, { ...config }, mockFromInterpolation)
+    this.server = new Server(makeWorld(), { ...config }, clockInitial)
     this.serverNet = serverNet
     this.client1Net = client1Net
     this.client2Net = client2Net
