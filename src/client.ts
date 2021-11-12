@@ -172,6 +172,10 @@ export class ActiveClient<
     return Timestamp.add(this.timekeepingSimulations.stepper.lastCompletedTimestamp(), 1)
   }
 
+  displayState() {
+    return this.timekeepingSimulations.stepper.displayState?.displayState()
+  }
+
   isReady() {
     return this.timekeepingSimulations.stepper.displayState !== undefined
   }

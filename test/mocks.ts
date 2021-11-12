@@ -69,7 +69,7 @@ export function mockWorldFromInterpolation(
   }
 }
 
-type MockCommand = Cloneable & { value: number }
+export type MockCommand = Cloneable & { value: number }
 
 const mockFromInterpolation: FromInterpolationFn<MockWorld> = (state1, state2, t) =>
   t === 1 ? state2.clone() : state1.clone()

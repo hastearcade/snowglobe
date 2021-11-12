@@ -3,7 +3,7 @@ import { TweeningMethod } from "../src/lib"
 import * as Timestamp from "../src/timestamp"
 import { MockClientServer, MockWorld } from "./mocks"
 
-describe("ClockSync", () => {
+describe("clock sync", () => {
   test("when server and client clocks desync then client should resync quickly", () => {
     const UPDATE_COUNT = 200
     const TIMESTEP_SECONDS = 1 / 64
