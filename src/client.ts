@@ -12,6 +12,7 @@ import {
   lagCompensationFrameCount,
   shapeInterpolationT,
 } from "./lib"
+import { COMMAND_MESSAGE_TYPE_ID } from "./message"
 import { NetworkResource } from "./network_resource"
 import { OldNew } from "./old_new"
 import * as Timestamp from "./timestamp"
@@ -172,8 +173,14 @@ export class ActiveClient<
     return Timestamp.add(this.timekeepingSimulations.stepper.lastCompletedTimestamp(), 1)
   }
 
+  issueCommand(command: $Command, net: NetworkResource<$Command, $Snapshot>) {
+    const timestampCommand = Timestamp.set(command, this.simulatingTimestamp())
+    this.timekeepingSimulations.stepper.receiveCommand(timestampCommand)
+    net.broadcastMessage(COMMAND_MESSAGE_TYPE_ID, timestampCommand)
+  }
+
   displayState() {
-    return this.timekeepingSimulations.stepper.displayState?.displayState()
+    return this.timekeepingSimulations.stepper.displayState
   }
 
   isReady() {

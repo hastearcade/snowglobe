@@ -87,7 +87,10 @@ export function floor(timestamp: FloatTimestamp) {
   return make(Math.floor(timestamp)) as Timestamp
 }
 
-export function subFloat(timestamp: Timestamp | FloatTimestamp, rhs: FloatTimestamp) {
+export function subFloat(
+  timestamp: Timestamp | FloatTimestamp,
+  rhs: Timestamp | FloatTimestamp,
+) {
   return makeFromUnwrappedFloat(timestamp - rhs)
 }
 

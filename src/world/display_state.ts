@@ -9,13 +9,19 @@ export type FromInterpolationFn<$DisplayState extends DisplayState> = (
 
 export type DisplayState = Cloneable
 
-export class Tweened<$DisplayState extends DisplayState> {
-  constructor(private _displayState: $DisplayState, private timestamp: number) {}
+export class Tweened<$DisplayState extends DisplayState> implements Cloneable {
+  constructor(
+    private _displayState: $DisplayState,
+    private timestamp: Timestamp.Timestamp,
+  ) {}
   displayState() {
     return this._displayState
   }
   floatTimestamp() {
-    return this.timestamp
+    return this.timestamp as unknown as Timestamp.FloatTimestamp
+  }
+  clone(): this {
+    return new Tweened(this._displayState.clone(), this.timestamp) as this
   }
 }
 

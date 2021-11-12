@@ -1,6 +1,6 @@
 import { TweeningMethod } from "../src/lib"
 import { cartesian } from "../src/math"
-import { MockClientServer, MockWorld } from "./mocks"
+import { MockClientServer } from "./mocks"
 
 describe("state init", () => {
   test("when client becomes ready state should already be initialized", () => {
@@ -46,7 +46,7 @@ describe("state init", () => {
       for (const client of [mockClientServer.client1, mockClientServer.client2]) {
         const stage = client.stage().ready!
         // expect(stage.displayState()?.dx).toBe(1234)
-        expect(stage.displayState()?.initialEmptyTicks).toBe(
+        expect(stage.displayState()?.displayState().initialEmptyTicks).toBe(
           mockClientServer.server.displayState()?.initialEmptyTicks,
         )
       }
@@ -146,7 +146,7 @@ describe("state init", () => {
       }
       const client1Stage = mockClientServer.client1.stage().ready!
       const displayState = client1Stage.displayState()
-      expect(displayState!.dx).toEqual(1234)
+      expect(displayState?.displayState()!.dx).toEqual(1234)
     }
   })
 })
