@@ -1,5 +1,5 @@
 import { TweeningMethod } from "../src/lib"
-import { cartesian, clamp } from "../src/math"
+import { cartesian, clamp, fract } from "../src/math"
 import { MockClientServer, MockWorld } from "./mocks"
 import * as Timestamp from "../src/timestamp"
 import { Tweened } from "../src/world/display_state"
@@ -10,7 +10,7 @@ describe("determinism", () => {
     for (const framesPerUpdate of [1, 0.5, 1 / 3, 1.5, 2, 3, 4, 6]) {
       // GIVEN a server and multiple clients in a perfect network.
       const FRAMES_TO_LAG_BEHIND = 12
-      expect((FRAMES_TO_LAG_BEHIND / framesPerUpdate) % 1).toBe(0)
+      expect(fract(FRAMES_TO_LAG_BEHIND / framesPerUpdate)).toBe(0)
       const mockClientServer = new MockClientServer({
         lagCompensationLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
         blendLatency: 0.2,
@@ -90,6 +90,83 @@ describe("determinism", () => {
       expect(
         serverStateHistory.slice(serverStateHistory.length - clientStateHistory.length),
       ).toMatchObject(clientStateHistory)
+    }
+  })
+
+  test("while no commands are issued then all clients should match server exactly", () => {
+    const TIMESTEP_SECONDS = 1 / 60
+    for (const framesPerUpdate of [1, 0.5, 1 / 3, 1.5, 2, 3, 4, 6]) {
+      // GIVEN a server and multiple clients in a perfect network.
+      const FRAMES_TO_LAG_BEHIND = 12
+      expect(fract(FRAMES_TO_LAG_BEHIND / framesPerUpdate)).toBe(0)
+      const mockClientServer = new MockClientServer({
+        lagCompensationLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
+        blendLatency: 0.2,
+        timestepSeconds: TIMESTEP_SECONDS,
+        clockSyncNeededSampleCount: 8,
+        clockSyncRequestPeriod: 0,
+        clockSyncAssumedOutlierRate: 0.2,
+        maxTolerableClockDeviation: 0.1,
+        snapshotSendPeriod: 0.1,
+        updateDeltaSecondsMax: 0.5,
+        timestampSkipThresholdSeconds: 1,
+        fastForwardMaxPerStep: 10,
+        tweeningMethod: TweeningMethod.MostRecentlyPassed,
+      })
+      mockClientServer.client1Net.connect()
+      mockClientServer.client2Net.connect()
+
+      mockClientServer.server.issueCommand(
+        {
+          value: 123,
+          clone() {
+            return this
+          },
+        },
+        mockClientServer.serverNet,
+      )
+
+      // WHEN no commands are issued.
+      mockClientServer.updateUntilClientsReady(TIMESTEP_SECONDS * framesPerUpdate)
+
+      const startTimestamp = mockClientServer.client1.stage().ready!.simulatingTimestamp()
+      const targetTimestamp = Timestamp.add(startTimestamp, 100)
+      const client1StateHistory: Tweened<MockWorld>[] = []
+      const client2StateHistory: Tweened<MockWorld>[] = []
+      const serverStateHistory: Tweened<MockWorld>[] = []
+
+      while (Timestamp.get(mockClientServer.server.displayState()!) < targetTimestamp) {
+        const currentClientTimestamp = mockClientServer.client1
+          .stage()
+          .ready!.displayState()!
+          .floatTimestamp()
+        const updateClient = currentClientTimestamp < targetTimestamp
+
+        mockClientServer.update(TIMESTEP_SECONDS * framesPerUpdate)
+        serverStateHistory.push(
+          new Tweened(
+            mockClientServer.server.displayState()!,
+            Timestamp.get(mockClientServer.server.displayState()!),
+          ),
+        )
+
+        if (updateClient) {
+          client1StateHistory.push(
+            mockClientServer.client1.stage().ready!.displayState()!.clone(),
+          )
+          client2StateHistory.push(
+            mockClientServer.client1.stage().ready!.displayState()!.clone(),
+          )
+        }
+      }
+
+      // THEN the recorded server states should perfectly match every client's states.
+      expect(
+        serverStateHistory.slice(serverStateHistory.length - client1StateHistory.length),
+      ).toMatchObject(client1StateHistory)
+      expect(
+        serverStateHistory.slice(serverStateHistory.length - client2StateHistory.length),
+      ).toMatchObject(client2StateHistory)
     }
   })
 })
