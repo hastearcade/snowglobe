@@ -109,11 +109,22 @@ export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
   }
 
   getConnection(handle: ConnectionHandle) {
-    return this._connections.get(handle)
+    const connection = this._connections.get(handle)
+    if (connection?.isConnected) {
+      return connection
+    }
+    return undefined
   }
 
-  connections() {
-    return this._connections.entries()
+  *connections(): IterableIterator<
+    [ConnectionHandle, MockConnection<$Command, $Snapshot>]
+  > {
+    for (const pair of this._connections.entries()) {
+      const [, connection] = pair
+      if (connection.isConnected) {
+        yield pair
+      }
+    }
   }
 
   sendMessage<$Type>(handle: ConnectionHandle, typeId: TypeId<$Type>, message: $Type) {

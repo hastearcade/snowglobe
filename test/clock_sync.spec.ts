@@ -1,7 +1,7 @@
 import { StageState } from "../src/client"
 import { TweeningMethod } from "../src/lib"
 import * as Timestamp from "../src/timestamp"
-import { MockClientServer, MockWorld } from "./mocks"
+import { MockClientServer } from "./mocks"
 
 describe("clock sync", () => {
   test("when server and client clocks desync then client should resync quickly", () => {
@@ -9,7 +9,6 @@ describe("clock sync", () => {
     const TIMESTEP_SECONDS = 1 / 64
     for (const desyncSeconds of [0, 0.5, -0.5, -1, -100, -1000, -10000]) {
       // GIVEN a server and client in a perfect network.
-      const world = new MockWorld()
       const mockClientServer = new MockClientServer({
         lagCompensationLatency: TIMESTEP_SECONDS * 16,
         blendLatency: 0.2,
@@ -54,7 +53,6 @@ describe("clock sync", () => {
       0, 0.5, 1, 100, 1000, 10000, -0.5, -1, -100, -1000, -10000,
     ]) {
       // GIVEN a server and client in a perfect network.
-      const world = new MockWorld()
       const mockClientServer = new MockClientServer({
         lagCompensationLatency: TIMESTEP_SECONDS * 16,
         blendLatency: 0.2,

@@ -54,10 +54,13 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
       Timestamp.cmp(a[0], b[0]),
     )
     const filteredCommands = sortedCommands.filter(
-      tc => Timestamp.cmp(tc[0], timestamp) < 0,
+      tc => Timestamp.cmp(tc[0], timestamp) <= 0,
     )
 
-    this.map.clear()
+    for (const [timestamp] of filteredCommands) {
+      this.map.delete(timestamp)
+    }
+
     return filteredCommands.map(tc => tc[1]).flat()
   }
 

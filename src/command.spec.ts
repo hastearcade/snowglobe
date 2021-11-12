@@ -146,9 +146,10 @@ describe("Command", () => {
     buffer.insert(timestampedCommandThree) // duplicate so the internal buffer is more intersting
     buffer.insert(timestampedCommandTwo)
 
-    const allCommands = buffer.drainUpTo(Timestamp.make(2))
+    const allCommands = buffer.drainUpTo(Timestamp.make(1))
 
     expect(allCommands.length).toBe(2)
-    expect(buffer.length()).toBe(0)
+    expect(buffer.length()).toBe(1)
+    expect(buffer.commandsAt(timestampThree)!.length).toBe(2)
   })
 })
