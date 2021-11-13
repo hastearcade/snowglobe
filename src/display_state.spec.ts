@@ -1,4 +1,4 @@
-import * as Timestamp from "../timestamp"
+import * as Timestamp from "./timestamp"
 import {
   DisplayState,
   FromInterpolationFn,

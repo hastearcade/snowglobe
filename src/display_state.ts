@@ -1,5 +1,5 @@
-import { Cloneable } from "../cloneable"
-import * as Timestamp from "../timestamp"
+import { Cloneable } from "./cloneable"
+import * as Timestamp from "./timestamp"
 
 export type FromInterpolationFn<$DisplayState extends DisplayState> = (
   state1: $DisplayState,

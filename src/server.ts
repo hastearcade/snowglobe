@@ -10,8 +10,8 @@ import {
 import { ConnectionHandle, NetworkResource } from "./network_resource"
 import * as Timestamp from "./timestamp"
 import { Snapshot, World } from "./world"
-import { DisplayState } from "./world/display_state"
-import { InitializationType, Simulation } from "./world/simulation"
+import { DisplayState } from "./display_state"
+import { InitializationType, Simulation } from "./simulation"
 
 export class Server<
   $Command extends Command,

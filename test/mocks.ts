@@ -3,7 +3,7 @@ import { Cloneable } from "../src/cloneable"
 import { Config } from "../src/lib"
 import { Server } from "../src/server"
 import { World } from "../src/world"
-import { FromInterpolationFn } from "../src/world/display_state"
+import { FromInterpolationFn } from "../src/display_state"
 import { makeMockNetwork, MockNetwork } from "./mock_network"
 
 export class MockWorld implements Cloneable, World<MockCommand, MockWorld, MockSnapshot> {

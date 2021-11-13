@@ -1,7 +1,7 @@
-import { Command, CommandBuffer } from "../command"
-import { FixedTimestepper } from "../fixed_timestepper"
-import * as Timestamp from "../timestamp"
-import { Snapshot, World } from "../world"
+import { Command, CommandBuffer } from "./command"
+import { FixedTimestepper } from "./fixed_timestepper"
+import * as Timestamp from "./timestamp"
+import { Snapshot, World } from "./world"
 import { DisplayState } from "./display_state"
 
 export enum InitializationType {

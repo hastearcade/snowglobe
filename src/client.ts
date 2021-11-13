@@ -24,8 +24,8 @@ import {
   timestampedFromInterpolation,
   Tweened,
   tweenedFromInterpolation,
-} from "./world/display_state"
-import { Simulation } from "./world/simulation"
+} from "./display_state"
+import { Simulation } from "./simulation"
 
 export enum StageState {
   SyncingClock,
