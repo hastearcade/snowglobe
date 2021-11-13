@@ -1,4 +1,4 @@
-# Snowglobe
+# Snowglobe ☃️
 
 An experimental TypeScript port of the Rust multiplayer game networking library [CrystalOrb](https://github.com/ErnWong/crystalorb) by [Ernest Wong](https://ernestwong.nz/).
 
