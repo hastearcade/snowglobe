@@ -20,7 +20,7 @@ type MyDisplayState = DisplayState & {
   velocity: number
 }
 
-function myDisplayStateFromInterpolation(
+function interpolate(
   state1: MyDisplayState,
   state2: MyDisplayState,
   t: number,
@@ -118,8 +118,8 @@ function main() {
     tweeningMethod: TweeningMethod.Interpolated,
   }
 
-  const client1 = new Client(makeWorld, config, myDisplayStateFromInterpolation)
-  const client2 = new Client(makeWorld, config, myDisplayStateFromInterpolation)
+  const client1 = new Client(makeWorld, config, interpolate)
+  const client2 = new Client(makeWorld, config, interpolate)
   const server = new Server(makeWorld(), config, 0)
 
   const startupTime = performance.now()
