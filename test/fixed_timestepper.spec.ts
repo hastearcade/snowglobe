@@ -1,7 +1,11 @@
-import { FixedTimestepper, TerminationCondition, TimeKeeper } from "./fixed_timestepper"
-import { Config, TweeningMethod } from "./lib"
-import { cartesian } from "./math"
-import * as Timestamp from "./timestamp"
+import {
+  FixedTimestepper,
+  TerminationCondition,
+  TimeKeeper,
+} from "../src/fixed_timestepper"
+import { Config, TweeningMethod } from "../src/lib"
+import { cartesian } from "../src/math"
+import * as Timestamp from "../src/timestamp"
 import { makeTimestamps } from "./timestamp.spec"
 
 const config: Config = {

@@ -1,22 +1,27 @@
 {
-    "compilerOptions": {
-      "composite": true,
-      "declaration": true,
-      "declarationMap": true,
-      "downlevelIteration": true,
-      "esModuleInterop": true,
-      "module": "esnext",
-      "moduleResolution": "node",
-      "noImplicitReturns": true,
-      "noPropertyAccessFromIndexSignature": true,
-      "noUncheckedIndexedAccess": true,
-      "skipLibCheck": true,
-      "sourceMap": true,
-      "strict": true,
-      "target": "esnext",
-      "rootDir": "src",
-      "outDir": "dist/esm"
-    },
-    "include": ["src"],
-    "exclude": ["**/*.spec.ts", "**/__mocks__/**/*"]
-  }
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "downlevelIteration": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "esnext",
+    "rootDir": "src",
+    "outDir": "dist/esm"
+  },
+  "include": [
+    "src",
+    "test/fixed_timestepper.spec.ts",
+    "test/display_state.spec.ts",
+    "test/command.spec.ts"
+  ],
+  "exclude": ["**/*.spec.ts", "**/__mocks__/**/*"]
+}

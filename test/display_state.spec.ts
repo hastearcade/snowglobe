@@ -1,9 +1,9 @@
-import * as Timestamp from "./timestamp"
+import * as Timestamp from "../src/timestamp"
 import {
   DisplayState,
   FromInterpolationFn,
   timestampedFromInterpolation,
-} from "./display_state"
+} from "../src/display_state"
 
 class MockDisplayState implements DisplayState {
   value: number
