@@ -31,6 +31,7 @@
     "build": "tsc -b && npm run build:cjs",
     "build:cjs": "esbuild --bundle --target=node12.22 --outdir=dist/cjs --format=cjs dist/esm/index.js",
     "example:standalone": "node --loader ts-node/esm --experimental-specifier-resolution=node examples/standalone.ts",
+    "debug:example": "node --inspect-brk --loader ts-node/esm --experimental-specifier-resolution=node examples/standalone.ts",
     "prepare": "npm run build",
     "test": "jest"
   },

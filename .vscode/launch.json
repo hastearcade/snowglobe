@@ -10,7 +10,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run-script", "example:standalone"]
+      "runtimeArgs": ["run-script", "debug:example"]
     }
   ]
 }
