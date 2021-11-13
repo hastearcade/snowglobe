@@ -13,10 +13,6 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
     // TODO investigate whether map is too slow here
   }
 
-  acceptableTimestampRange() {
-    return Timestamp.comparableRangeWithMidpoint(this._timestamp)
-  }
-
   timestamp() {
     return this._timestamp
   }
@@ -36,9 +32,9 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
 
   updateTimestamp(timestamp: Timestamp.Timestamp) {
     this._timestamp = timestamp
-    const acceptableRange = this.acceptableTimestampRange()
-    this.filterStaleTimestamps(acceptableRange[0], true)
-    this.filterStaleTimestamps(acceptableRange[acceptableRange.length - 1], false)
+    const acceptableRange = Timestamp.comparableRangeWithMidpoint(this._timestamp)
+    this.filterStaleTimestamps(acceptableRange.min, true)
+    this.filterStaleTimestamps(acceptableRange.max, false)
   }
 
   drainAll() {
@@ -67,7 +63,7 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
   insert(timestampedCommand: Timestamp.Timestamped<$Command>) {
     const incomingTimestamp = Timestamp.get(timestampedCommand)
 
-    if (this.acceptableTimestampRange().some(t => t === incomingTimestamp)) {
+    if (Timestamp.acceptableTimestampRange(this._timestamp, incomingTimestamp)) {
       const commandsExist = this.map.get(incomingTimestamp)
 
       if (!commandsExist) {

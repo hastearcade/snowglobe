@@ -23,15 +23,18 @@ export function fromSeconds(seconds: number, timestampSeconds: number): Timestam
   return make(makeFromSecondsFloat(seconds, timestampSeconds) as unknown as Timestamp)
 }
 
-export function comparableRangeWithMidpoint(timestamp: Timestamp): Timestamp[] {
+export function comparableRangeWithMidpoint(timestamp: Timestamp) {
   const maxDistanceFromMidpoint = MAX / 2
-  const min = timestamp - maxDistanceFromMidpoint
-  const max = timestamp + maxDistanceFromMidpoint
-  const range: Timestamp[] = []
-  for (let i = min; i <= max; i++) {
-    range.push(make(i))
+
+  return {
+    min: make(timestamp - maxDistanceFromMidpoint),
+    max: make(timestamp + maxDistanceFromMidpoint),
   }
-  return range
+}
+
+export function acceptableTimestampRange(baseline: Timestamp, timestamp: Timestamp) {
+  const { min, max } = comparableRangeWithMidpoint(baseline)
+  return cmp(timestamp, min) >= 0 || cmp(timestamp, max) <= 0
 }
 
 export function increment(timestamp: Timestamp): Timestamp {

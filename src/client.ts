@@ -456,11 +456,11 @@ class ClientWorldSimulations<
     this.baseCommandBuffer.updateTimestamp(this.lastCompletedTimestamp())
 
     if (this.lastQueuedSnapshotTimestamp) {
-      const comparableRange = Timestamp.comparableRangeWithMidpoint(
-        this.lastCompletedTimestamp(),
-      )
       if (
-        !comparableRange.includes(this.lastQueuedSnapshotTimestamp) ||
+        !Timestamp.acceptableTimestampRange(
+          this.lastCompletedTimestamp(),
+          this.lastQueuedSnapshotTimestamp,
+        ) ||
         this.lastQueuedSnapshotTimestamp > this.lastCompletedTimestamp()
       ) {
         this.lastQueuedSnapshotTimestamp = Timestamp.sub(
