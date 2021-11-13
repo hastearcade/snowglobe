@@ -3,3 +3,4 @@ coverage
 dist
 .pnpm-debug.log
 tsconfig.tsbuildinfo
+*.heapsnapshot
