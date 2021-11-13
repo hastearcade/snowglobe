@@ -1,5 +1,5 @@
-import { Command, CommandBuffer } from "../lib/src/command"
-import * as Timestamp from "../lib/src/timestamp"
+import { Command, CommandBuffer } from "../src/command"
+import * as Timestamp from "../src/timestamp"
 
 describe("Command", () => {
   test("insert single command", () => {

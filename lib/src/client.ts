@@ -180,8 +180,16 @@ export class ActiveClient<
     net.broadcastMessage(COMMAND_MESSAGE_TYPE_ID, timestampCommand)
   }
 
+  bufferedCommands() {
+    return this.timekeepingSimulations.stepper.baseCommandBuffer[Symbol.iterator]()
+  }
+
   displayState() {
     return this.timekeepingSimulations.stepper.displayState
+  }
+
+  reconciliationStatus() {
+    return this.timekeepingSimulations.stepper.inferCurrentReconciliationStatus()
   }
 
   isReady() {

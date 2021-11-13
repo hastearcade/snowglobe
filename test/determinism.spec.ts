@@ -1,8 +1,8 @@
-import { TweeningMethod } from "../src/lib"
-import { cartesian, clamp, fract } from "../src/math"
+import { TweeningMethod } from "../lib/src/lib"
+import { cartesian, clamp, fract } from "../lib/src/math"
 import { MockClientServer, MockWorld } from "./mocks"
-import * as Timestamp from "../src/timestamp"
-import { Tweened } from "../src/display_state"
+import * as Timestamp from "../lib/src/timestamp"
+import { Tweened } from "../lib/src/display_state"
 
 describe("determinism", () => {
   test("while all commands originate from a signle client then that client should match server exactly", () => {

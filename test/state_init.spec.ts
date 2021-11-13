@@ -1,5 +1,5 @@
-import { TweeningMethod } from "../src/lib"
-import { cartesian } from "../src/math"
+import { TweeningMethod } from "../lib/src/lib"
+import { cartesian } from "../lib/src/math"
 import { MockClientServer } from "./mocks"
 
 describe("state init", () => {

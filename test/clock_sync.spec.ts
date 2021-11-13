@@ -1,6 +1,6 @@
-import { StageState } from "../src/client"
-import { TweeningMethod } from "../src/lib"
-import * as Timestamp from "../src/timestamp"
+import { StageState } from "../lib/src/client"
+import { TweeningMethod } from "../lib/src/lib"
+import * as Timestamp from "../lib/src/timestamp"
 import { MockClientServer } from "./mocks"
 
 describe("clock sync", () => {

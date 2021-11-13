@@ -1,14 +1,18 @@
-import { Command } from "../src/command"
+import { Command } from "../lib/src/command"
 import {
   ClockSyncMessage,
   CLOCK_SYNC_MESSAGE_TYPE_ID,
   COMMAND_MESSAGE_TYPE_ID,
   SNAPSHOT_MESSAGE_TYPE_ID,
-} from "../src/message"
-import { Connection, ConnectionHandle, NetworkResource } from "../src/network_resource"
-import { Timestamped } from "../src/timestamp"
-import { TypeId } from "../src/types"
-import { Snapshot } from "../src/world"
+} from "../lib/src/message"
+import {
+  Connection,
+  ConnectionHandle,
+  NetworkResource,
+} from "../lib/src/network_resource"
+import { Timestamped } from "../lib/src/timestamp"
+import { TypeId } from "../lib/src/types"
+import { Snapshot } from "../lib/src/world"
 
 interface DelayedChannel {
   tick(deltaSeconds: number): void
