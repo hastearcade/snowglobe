@@ -18,3 +18,9 @@ export type ClockSyncMessage = {
 export const CLOCK_SYNC_MESSAGE_TYPE_ID = makeTypeId<ClockSyncMessage>()
 export const COMMAND_MESSAGE_TYPE_ID = makeTypeId<Timestamped<Command>>()
 export const SNAPSHOT_MESSAGE_TYPE_ID = makeTypeId<Timestamped<Snapshot>>()
+
+export enum NetworkMessageType {
+  ClockSyncMessage = CLOCK_SYNC_MESSAGE_TYPE_ID,
+  CommandMessage = COMMAND_MESSAGE_TYPE_ID,
+  SnapshotMessage = SNAPSHOT_MESSAGE_TYPE_ID,
+}
