@@ -1,16 +1,16 @@
-import { Cloneable } from "../src/cloneable"
-import { Config, TweeningMethod } from "../src/lib"
-import { DisplayState, World } from "../src/world"
-import { makeMockNetwork, MockNetwork } from "../test/mock_network"
-import { Client } from "../src/client"
-import { Server } from "../src/server"
-import { Tweened } from "../src/world/display_state"
-import { performance } from "perf_hooks"
 import { createHrtimeLoop } from "@javelin/hrtime-loop"
+import { performance } from "perf_hooks"
+import { Client } from "../src/client"
+import { Command } from "../src/command"
+import { Config, TweeningMethod } from "../src/lib"
+import { Server } from "../src/server"
+import { DisplayState, Snapshot, World } from "../src/world"
+import { Tweened } from "../src/world/display_state"
+import { makeMockNetwork } from "../test/mock_network"
 
-type MyCommand = Cloneable & { kind: "accelerate" | "decelerate" | "cheat" }
+type MyCommand = Command & { kind: "accelerate" | "decelerate" | "cheat" }
 
-type MySnapshot = Cloneable & {
+type MySnapshot = Snapshot & {
   position: number
   velocity: number
 }
@@ -167,9 +167,9 @@ function main() {
     }
 
     console.log(
-      serverDisplayState,
-      client1DisplayState?.displayState(),
-      client2DisplayState?.displayState(),
+      serverDisplayState?.position,
+      client1DisplayState?.displayState().position,
+      client2DisplayState?.displayState().position,
     )
 
     client1.update(deltaSeconds, secondsSinceStartup, client1Net)

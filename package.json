@@ -1,19 +1,40 @@
 {
   "name": "snowglobe",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "author": "Eric McDaniel <eric.g.mcdaniel@gmail.com>",
+  "contributors": [
+    "Eric McDaniel <eric.g.mcdaniel@gmail.com>",
+    "Keith La Force <keith@hastearcade.com>"
+  ],
+  "license": "Apache-2.0",
+  "version": "0.0.1",
+  "description": "A TypeScript port of CrystalOrb, a high-level Rust game networking library",
+  "keywords": [
+    "netcode",
+    "networking",
+    "multiplayer",
+    "game",
+    "prediction",
+    "reconciliation",
+    "rollback"
+  ],
   "type": "module",
+  "types": "./lib/dist/esm/index.d.ts",
+  "main": "./lib/dist/cjs/index.js",
+  "exports": {
+    "import": "./lib/dist/esm/index.js",
+    "require": "./lib/dist/cjs/index.js"
+  },
   "scripts": {
     "test": "jest",
+    "build": "tsc -b && npm run build:cjs",
+    "build:cjs": "esbuild --bundle --target=node12.22 --outdir=dist/cjs --format=cjs dist/esm/index.js",
     "example:standalone": "node --loader ts-node/esm --experimental-specifier-resolution=node examples/standalone.ts"
   },
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@javelin/hrtime-loop": "^1.0.0-alpha.4",
     "@jest/console": "^27.3.1",
     "@types/jest": "^27.0.2",
+    "esbuild": "^0.13.13",
     "jest": "^27.3.1",
     "ts-jest": "^27.0.7",
     "ts-node": "^10.4.0",
