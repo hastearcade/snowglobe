@@ -167,12 +167,37 @@ class MyWorld implements World<MyCommand, MySnapshot> {
 }
 
 function main() {
+  // initialize the network by creating a mock network.
+  // Typically you would have a main for client and server
+  // that are independent, but for demonstration purposes
+  // the snowglobe example initializes clients and server
+  // all together. The makeMockNetwork is used by the standalone
+  // example and by the example demo (npm run example:demo).
+  // The purpose of the mock network is mimic a network, but does
+  // not require the utilization of another library for demonstration
+  // purposes.
   const [serverNet, [client1Net, client2Net]] = makeMockNetwork<MyCommand, MySnapshot>()
+
+  // create a factory function that creates a world
+  // the factory function is needed by the Client but
+  // the world is created and sent to the Server directly.
+  // The server is the authority and thus needs all data
+  // about the world immediately, whereas the clients
+  // will not instantiate their copy of the world
+  // until a connection is made to the server. Thus,
+  // they need a factory. Typically, as a developer, you
+  // would likely have npcs, maps, etc initalized in your
+  // factory.
   const makeWorld = () => new MyWorld()
 
   client1Net.connect()
   client2Net.connect()
 
+  // The snowglobe config object.
+  // The values here are reasonable defaults
+  // but as you build your game or simulation you
+  // can tweak the values in your real world environments
+  // to maximize performance
   const config: Config = {
     lagCompensationLatency: 0.3,
     blendLatency: 0.2,
@@ -188,25 +213,60 @@ function main() {
     tweeningMethod: TweeningMethod.Interpolated,
   }
 
+  // interpolate and makeWorld need to be injected
+  // into Client. These two functions drive the
+  // initialization of the world on the client and
+  // ensure that the display states are smoothed
+  // correctly after snapshots. If you notice jerkyness
+  // in your simulation then you likely need to look
+  // at the interpolate method provided here.
   const client1 = new Client(makeWorld, config, interpolate)
   const client2 = new Client(makeWorld, config, interpolate)
   const server = new Server(makeWorld(), config, 0)
 
+  // standalone variables, not required for all simulations
   const startupTime = performance.now()
   let previousTime = performance.now()
 
+  // Utilizing javelins game loop to drive the
+  // standalone simulation. Typically, your
+  // Client and Server would have separate codebases
+  // and separate game loops, but for standalone
+  // example the Client and Server share the same
+  // loop.
   const loop = createHrtimeLoop(() => {
     const currentTime = performance.now()
     const deltaSeconds = (currentTime - previousTime) / 1000
     const secondsSinceStartup = (currentTime - startupTime) / 1000
+
+    // retrieving the display state of the server
+    // to print out values for demonstration purposes.
+    // Likely, you would only need to print out server
+    // side display state for debuggin purposes.
     const serverDisplayState = server.displayState()
+
+    // the stage of a client is the current
+    // state of the client as it relates to its
+    // connection to the server. This can either
+    // be SyncingClock, SyncingInitialState, or Ready.
+    // As a developer you may want to perform different
+    // operations at each of those stages, but you would
+    // not perform any rendering until Ready. Commands
+    // can only be issued to the Client if the client
+    // is in SyncingInitialState or Ready
     const client1Stage = client1.stage()
     const client2Stage = client2.stage()
 
     let client1DisplayState: Tweened<MyDisplayState> | undefined
     let client2DisplayState: Tweened<MyDisplayState> | undefined
 
+    // The standalone example will issue commands at a fixed
+    // interval based on time since startup once the client
+    // is ready
     if (client1Stage.ready) {
+      // Retrieve the display state of the client. This state
+      // would then typically be rendered through a third
+      // party render engine like Pixi.js
       client1DisplayState = client1Stage.ready.displayState()
       if (secondsSinceStartup % 10 >= 0 && secondsSinceStartup % 10 < 1) {
         client1Stage.ready.issueCommand(
@@ -242,10 +302,18 @@ function main() {
       client2DisplayState?.displayState().position,
     )
 
+    // At the end of the game loop the developer needs
+    // to update the appropriate Snowglobe client or server.
+    // Typically this would be performed in separate loops
+    // for the clients and server and thus would be one line
+    // of code instead of three.
     client1.update(deltaSeconds, secondsSinceStartup, client1Net)
     client2.update(deltaSeconds, secondsSinceStartup, client2Net)
     server.update(deltaSeconds, secondsSinceStartup, serverNet)
 
+    // for demonstration purposes the network
+    // needs to tick as well to keep the mock packets
+    // moving through the network
     client1Net.tick(deltaSeconds)
     client2Net.tick(deltaSeconds)
     serverNet.tick(deltaSeconds)
