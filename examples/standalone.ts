@@ -1,11 +1,6 @@
 import { createHrtimeLoop } from "@javelin/hrtime-loop"
+import * as Snowglobe from "../lib/src/index"
 import { performance } from "perf_hooks"
-import { Client } from "../lib/src/client"
-import { Command } from "../lib/src/command"
-import { Config, TweeningMethod } from "../lib/src/lib"
-import { Server } from "../lib/src/server"
-import { DisplayState, Snapshot, World } from "../lib/src/world"
-import { Tweened } from "../lib/src/display_state"
 import { makeMockNetwork } from "../test/mock_network"
 
 // A Snowglobe command represents a player or server
@@ -14,13 +9,13 @@ import { makeMockNetwork } from "../test/mock_network"
 // will need to have the command processed which will result in
 // a change of world state. This world state change will then
 // need to be syncronized amongst the other clients.
-type MyCommand = Command & { kind: "accelerate" | "decelerate" | "cheat" }
+type MyCommand = Snowglobe.Command & { kind: "accelerate" | "decelerate" | "cheat" }
 
 // A snapshot is the minimal data object representing the
 // entire physics simulation. The goal should be to keep
 // the size of your snapshots as small as possible to reduce
 // the load on the network.
-type MySnapshot = Snapshot & {
+type MySnapshot = Snowglobe.Snapshot & {
   position: number
   velocity: number
 }
@@ -30,7 +25,7 @@ type MySnapshot = Snapshot & {
 // to be seen by the player, and keeping a separate abstraction
 // for Display State helps reduce interpolation complexity
 // when the Server and Client are syncing.
-type MyDisplayState = DisplayState & {
+type MyDisplayState = Snowglobe.DisplayState & {
   position: number
   velocity: number
 }
@@ -75,7 +70,7 @@ the same timestamp as what's being shown on screen. Once the timestamps
 match, clients smoothly blend their states to the snapshot states.
 */
 
-class MyWorld implements World<MyCommand, MySnapshot> {
+class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   private position = 0
   private velocity = 0
   private cachedMomentum: number | undefined
@@ -197,21 +192,13 @@ function main() {
   // The values here are reasonable defaults
   // but as you build your game or simulation you
   // can tweak the values in your real world environments
-  // to maximize performance
-  const config: Config = {
-    lagCompensationLatency: 0.3,
-    blendLatency: 0.2,
-    timestepSeconds: TIMESTEP_SECONDS,
+  // to maximize performance by passing in override
+  // values to makeConfig. Overriding values is likely
+  // needed in a production environment as not all
+  // environments are created equal
+  const config = Snowglobe.makeConfig({
     clockSyncNeededSampleCount: 32,
-    clockSyncRequestPeriod: 0.2,
-    clockSyncAssumedOutlierRate: 0.2,
-    maxTolerableClockDeviation: 0.1,
-    snapshotSendPeriod: 0.1,
-    updateDeltaSecondsMax: 0.25,
-    timestampSkipThresholdSeconds: 1.0,
-    fastForwardMaxPerStep: 10,
-    tweeningMethod: TweeningMethod.Interpolated,
-  }
+  })
 
   // interpolate and makeWorld need to be injected
   // into Client. These two functions drive the
@@ -220,9 +207,9 @@ function main() {
   // correctly after snapshots. If you notice jerkyness
   // in your simulation then you likely need to look
   // at the interpolate method provided here.
-  const client1 = new Client(makeWorld, config, interpolate)
-  const client2 = new Client(makeWorld, config, interpolate)
-  const server = new Server(makeWorld(), config, 0)
+  const client1 = new Snowglobe.Client(makeWorld, config, interpolate)
+  const client2 = new Snowglobe.Client(makeWorld, config, interpolate)
+  const server = new Snowglobe.Server(makeWorld(), config, 0)
 
   // standalone variables, not required for all simulations
   const startupTime = performance.now()
@@ -257,8 +244,8 @@ function main() {
     const client1Stage = client1.stage()
     const client2Stage = client2.stage()
 
-    let client1DisplayState: Tweened<MyDisplayState> | undefined
-    let client2DisplayState: Tweened<MyDisplayState> | undefined
+    let client1DisplayState: Snowglobe.Tweened<MyDisplayState> | undefined
+    let client2DisplayState: Snowglobe.Tweened<MyDisplayState> | undefined
 
     // The standalone example will issue commands at a fixed
     // interval based on time since startup once the client

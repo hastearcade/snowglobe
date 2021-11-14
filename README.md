@@ -30,6 +30,8 @@ Snowglobe assists in solving the difficulty of networking physics for Typescript
 
 Below is a (non-comprehensive) sample of the ported CrystalOrb API. This example is missing critical features like a game loop, networking, serialization, etc.
 
+See the Code Architecture section below for a more detailed description of the Snowglobe types and integration points.
+
 ```ts
 import * as Snowglobe from "snowglobe"
 
@@ -61,9 +63,7 @@ class World implements Snowglobe.World {
   // implement step(), applyCommand(), applySnapshot(), etc.
 }
 
-const config: Snowglobe.Config = {
-  // ...
-}
+const config: Snowglobe.Config = Snowglobe.makeConfig()
 const makeWorld = () => new World()
 const client = new Client(makeWorld, config, interpolate)
 const server = new Server(makeWorld(), config, 0)
@@ -78,6 +78,38 @@ npm run example:demo # mock client/server demo
 
 ## Code Architecture
 
-The following diagram shows a visual representation of the code architecture. The diagram is meant to be understood by reading along side with `examples/standalone.ts`.
+The following diagram shows a visual representation of the code architecture. The diagram is meant to be understood by reading along side `examples/standalone.ts`.
 
 ![Snowglobe Diagram](./docs/architecture.png)
+
+The typical game or simulation will have a game loop that runs at 60 fps. Snowglobe is responsible for facilitating client side prediction, server reconciliation, and display state interpolation. This helps solve some of the challenges with networked games and physics. Snowglobe provides the following types to be inherited from in order to utilize Snowglobe's toolset.
+
+`World`: All games start with a representation of a World. To utilize Snowglobe you will need to inherit from `Snowglobe.World` and implement the `step`, `commandIsValid`, `applyCommand`, `applySnapshot`, `snapshot`, and `displayState` functionality. Please send the standalone implementation of `MyWorld` for more details.
+
+`DisplayState`: While every game has a World, not every game needs to display the entire world to the player at one time. You might have many objects that need to be culled from the scene. Thus, Snowglobe assumes there is an abstraction of the rendered state called `DisplayState`. As a developer, you must create a custom `MyDisplayState` class that inherits from `Snowglobe.DisplayState`. This display state should represent the minimal amount of state necessary to render to the screen.
+
+`Snapshot`: Snapshots are points in time pictures of a world. All data is frozen and utilized by the Snowglobe system to interpolate state changes between the Client and Server. A snapshot is the minimal data object representing the entire physics simulation. The goal should be to keep the size of your snapshots as small as possible to reduce the load on the network.
+
+`Command`: A Snowglobe command represents a player or server issuing an instruction to the game world. This could be moving left or spawning new NPCS. The game world will need to have the command processed which will result in a change of world state. This world state change will then need to be syncronized amongst the other clients. The developer will need to implement a `MyCommand` type that inherits from `Command`. This type should have all available commands that can be used by the system. In addition, the `commandIsValid` function of `MyWorld` will need to ensure that any command sent to the world is valid. For example, there may be certain commands that can only be processed by the server but not the Client
+
+Once you have implemented `MyWorld`, `MyDisplayState`, `MySnapshot`, and `MyCommand` then Snowglobe will need to be incorporated into your game loop.
+
+The game loop for `standalone.ts` has more code to facilitate the mock network needed than the actual Snowglobe integration. The primary integrations for Snowglobe are as follows:
+
+1. Create a Snowglobe Server or Client: `const client1 = new Snowglobe.Client(makeWorld, config, interpolate)`
+2. Issue commands:
+
+```typescript
+client1Stage.ready.issueCommand(
+  {
+    kind: "accelerate",
+    clone() {
+      return { ...this }
+    },
+  },
+  client1Net,
+)
+```
+
+3. Retrieve display state: `client2DisplayState = client2Stage.ready.displayState()`
+4. Update Client/Server: `client1.update(deltaSeconds, secondsSinceStartup, client1Net)`
