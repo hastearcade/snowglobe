@@ -4,6 +4,8 @@ An experimental TypeScript port of the Rust multiplayer game networking library 
 
 Snowglobe is under active development and will break often. The API/implementation will eventually diverge from CrystalOrb due to particular characteristics of JavaScript, but for now it remains virtually 1:1.
 
+![Snowglobe demo](./docs/demo.apng)
+
 ## Install
 
 Install snowglobe using NPM:
