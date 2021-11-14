@@ -16,14 +16,14 @@ npm i snowglobe
 
 Snowglobe is an orchestrator designed to solve state syncronization between a game server and a set of game clients. In a perfect network, maintaining the state of your game world between a set of parties would simply be a matter of applying updates to the game world to all parties simultaneously, but we do not live in a perfect world.
 
-The networking and physics libraries required to build a game or simulation are outside the scope of Snowglobe. Snowglobe will orchestrate the game sync algorithm by utilizing networking libraries like [Geckos.io](https://github.com/geckosio/geckos.io) and physics libraries like [Rapier](https://rapier.rs/).
+The networking and physics libraries required to build a game or simulation are outside the scope of Snowglobe. Snowglobe will orchestrate the game sync algorithm, but to build a full game the developer will need to utilize networking libraries like [Geckos.io](https://github.com/geckosio/geckos.io) and physics libraries like [Rapier](https://rapier.rs/).
 
 The problem becomes non-trivial when layering in latency, bad actors, and disconnects. Glenn Fiedler describes the problems and solutions [here](https://gafferongames.com/post/introduction_to_networked_physics/).
 
-Snowglobe assists in solving the difficulty of networking physics for Typescript based games or simulations by implementing Client-side prediction, Server reconciliation, and Display State interpolation. The Ernest Wong and the Crystal Orb team did an excellent job describe the solution as:
+Snowglobe assists in solving the difficulty of networking physics for Typescript based games or simulations by implementing Client-side prediction, Server reconciliation, and Display State interpolation. Ernest Wong and the Crystal Orb team did an excellent job describing the solution as:
 
 - Client-side prediction. Clients immediately apply their local input to their simulation before waiting for the server, so that the player's inputs feel responsive.
-- Server reconciliation. Server runs a delayed, authoritative version of the simulation, and periodically sends authoritative snapshots to each client. Since the server's snapshots represent an earlier simulation frame, each client fast-forwards the snapshot they receive until it matches the same timestamp as what's being shown on screen. Once the timestamps match, clients smoothly blend their states to the snapshot states.
+- Server reconciliation. The Server runs a delayed, authoritative version of the simulation, and periodically sends authoritative snapshots to each client. Since the server's snapshots represent an earlier simulation frame, each client fast-forwards the snapshot they receive until it matches the same timestamp as what's being shown on screen. Once the timestamps match, clients smoothly blend their states into the snapshot states.
 - Display state interpolation. The simulation can run at a different time-step from the render framerate, and the client will automatically interpolate between the two simulation frames to get the render display state.
 
 ## Quick Start
@@ -78,7 +78,7 @@ npm run example:demo # mock client/server demo
 
 ## Code Architecture
 
-The following diagram shows a visual representation of the code architecture. The diagram is meant to be understood by reading along side `examples/standalone.ts`.
+The following diagram shows a visual representation of the code architecture. The diagram is meant to be understood by reading alongside `examples/standalone.ts`.
 
 ![Snowglobe Diagram](./docs/architecture.png)
 
@@ -88,7 +88,7 @@ The typical game or simulation will have a game loop that runs at 60 fps. Snowgl
 
 `DisplayState`: While every game has a World, not every game needs to display the entire world to the player at one time. You might have many objects that need to be culled from the scene. Thus, Snowglobe assumes there is an abstraction of the rendered state called `DisplayState`. As a developer, you must create a custom `MyDisplayState` class that inherits from `Snowglobe.DisplayState`. This display state should represent the minimal amount of state necessary to render to the screen.
 
-`Snapshot`: Snapshots are points in time pictures of a world. All data is frozen and utilized by the Snowglobe system to interpolate state changes between the Client and Server. A snapshot is the minimal data object representing the entire physics simulation. The goal should be to keep the size of your snapshots as small as possible to reduce the load on the network.
+`Snapshot`: Snapshots are points in time pictures of a world. All data is frozen and utilized by the Snowglobe system to interpolate state changes between the Client and Server. A snapshot is the minimal data object representing the entire physics simulation. The goal should be to keep the size of your snapshots as small as possible to reduce the load on the network. `MySnapshot` could have the same properties as `MyWorld`, but it is unlikely in a real world example.
 
 `Command`: A Snowglobe command represents a player or server issuing an instruction to the game world. This could be moving left or spawning new NPCS. The game world will need to have the command processed which will result in a change of world state. This world state change will then need to be syncronized amongst the other clients. The developer will need to implement a `MyCommand` type that inherits from `Command`. This type should have all available commands that can be used by the system. In addition, the `commandIsValid` function of `MyWorld` will need to ensure that any command sent to the world is valid. For example, there may be certain commands that can only be processed by the server but not the Client
 
