@@ -1,12 +1,6 @@
+import { ColliderHandle, RigidBodyHandle, Vector2 } from "@dimforge/rapier2d-compat"
 import * as Snowglobe from "../../../lib/src/index"
 import { makeMockNetwork, MockNetwork } from "../../../test/mock_network"
-import {
-  ColliderHandle,
-  ColliderSet,
-  RigidBodyHandle,
-  RigidBodySet,
-  Vector2,
-} from "@dimforge/rapier2d-compat"
 import { getRapier, Rapier } from "./rapier"
 
 function clone<T>(this: T) {
@@ -71,6 +65,7 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
   private doodad: Player
 
   constructor() {
+    this.simulation.timestep = TIMESTEP
     // left wall
     this.simulation
       .createCollider(
@@ -215,6 +210,10 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
     bodyDoodad.setTranslation(snapshot.doodad.translation, true)
     bodyDoodad.setLinvel(snapshot.doodad.linvel, true)
     bodyDoodad.setAngvel(snapshot.doodad.angvel, true)
+
+    this.playerLeft.input = snapshot.playerLeft.input
+    this.playerRight.input = snapshot.playerRight.input
+    this.doodad.input = snapshot.doodad.input
   }
 
   snapshot() {
@@ -227,19 +226,19 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
         translation: bodyLeft.translation(),
         linvel: bodyLeft.linvel(),
         angvel: bodyLeft.angvel(),
-        input: this.playerLeft.input,
+        input: { ...this.playerLeft.input },
       },
       playerRight: {
         translation: bodyRight.translation(),
         linvel: bodyRight.linvel(),
         angvel: bodyRight.angvel(),
-        input: this.playerRight.input,
+        input: { ...this.playerRight.input },
       },
       doodad: {
         translation: bodyDoodad.translation(),
         linvel: bodyDoodad.linvel(),
         angvel: bodyDoodad.angvel(),
-        input: this.doodad.input,
+        input: { ...this.doodad.input },
       },
       clone,
     }
@@ -265,6 +264,8 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
         new Rapier.Vector2((+player.input.right - +player.input.left) * 4000, 0),
         true,
       )
+      // player.input.left = false
+      // player.input.right = false
       if (player.input.jump) {
         body.applyImpulse(new Vector2(0, 4000), true)
         player.input.jump = false
@@ -290,6 +291,9 @@ const interpolate = (
 ): DemoDisplayState => {
   // TODO: rotation/slerp
   return {
+    // playerLeftTranslation: state2.playerLeftTranslation,
+    // playerRightTranslation: state2.playerRightTranslation,
+    // doodadTranslation: state2.doodadTranslation,
     playerLeftTranslation: lerp(
       state1.playerLeftTranslation,
       state2.playerLeftTranslation,
@@ -393,6 +397,7 @@ class Demo {
     return Array.from(client.stage().ready!.bufferedCommands())
       .map(([, commands]) => commands)
       .flat()
+      .map(command => `${command.command} ${command.value}`)
   }
 
   newCommsActivityCount(side: PlayerSide, channel: CommsChannel) {

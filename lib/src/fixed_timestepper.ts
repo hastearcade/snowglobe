@@ -131,6 +131,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
 
   advanceStepper(deltaSeconds: number) {
     this.timestepOvershootSeconds -= deltaSeconds
+    let i = 0
     while (true) {
       let nextOvershootSeconds =
         this.timestepOvershootSeconds + this.config.timestepSeconds
@@ -143,6 +144,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
       ) {
         break
       }
+      i++
       this.stepper.step()
       this.timestepOvershootSeconds = nextOvershootSeconds
     }

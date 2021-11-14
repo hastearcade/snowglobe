@@ -371,6 +371,7 @@ class ClientWorldSimulations<
       if (status.fastForwardHealth === FastFowardingHealth.Obsolete) {
         const snapshot = this.queuedSnapshot
         if (snapshot) {
+          this.queuedSnapshot = undefined
           loadSnapshot(snapshot)
           simulateNextFrame()
           publishOldState()
@@ -393,11 +394,11 @@ class ClientWorldSimulations<
     return this.worldSimulations.get().old.lastCompletedTimestamp()
   }
 
-  receiveCommand(cmd: Timestamp.Timestamped<$Command>) {
+  receiveCommand(command: Timestamp.Timestamped<$Command>) {
     const worldSimulation = this.worldSimulations.get()
-    this.baseCommandBuffer.insert(cmd)
-    worldSimulation.old.scheduleCommand(cmd)
-    worldSimulation.new.scheduleCommand(cmd)
+    this.baseCommandBuffer.insert(command)
+    worldSimulation.old.scheduleCommand(command)
+    worldSimulation.new.scheduleCommand(command)
   }
 
   receiveSnapshot(snapshot: Timestamp.Timestamped<$Snapshot>) {

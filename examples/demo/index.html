@@ -986,6 +986,14 @@
           requestAnimationFrame(next_animation_frame);
         }
 
+        function next_animation_frame() {
+          const now = Date.now() / 1000 - start_time;
+          const delta_seconds_for_frame = now - prev_frame_time;
+          prev_frame_time = now;
+          update(delta_seconds_for_frame, now);
+          requestAnimationFrame(next_animation_frame);
+        }
+
         (function() {
           const SCREENSCAPTURE_FRAMERATE = 60;
           let screenshot_time = 0;
