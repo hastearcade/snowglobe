@@ -25,7 +25,7 @@
     "require": "./lib/dist/cjs/index.js"
   },
   "files": [
-    "dist"
+    "lib/dist"
   ],
   "scripts": {
     "build": "tsc -b lib && npm run build:cjs",
