@@ -1,9 +1,9 @@
-import { Client, StageState } from "../src/client"
-import { Cloneable } from "../src/cloneable"
-import { Config } from "../src/lib"
-import { Server } from "../src/server"
-import { World } from "../src/world"
-import { FromInterpolationFn } from "../src/display_state"
+import { Client, StageState } from "../lib/src/client"
+import { Cloneable } from "../lib/src/cloneable"
+import { Config } from "../lib/src/lib"
+import { Server } from "../lib/src/server"
+import { World } from "../lib/src/world"
+import { FromInterpolationFn } from "../lib/src/display_state"
 import { makeMockNetwork, MockNetwork } from "./mock_network"
 
 export class MockWorld implements Cloneable, World<MockCommand, MockWorld, MockSnapshot> {

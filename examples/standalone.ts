@@ -1,11 +1,11 @@
 import { createHrtimeLoop } from "@javelin/hrtime-loop"
 import { performance } from "perf_hooks"
-import { Client } from "../src/client"
-import { Command } from "../src/command"
-import { Config, TweeningMethod } from "../src/lib"
-import { Server } from "../src/server"
-import { DisplayState, Snapshot, World } from "../src/world"
-import { Tweened } from "../src/display_state"
+import { Client } from "../lib/src/client"
+import { Command } from "../lib/src/command"
+import { Config, TweeningMethod } from "../lib/src/lib"
+import { Server } from "../lib/src/server"
+import { DisplayState, Snapshot, World } from "../lib/src/world"
+import { Tweened } from "../lib/src/display_state"
 import { makeMockNetwork } from "../test/mock_network"
 
 // A Snowglobe command represents a player or server

@@ -1,4 +1,4 @@
-import * as Timestamp from "../lib/src/timestamp"
+import * as Timestamp from "../src/timestamp"
 
 export function makeTimestamps() {
   return [

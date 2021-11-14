@@ -13,6 +13,26 @@ export type Config = {
   tweeningMethod: TweeningMethod
 }
 
+export function makeConfig(config: Partial<Config> = {}): Config {
+  return Object.assign(
+    {
+      lagCompensationLatency: 0.3,
+      blendLatency: 0.2,
+      timestepSeconds: 1.0 / 60.0,
+      clockSyncNeededSampleCount: 8,
+      clockSyncRequestPeriod: 0.2,
+      clockSyncAssumedOutlierRate: 0.2,
+      maxTolerableClockDeviation: 0.1,
+      snapshotSendPeriod: 0.1,
+      updateDeltaSecondsMax: 0.25,
+      timestampSkipThresholdSeconds: 1.0,
+      fastForwardMaxPerStep: 10,
+      tweeningMethod: TweeningMethod.Interpolated,
+    },
+    config,
+  )
+}
+
 export enum TweeningMethod {
   MostRecentlyPassed,
   Nearest,

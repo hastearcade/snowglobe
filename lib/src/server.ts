@@ -1,5 +1,5 @@
 import { Command } from "./command"
-import { TimeKeeper } from "./fixed_timestepper"
+import { TerminationCondition, TimeKeeper } from "./fixed_timestepper"
 import { Config, lagCompensationFrameCount } from "./lib"
 import {
   ClockSyncMessage,
@@ -31,6 +31,7 @@ export class Server<
     this.timekeepingSimulation = new TimeKeeper(
       new Simulation(world, InitializationType.PreInitialized),
       config,
+      TerminationCondition.LastUndershoot,
     )
     const initialTimestamp = Timestamp.sub(
       Timestamp.fromSeconds(secondsSinceStartup, config.timestepSeconds),

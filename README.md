@@ -71,7 +71,10 @@ const server = new Server(makeWorld(), config, 0)
 
 ## Examples
 
-Currently only the standalone example has been ported. You can run it with `npm run example:standalone` and you can see the code [here](https://github.com/3mcd/snowglobe/blob/main/examples/standalone.ts)
+```sh
+npm run example:standalone # starter example
+npm run example:demo # mock client/server demo
+```
 
 ## Code Architecture
 
