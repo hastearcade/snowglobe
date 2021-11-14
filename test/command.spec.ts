@@ -48,7 +48,7 @@ describe("Command", () => {
     const timestampedCommand = Timestamp.set({} as Command, timestamp)
     const buffer = new CommandBuffer()
 
-    expect(() => buffer.insert(timestampedCommand)).toThrowError(RangeError)
+    buffer.insert(timestampedCommand)
 
     expect(buffer.length()).toBe(0)
   })
