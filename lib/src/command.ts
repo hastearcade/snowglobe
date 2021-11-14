@@ -72,8 +72,8 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
         this.map.set(incomingTimestamp, [...commandsExist, timestampedCommand])
       }
     } else {
-      throw new RangeError(
-        `The command's timestamp is outside the acceptable range and will be ignored.`,
+      console.warn(
+        "The command's timestamp is outside the acceptable range and will be ignored",
       )
     }
   }
