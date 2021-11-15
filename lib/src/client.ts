@@ -30,20 +30,10 @@ export enum StageState {
 
 export enum ReconciliationState {
   AwaitingSnapshot,
-  Fastforwarding,
+  FastForwardingHealthy,
+  FastForwardingObsolete,
+  FastForwardingOvershot,
   Blending,
-}
-
-export enum FastFowardingHealth {
-  Healthy,
-  Obsolete,
-  Overshot,
-}
-
-export type ReconciliationStatus = {
-  state: ReconciliationState
-  fastForwardHealth?: FastFowardingHealth
-  blend?: number
 }
 
 export type StageOwned<
@@ -184,7 +174,7 @@ export class ActiveClient<
   }
 
   reconciliationStatus() {
-    return this.timekeepingSimulations.stepper.status
+    return this.timekeepingSimulations.stepper.reconciliationStatus
   }
 
   isReady() {
@@ -236,7 +226,6 @@ class ClientWorldSimulations<
   blendOldNewInterpolationT: number
   states: OldNew<Option<Timestamp.Timestamped<$DisplayState>>>
   fromInterpolation: FromInterpolationFn<$DisplayState>
-  status: ReconciliationStatus
 
   constructor(
     makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
@@ -251,12 +240,9 @@ class ClientWorldSimulations<
     this.blendOldNewInterpolationT = 1
     this.states = new OldNew(undefined, undefined)
     this.fromInterpolation = fromInterpolation
-    this.status = {
-      state: ReconciliationState.AwaitingSnapshot,
-    }
   }
 
-  private setStatus(): void {
+  get reconciliationStatus(): number {
     const worldSimulation = this.worldSimulations.get()
 
     if (
@@ -266,34 +252,24 @@ class ClientWorldSimulations<
       ) === 0
     ) {
       if (this.blendOldNewInterpolationT < 1) {
-        this.status = {
-          state: ReconciliationState.Blending,
-          blend: this.blendOldNewInterpolationT,
-        }
+        return ReconciliationState.Blending
       } else {
-        this.status = {
-          state: ReconciliationState.AwaitingSnapshot,
-        }
+        return ReconciliationState.AwaitingSnapshot
       }
     } else {
       const isSnapshotNewer =
         this.queuedSnapshot &&
         Timestamp.get(this.queuedSnapshot) > worldSimulation.new.lastCompletedTimestamp()
-      let fastForwardStatus = FastFowardingHealth.Healthy
 
       if (
         worldSimulation.new.lastCompletedTimestamp() >
         worldSimulation.old.lastCompletedTimestamp()
       ) {
-        fastForwardStatus = FastFowardingHealth.Overshot
+        return ReconciliationState.FastForwardingOvershot
       } else if (isSnapshotNewer) {
-        fastForwardStatus = FastFowardingHealth.Obsolete
+        return ReconciliationState.FastForwardingObsolete
       }
-
-      this.status = {
-        state: ReconciliationState.Fastforwarding,
-        fastForwardHealth: fastForwardStatus,
-      }
+      return ReconciliationState.FastForwardingHealthy
     }
   }
 
@@ -352,14 +328,14 @@ class ClientWorldSimulations<
       this.states.setNew(stateToPublish)
     }
 
-    this.setStatus()
-    if (this.status.state === ReconciliationState.Blending) {
+    const status = this.reconciliationStatus
+    if (status === ReconciliationState.Blending) {
       this.blendOldNewInterpolationT += blendProgressPerFrame(this.config)
       this.blendOldNewInterpolationT = clamp(this.blendOldNewInterpolationT, 0, 1)
 
       simulateNextFrame()
       publishBlendedState()
-    } else if (this.status.state === ReconciliationState.AwaitingSnapshot) {
+    } else if (status === ReconciliationState.AwaitingSnapshot) {
       const snapshot = this.queuedSnapshot
       if (snapshot) {
         this.queuedSnapshot = undefined
@@ -371,26 +347,24 @@ class ClientWorldSimulations<
         simulateNextFrame()
         publishBlendedState()
       }
-    } else if (this.status.state === ReconciliationState.Fastforwarding) {
-      if (this.status.fastForwardHealth === FastFowardingHealth.Obsolete) {
-        const snapshot = this.queuedSnapshot
-        if (snapshot) {
-          this.queuedSnapshot = undefined
-          loadSnapshot(snapshot)
-          simulateNextFrame()
-          publishOldState()
-        }
-      } else if (this.status.fastForwardHealth === FastFowardingHealth.Healthy) {
+    } else if (status === ReconciliationState.FastForwardingHealthy) {
+      simulateNextFrame()
+      publishOldState()
+    } else if (status === ReconciliationState.FastForwardingObsolete) {
+      const snapshot = this.queuedSnapshot
+      if (snapshot) {
+        this.queuedSnapshot = undefined
+        loadSnapshot(snapshot)
         simulateNextFrame()
         publishOldState()
-      } else {
-        const worldSimulation = this.worldSimulations.get()
-        worldSimulation.new.resetLastCompletedTimestamp(
-          worldSimulation.old.lastCompletedTimestamp(),
-        )
-        simulateNextFrame()
-        publishBlendedState()
       }
+    } else {
+      const worldSimulation = this.worldSimulations.get()
+      worldSimulation.new.resetLastCompletedTimestamp(
+        worldSimulation.old.lastCompletedTimestamp(),
+      )
+      simulateNextFrame()
+      publishBlendedState()
     }
   }
 
