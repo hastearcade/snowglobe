@@ -189,7 +189,7 @@ export class ActiveClient<
   }
 
   reconciliationStatus() {
-    return this.timekeepingSimulations.stepper.inferCurrentReconciliationStatus()
+    return this.timekeepingSimulations.stepper.status
   }
 
   isReady() {
@@ -241,6 +241,7 @@ class ClientWorldSimulations<
   blendOldNewInterpolationT: number
   states: OldNew<Option<Timestamp.Timestamped<$DisplayState>>>
   fromInterpolation: FromInterpolationFn<$DisplayState>
+  status: ReconciliationStatus
 
   constructor(
     makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
@@ -255,9 +256,12 @@ class ClientWorldSimulations<
     this.blendOldNewInterpolationT = 1
     this.states = new OldNew(undefined, undefined)
     this.fromInterpolation = fromInterpolation
+    this.status = {
+      state: ReconciliationState.AwaitingSnapshot,
+    }
   }
 
-  inferCurrentReconciliationStatus(): ReconciliationStatus {
+  private setStatus(): void {
     const worldSimulation = this.worldSimulations.get()
 
     if (
@@ -265,12 +269,12 @@ class ClientWorldSimulations<
       worldSimulation.old.lastCompletedTimestamp()
     ) {
       if (this.blendOldNewInterpolationT < 1) {
-        return {
+        this.status = {
           state: ReconciliationState.Blending,
           blend: this.blendOldNewInterpolationT,
         }
       } else {
-        return {
+        this.status = {
           state: ReconciliationState.AwaitingSnapshot,
         }
       }
@@ -289,7 +293,7 @@ class ClientWorldSimulations<
         fastForwardStatus = FastFowardingHealth.Obsolete
       }
 
-      return {
+      this.status = {
         state: ReconciliationState.Fastforwarding,
         fastForwardHealth: fastForwardStatus,
       }
@@ -348,14 +352,14 @@ class ClientWorldSimulations<
       this.states.setNew(stateToPublish)
     }
 
-    const status = this.inferCurrentReconciliationStatus()
-    if (status.state === ReconciliationState.Blending) {
+    this.setStatus()
+    if (this.status.state === ReconciliationState.Blending) {
       this.blendOldNewInterpolationT += blendProgressPerFrame(this.config)
       this.blendOldNewInterpolationT = clamp(this.blendOldNewInterpolationT, 0, 1)
 
       simulateNextFrame()
       publishBlendedState()
-    } else if (status.state === ReconciliationState.AwaitingSnapshot) {
+    } else if (this.status.state === ReconciliationState.AwaitingSnapshot) {
       const snapshot = this.queuedSnapshot
       if (snapshot) {
         this.queuedSnapshot = undefined
@@ -367,8 +371,8 @@ class ClientWorldSimulations<
         simulateNextFrame()
         publishBlendedState()
       }
-    } else if (status.state === ReconciliationState.Fastforwarding) {
-      if (status.fastForwardHealth === FastFowardingHealth.Obsolete) {
+    } else if (this.status.state === ReconciliationState.Fastforwarding) {
+      if (this.status.fastForwardHealth === FastFowardingHealth.Obsolete) {
         const snapshot = this.queuedSnapshot
         if (snapshot) {
           this.queuedSnapshot = undefined
@@ -376,7 +380,7 @@ class ClientWorldSimulations<
           simulateNextFrame()
           publishOldState()
         }
-      } else if (status.fastForwardHealth === FastFowardingHealth.Healthy) {
+      } else if (this.status.fastForwardHealth === FastFowardingHealth.Healthy) {
         simulateNextFrame()
         publishOldState()
       } else {
