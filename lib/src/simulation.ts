@@ -47,7 +47,7 @@ export class Simulation<
     maxSteps: number,
   ) {
     for (let i = 0; i < maxSteps; i++) {
-      if (this.lastCompletedTimestamp() >= targetCompletedTimestamp) {
+      if (Timestamp.cmp(this.lastCompletedTimestamp(), targetCompletedTimestamp) > -1) {
         break
       }
       this.step()
@@ -76,7 +76,7 @@ export class Simulation<
     const oldTimestamp = this.lastCompletedTimestamp()
     this.commandBuffer.updateTimestamp(timestamp)
 
-    if (timestamp < oldTimestamp) {
+    if (Timestamp.cmp(timestamp, oldTimestamp) === -1) {
       const commands = this.commandBuffer.drainAll()
       for (const command of commands) {
         this.world.applyCommand(command)

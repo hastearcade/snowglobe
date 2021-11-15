@@ -41,12 +41,18 @@ describe("determinism", () => {
       const clientStateHistory: Tweened<MockWorld>[] = []
       const serverStateHistory: Tweened<MockWorld>[] = []
 
-      while (Timestamp.get(mockClientServer.server.displayState()!) < targetTimestamp) {
+      while (
+        Timestamp.cmp(
+          Timestamp.get(mockClientServer.server.displayState()!),
+          targetTimestamp,
+        ) === -1
+      ) {
         const currentClientTimestamp = mockClientServer.client1
           .stage()
           .ready!.displayState()!
           .floatTimestamp()
-        const updateClient = currentClientTimestamp < targetTimestamp
+        const updateClient =
+          Timestamp.cmp(Timestamp.make(currentClientTimestamp), targetTimestamp) === -1
 
         if (updateClient) {
           const ready = mockClientServer.client1.stage().ready!
@@ -140,7 +146,8 @@ describe("determinism", () => {
           .stage()
           .ready!.displayState()!
           .floatTimestamp()
-        const updateClient = currentClientTimestamp < targetTimestamp
+        const updateClient =
+          Timestamp.cmp(Timestamp.make(currentClientTimestamp), targetTimestamp) === -1
 
         mockClientServer.update(TIMESTEP_SECONDS * framesPerUpdate)
         serverStateHistory.push(

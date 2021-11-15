@@ -10,10 +10,7 @@ export type FromInterpolationFn<$DisplayState extends DisplayState> = (
 export type DisplayState = Cloneable
 
 export class Tweened<$DisplayState extends DisplayState> implements Cloneable {
-  constructor(
-    private _displayState: $DisplayState,
-    private timestamp: Timestamp.Timestamp,
-  ) {}
+  constructor(private _displayState: $DisplayState, private timestamp: number) {}
   displayState() {
     return this._displayState
   }
@@ -49,7 +46,7 @@ export function tweenedFromInterpolation<$DisplayState extends DisplayState>(
 ) {
   const timestampDifference = Timestamp.sub(Timestamp.get(state2), Timestamp.get(state1))
   const timestampOffset = t * timestampDifference
-  const timestampInterpolated = Timestamp.add(Timestamp.get(state1), timestampOffset)
+  const timestampInterpolated = Timestamp.get(state1) + timestampOffset
   return new Tweened(fromInterpolation(state1, state2, t), timestampInterpolated)
 }
 

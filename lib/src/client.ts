@@ -1,11 +1,12 @@
 import { ClockSyncer } from "./clock_sync"
 import { Command, CommandBuffer } from "./command"
 import {
-  FixedTimestepper,
-  Stepper,
-  TerminationCondition,
-  TimeKeeper,
-} from "./fixed_timestepper"
+  FromInterpolationFn,
+  timestampedFromInterpolation,
+  Tweened,
+  tweenedFromInterpolation,
+} from "./display_state"
+import { Stepper, TerminationCondition, TimeKeeper } from "./fixed_timestepper"
 import {
   blendProgressPerFrame,
   Config,
@@ -16,16 +17,10 @@ import { clamp } from "./math"
 import { COMMAND_MESSAGE_TYPE_ID } from "./message"
 import { NetworkResource } from "./network_resource"
 import { OldNew } from "./old_new"
+import { Simulation } from "./simulation"
 import * as Timestamp from "./timestamp"
 import { Option } from "./types"
 import { DisplayState, Snapshot, World } from "./world"
-import {
-  FromInterpolationFn,
-  timestampedFromInterpolation,
-  Tweened,
-  tweenedFromInterpolation,
-} from "./display_state"
-import { Simulation } from "./simulation"
 
 export enum StageState {
   SyncingClock,
@@ -265,8 +260,10 @@ class ClientWorldSimulations<
     const worldSimulation = this.worldSimulations.get()
 
     if (
-      worldSimulation.new.lastCompletedTimestamp() ===
-      worldSimulation.old.lastCompletedTimestamp()
+      Timestamp.cmp(
+        worldSimulation.new.lastCompletedTimestamp(),
+        worldSimulation.old.lastCompletedTimestamp(),
+      ) === 0
     ) {
       if (this.blendOldNewInterpolationT < 1) {
         this.status = {
@@ -307,8 +304,10 @@ class ClientWorldSimulations<
       worldSimulation.new.applyCompletedSnapshot(snapshot, this.baseCommandBuffer.clone())
 
       if (
-        worldSimulation.new.lastCompletedTimestamp() >
-        worldSimulation.old.lastCompletedTimestamp()
+        Timestamp.cmp(
+          worldSimulation.new.lastCompletedTimestamp(),
+          worldSimulation.old.lastCompletedTimestamp(),
+        ) === 1
       ) {
         console.warn(`Server's snapshot is newer than client!`)
       }
@@ -338,6 +337,7 @@ class ClientWorldSimulations<
       const newDisplayState = worldSimulation.new.displayState()
 
       if (oldDisplayState && newDisplayState) {
+        // @ts-ignore
         stateToPublish = timestampedFromInterpolation(
           oldDisplayState,
           newDisplayState,
@@ -410,7 +410,7 @@ class ClientWorldSimulations<
 
     this.lastReceivedSnapshotTimestamp = timestamp
 
-    if (timestamp > this.lastCompletedTimestamp()) {
+    if (Timestamp.cmp(timestamp, this.lastCompletedTimestamp()) === 1) {
       console.warn("Received snapshot from the future! Ignoring snapshot.")
       return
     }
@@ -418,8 +418,10 @@ class ClientWorldSimulations<
     if (!this.lastQueuedSnapshotTimestamp) {
       this.queuedSnapshot = snapshot
     } else {
-      if (timestamp > this.lastQueuedSnapshotTimestamp) {
+      if (Timestamp.cmp(timestamp, this.lastQueuedSnapshotTimestamp) === 1) {
         this.queuedSnapshot = snapshot
+      } else {
+        console.warn("Received stale snapshot, ignoring")
       }
     }
 
@@ -445,7 +447,7 @@ class ClientWorldSimulations<
     // Note: If timeskip was so large that timestamp has wrapped around to the past,
     // then we need to clear all the commands in the base command buffer so that any
     // pending commands to get replayed unexpectedly in the future at the wrong time.
-    if (correctedTimestamp < oldTimestamp) {
+    if (Timestamp.cmp(correctedTimestamp, oldTimestamp) === -1) {
       this.baseCommandBuffer.drainAll()
     }
   }
@@ -474,7 +476,8 @@ class ClientWorldSimulations<
           this.lastCompletedTimestamp(),
           this.lastQueuedSnapshotTimestamp,
         ) ||
-        this.lastQueuedSnapshotTimestamp > this.lastCompletedTimestamp()
+        Timestamp.cmp(this.lastQueuedSnapshotTimestamp, this.lastCompletedTimestamp()) ===
+          1
       ) {
         this.lastQueuedSnapshotTimestamp = Timestamp.sub(
           this.lastCompletedTimestamp(),

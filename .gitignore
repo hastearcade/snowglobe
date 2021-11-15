@@ -5,3 +5,4 @@ dist
 tsconfig.tsbuildinfo
 *.heapsnapshot
 *.cpuprofile
+.DS_Store

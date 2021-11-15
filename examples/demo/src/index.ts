@@ -10,7 +10,7 @@ function clone<T>(this: T) {
 const Rapier = await getRapier()
 
 const GRAVITY = new Rapier.Vector2(0, -9.81 * 30)
-const TIMESTEP = 1 / 64
+const TIMESTEP = 1 / 60
 
 enum PlayerSide {
   Left,
@@ -271,6 +271,7 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
         player.input.jump = false
       }
     }
+    this.simulation.timestep = TIMESTEP
     this.simulation.step()
   }
 }

@@ -92,7 +92,12 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
 
   clone(): this {
     return new CommandBuffer(
-      new Map(this.map.entries()),
+      new Map(
+        Array.from(this.map.entries()).map(([timestamp, commands]) => [
+          timestamp,
+          commands.map(command => command.clone()),
+        ]),
+      ),
       Timestamp.make(this._timestamp),
     ) as this
   }
