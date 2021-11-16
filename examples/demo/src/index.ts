@@ -63,7 +63,7 @@ class ObjectPool<T> {
   private count: number
   private size: number
   private construct: () => T
-  constructor(constructorFunction: () => T, initialSize = 1000) {
+  constructor(constructorFunction: () => T, initialSize = 10000) {
     this.pool = new Array(initialSize).fill(0).map(constructorFunction)
     this.construct = constructorFunction
     this.size = initialSize
