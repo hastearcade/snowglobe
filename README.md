@@ -11,7 +11,7 @@ Snowglobe is under active development and will break often. The API/implementati
 Install snowglobe using NPM:
 
 ```sh
-npm i snowglobe
+npm i @hastearcade/snowglobe
 ```
 
 ## About
