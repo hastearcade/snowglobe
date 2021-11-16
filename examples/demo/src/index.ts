@@ -58,13 +58,67 @@ type Player = {
   input: PlayerInput
 }
 
+class ObjectPool<T> {
+  private pool: T[]
+  private count: number
+  private size: number
+  private construct: () => T
+  constructor(constructorFunction: () => T, initialSize = 1000) {
+    this.pool = new Array(initialSize).fill(0).map(constructorFunction)
+    this.construct = constructorFunction
+    this.size = initialSize
+    this.count = 0
+  }
+  getElement() {
+    if (this.count === this.pool.length - 1) {
+      this.pool = new Array(this.size).fill(0).map(this.construct)
+      this.count = 0
+    }
+    return this.pool[this.count++]
+  }
+}
+
 class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDisplayState> {
   private simulation = new Rapier.World(GRAVITY)
   private playerLeft: Player
   private playerRight: Player
   private doodad: Player
+  private displayStatePool: ObjectPool<DemoDisplayState>
+  private snapshotPool: ObjectPool<DemoSnapshot>
 
   constructor() {
+    this.displayStatePool = new ObjectPool<DemoDisplayState>(() => {
+      return {
+        playerLeftTranslation: new Vector2(0, 0),
+        playerRightTranslation: new Vector2(0, 0),
+        doodadTranslation: new Vector2(0, 0),
+        clone,
+      }
+    })
+    this.snapshotPool = new ObjectPool<DemoSnapshot>(() => {
+      return {
+        playerLeft: {
+          angvel: 0,
+          linvel: new Vector2(0, 0),
+          input: { jump: false, left: false, right: false },
+          translation: new Vector2(0, 0),
+        },
+        playerRight: {
+          angvel: 0,
+          linvel: new Vector2(0, 0),
+          input: { jump: false, left: false, right: false },
+          translation: new Vector2(0, 0),
+        },
+        doodad: {
+          angvel: 0,
+          linvel: new Vector2(0, 0),
+          input: { jump: false, left: false, right: false },
+          translation: new Vector2(0, 0),
+        },
+        clone,
+      }
+    })
+
     this.simulation.timestep = TIMESTEP
     // left wall
     this.simulation
@@ -221,27 +275,29 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
     const bodyRight = this.simulation.getRigidBody(this.playerRight.bodyHandle)
     const bodyDoodad = this.simulation.getRigidBody(this.doodad.bodyHandle)
 
-    return {
-      playerLeft: {
-        translation: bodyLeft.translation(),
-        linvel: bodyLeft.linvel(),
-        angvel: bodyLeft.angvel(),
-        input: { ...this.playerLeft.input },
-      },
-      playerRight: {
-        translation: bodyRight.translation(),
-        linvel: bodyRight.linvel(),
-        angvel: bodyRight.angvel(),
-        input: { ...this.playerRight.input },
-      },
-      doodad: {
-        translation: bodyDoodad.translation(),
-        linvel: bodyDoodad.linvel(),
-        angvel: bodyDoodad.angvel(),
-        input: { ...this.doodad.input },
-      },
-      clone,
+    const element = this.snapshotPool.getElement()
+
+    element!.playerLeft = {
+      translation: bodyLeft.translation(),
+      linvel: bodyLeft.linvel(),
+      angvel: bodyLeft.angvel(),
+      input: { ...this.playerLeft.input },
     }
+
+    element!.playerRight = {
+      translation: bodyRight.translation(),
+      linvel: bodyRight.linvel(),
+      angvel: bodyRight.angvel(),
+      input: { ...this.playerRight.input },
+    }
+    element!.doodad = {
+      translation: bodyDoodad.translation(),
+      linvel: bodyDoodad.linvel(),
+      angvel: bodyDoodad.angvel(),
+      input: { ...this.doodad.input },
+    }
+
+    return element!
   }
 
   displayState() {
@@ -249,12 +305,13 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
     const bodyRight = this.simulation.getRigidBody(this.playerRight.bodyHandle)
     const bodyDoodad = this.simulation.getRigidBody(this.doodad.bodyHandle)
 
-    return {
-      playerLeftTranslation: bodyLeft.translation(),
-      playerRightTranslation: bodyRight.translation(),
-      doodadTranslation: bodyDoodad.translation(),
-      clone,
-    }
+    const element = this.displayStatePool.getElement()
+
+    element!.playerLeftTranslation = bodyLeft.translation()
+    element!.playerRightTranslation = bodyRight.translation()
+    element!.doodadTranslation = bodyDoodad.translation()
+
+    return element!
   }
 
   step() {
