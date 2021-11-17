@@ -2,6 +2,7 @@ lockfileVersion: 5.3
 
 specifiers:
   '@dimforge/rapier2d-compat': ^0.7.6
+  '@javelin/core': ^1.0.0-alpha.12
   '@javelin/hrtime-loop': ^1.0.0-alpha.4
   '@jest/console': ^27.3.1
   '@types/jest': ^27.0.2
@@ -11,6 +12,9 @@ specifiers:
   ts-node: ^10.4.0
   typescript: ^4.4.4
   vite: ^2.6.14
+
+dependencies:
+  '@javelin/core': 1.0.0-alpha.12
 
 devDependencies:
   '@dimforge/rapier2d-compat': 0.7.6
@@ -414,6 +418,10 @@ packages:
     resolution: {integrity: sha512-ZXRY4jNvVgSVQ8DL3LTcakaAtXwTVUxE81hslsyD2AtoXW/wVob10HkOJ1X/pAlcI7D+2YoZKg5do8G/w6RYgA==}
     engines: {node: '>=8'}
     dev: true
+
+  /@javelin/core/1.0.0-alpha.12:
+    resolution: {integrity: sha512-U3KgZjpMNwO6SF1cVcn4XedpE+AE17aaoNr1S6W973qF7MBrfhRaeoEMjiPM5U2g9VxBJMr4rD9XzZRtyZPaYA==}
+    dev: false
 
   /@javelin/hrtime-loop/1.0.0-alpha.4:
     resolution: {integrity: sha512-u2nWSOFTd8yySCx/VzLuTWlg6FZmR+Mnr8T5o4QpZOKsL9KUaiR1BNf0Y+6Mt5lk1Gecz+Ucw60M6NIERtjedg==}

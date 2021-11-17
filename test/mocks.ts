@@ -5,8 +5,11 @@ import { Server } from "../lib/src/server"
 import { World } from "../lib/src/world"
 import { FromInterpolationFn } from "../lib/src/display_state"
 import { makeMockNetwork, MockNetwork } from "./mock_network"
+import { Disposable } from "../lib/src/disposable"
 
-export class MockWorld implements Cloneable, World<MockCommand, MockWorld, MockSnapshot> {
+export class MockWorld
+  implements Cloneable, Disposable, World<MockCommand, MockWorld, MockSnapshot>
+{
   initialEmptyTicks = 0
   commandHistory: MockCommand[][] = [[]]
   dx: number = 0
@@ -45,6 +48,8 @@ export class MockWorld implements Cloneable, World<MockCommand, MockWorld, MockS
     return clone as this
   }
 
+  dispose() {}
+
   step() {
     this.x += this.dx
     if (this.commandHistory.length === 1 && this.commandHistory[0]!.length === 0) {
@@ -69,7 +74,7 @@ export function mockWorldFromInterpolation(
   }
 }
 
-export type MockCommand = Cloneable & { value: number }
+export type MockCommand = Cloneable & Disposable & { value: number }
 
 const mockFromInterpolation: FromInterpolationFn<MockWorld> = (state1, state2, t) =>
   t === 1 ? state2.clone() : state1.clone()

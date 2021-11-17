@@ -1,4 +1,5 @@
 import { Cloneable } from "./cloneable"
+import { Disposable } from "./disposable"
 import * as Timestamp from "./timestamp"
 
 export type FromInterpolationFn<$DisplayState extends DisplayState> = (
@@ -7,7 +8,7 @@ export type FromInterpolationFn<$DisplayState extends DisplayState> = (
   t: number,
 ) => $DisplayState
 
-export type DisplayState = Cloneable
+export type DisplayState = Cloneable & Disposable
 
 export class Tweened<$DisplayState extends DisplayState> implements Cloneable {
   constructor(private _displayState: $DisplayState, private timestamp: number) {}

@@ -1,4 +1,5 @@
 import { ColliderHandle, RigidBodyHandle, Vector2 } from "@dimforge/rapier2d-compat"
+import { createStackPool, StackPool } from "@javelin/core"
 import * as Snowglobe from "../../../lib/src/index"
 import { makeMockNetwork, MockNetwork } from "../../../test/mock_network"
 import { getRapier, Rapier } from "./rapier"
@@ -29,21 +30,87 @@ type PlayerSnapshot = {
   angvel: number
   input: PlayerInput
 }
-
-type DemoSnapshot = Snowglobe.Snapshot & {
+class DemoSnapshot implements Snowglobe.Snapshot {
   playerLeft: PlayerSnapshot
   playerRight: PlayerSnapshot
   doodad: PlayerSnapshot
+
+  constructor(
+    playerLeft: PlayerSnapshot,
+    playerRight: PlayerSnapshot,
+    doodad: PlayerSnapshot,
+    private pool: StackPool<DemoSnapshot>,
+  ) {
+    this.playerLeft = playerLeft
+    this.playerRight = playerRight
+    this.doodad = doodad
+  }
+
+  clone() {
+    return new DemoSnapshot(
+      this.playerLeft,
+      this.playerRight,
+      this.doodad,
+      this.pool,
+    ) as this
+  }
+
+  dispose() {
+    this.pool.release(this)
+  }
 }
-type DemoCommand = Snowglobe.Command & {
+class DemoCommand implements Snowglobe.Command {
   playerSide: PlayerSide
   command: PlayerCommand
   value: boolean
+
+  constructor(
+    playerSide: PlayerSide,
+    command: PlayerCommand,
+    value: boolean,
+    private pool: StackPool<DemoCommand>,
+  ) {
+    this.playerSide = playerSide
+    this.command = command
+    this.value = value
+  }
+
+  clone() {
+    return new DemoCommand(this.playerSide, this.command, this.value, this.pool) as this
+  }
+
+  dispose() {
+    this.pool.release(this)
+  }
 }
-type DemoDisplayState = Snowglobe.DisplayState & {
+class DemoDisplayState implements Snowglobe.DisplayState {
   playerLeftTranslation: Vector2
   playerRightTranslation: Vector2
   doodadTranslation: Vector2
+
+  constructor(
+    playerLeftTranslation: Vector2,
+    playerRightTranslation: Vector2,
+    doodadTranslation: Vector2,
+    private pool: StackPool<DemoDisplayState>,
+  ) {
+    this.playerLeftTranslation = playerLeftTranslation
+    this.playerRightTranslation = playerRightTranslation
+    this.doodadTranslation = doodadTranslation
+  }
+
+  clone() {
+    return new DemoDisplayState(
+      this.playerLeftTranslation,
+      this.playerRightTranslation,
+      this.doodadTranslation,
+      this.pool,
+    ) as this
+  }
+
+  dispose() {
+    this.pool.release(this)
+  }
 }
 
 type PlayerInput = {
@@ -78,47 +145,92 @@ class ObjectPool<T> {
   }
 }
 
+const displayStatePool = createStackPool<DemoDisplayState>(
+  (pool: StackPool<DemoDisplayState>) => {
+    return new DemoDisplayState(
+      new Vector2(0, 0),
+      new Vector2(0, 0),
+      new Vector2(0, 0),
+      pool,
+    )
+  },
+  (snapshot: DemoDisplayState) => {
+    snapshot.doodadTranslation = new Vector2(0, 0)
+    snapshot.playerLeftTranslation = new Vector2(0, 0)
+    snapshot.playerRightTranslation = new Vector2(0, 0)
+    return snapshot
+  },
+  1000,
+)
+
+const snapshotPool = createStackPool<DemoSnapshot>(
+  (pool: StackPool<DemoSnapshot>) => {
+    return new DemoSnapshot(
+      {
+        angvel: 0,
+        linvel: new Vector2(0, 0),
+        input: { jump: false, left: false, right: false },
+        translation: new Vector2(0, 0),
+      },
+      {
+        angvel: 0,
+        linvel: new Vector2(0, 0),
+        input: { jump: false, left: false, right: false },
+        translation: new Vector2(0, 0),
+      },
+      {
+        angvel: 0,
+        linvel: new Vector2(0, 0),
+        input: { jump: false, left: false, right: false },
+        translation: new Vector2(0, 0),
+      },
+      pool,
+    )
+  },
+  (snapshot: DemoSnapshot) => {
+    snapshot.playerLeft = {
+      angvel: 0,
+      linvel: new Vector2(0, 0),
+      input: { jump: false, left: false, right: false },
+      translation: new Vector2(0, 0),
+    }
+    snapshot.playerRight = {
+      angvel: 0,
+      linvel: new Vector2(0, 0),
+      input: { jump: false, left: false, right: false },
+      translation: new Vector2(0, 0),
+    }
+    snapshot.doodad = {
+      angvel: 0,
+      linvel: new Vector2(0, 0),
+      input: { jump: false, left: false, right: false },
+      translation: new Vector2(0, 0),
+    }
+    return snapshot
+  },
+  1000,
+)
+
+export const commandPool = createStackPool<DemoCommand>(
+  (pool: StackPool<DemoCommand>) => {
+    return new DemoCommand(PlayerSide.Left, PlayerCommand.Left, false, pool)
+  },
+  (snapshot: DemoCommand) => {
+    snapshot.command = PlayerCommand.Left
+    snapshot.playerSide = PlayerSide.Left
+    snapshot.value = false
+    return snapshot
+  },
+  1000,
+)
+
 class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDisplayState> {
   private simulation = new Rapier.World(GRAVITY)
   private playerLeft: Player
   private playerRight: Player
   private doodad: Player
-  private displayStatePool: ObjectPool<DemoDisplayState>
-  private snapshotPool: ObjectPool<DemoSnapshot>
 
   constructor() {
-    this.displayStatePool = new ObjectPool<DemoDisplayState>(() => {
-      return {
-        playerLeftTranslation: new Vector2(0, 0),
-        playerRightTranslation: new Vector2(0, 0),
-        doodadTranslation: new Vector2(0, 0),
-        clone,
-      }
-    })
-    this.snapshotPool = new ObjectPool<DemoSnapshot>(() => {
-      return {
-        playerLeft: {
-          angvel: 0,
-          linvel: new Vector2(0, 0),
-          input: { jump: false, left: false, right: false },
-          translation: new Vector2(0, 0),
-        },
-        playerRight: {
-          angvel: 0,
-          linvel: new Vector2(0, 0),
-          input: { jump: false, left: false, right: false },
-          translation: new Vector2(0, 0),
-        },
-        doodad: {
-          angvel: 0,
-          linvel: new Vector2(0, 0),
-          input: { jump: false, left: false, right: false },
-          translation: new Vector2(0, 0),
-        },
-        clone,
-      }
-    })
-
     this.simulation.timestep = TIMESTEP
     // left wall
     this.simulation
@@ -275,29 +387,29 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
     const bodyRight = this.simulation.getRigidBody(this.playerRight.bodyHandle)
     const bodyDoodad = this.simulation.getRigidBody(this.doodad.bodyHandle)
 
-    const element = this.snapshotPool.getElement()
+    const element = snapshotPool.retain()
 
-    element!.playerLeft = {
+    element.playerLeft = {
       translation: bodyLeft.translation(),
       linvel: bodyLeft.linvel(),
       angvel: bodyLeft.angvel(),
       input: { ...this.playerLeft.input },
     }
 
-    element!.playerRight = {
+    element.playerRight = {
       translation: bodyRight.translation(),
       linvel: bodyRight.linvel(),
       angvel: bodyRight.angvel(),
       input: { ...this.playerRight.input },
     }
-    element!.doodad = {
+    element.doodad = {
       translation: bodyDoodad.translation(),
       linvel: bodyDoodad.linvel(),
       angvel: bodyDoodad.angvel(),
       input: { ...this.doodad.input },
     }
 
-    return element!
+    return element
   }
 
   displayState() {
@@ -305,13 +417,13 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
     const bodyRight = this.simulation.getRigidBody(this.playerRight.bodyHandle)
     const bodyDoodad = this.simulation.getRigidBody(this.doodad.bodyHandle)
 
-    const element = this.displayStatePool.getElement()
+    const element = displayStatePool.retain()
 
-    element!.playerLeftTranslation = bodyLeft.translation()
-    element!.playerRightTranslation = bodyRight.translation()
-    element!.doodadTranslation = bodyDoodad.translation()
+    element.playerLeftTranslation = bodyLeft.translation()
+    element.playerRightTranslation = bodyRight.translation()
+    element.doodadTranslation = bodyDoodad.translation()
 
-    return element!
+    return element
   }
 
   step() {
@@ -348,23 +460,15 @@ const interpolate = (
   t: number,
 ): DemoDisplayState => {
   // TODO: rotation/slerp
-  return {
+  return new DemoDisplayState(
     // playerLeftTranslation: state2.playerLeftTranslation,
     // playerRightTranslation: state2.playerRightTranslation,
     // doodadTranslation: state2.doodadTranslation,
-    playerLeftTranslation: lerp(
-      state1.playerLeftTranslation,
-      state2.playerLeftTranslation,
-      t,
-    ),
-    playerRightTranslation: lerp(
-      state1.playerRightTranslation,
-      state2.playerRightTranslation,
-      t,
-    ),
-    doodadTranslation: lerp(state1.doodadTranslation, state2.doodadTranslation, t),
-    clone,
-  }
+    lerp(state1.playerLeftTranslation, state2.playerLeftTranslation, t),
+    lerp(state1.playerRightTranslation, state2.playerRightTranslation, t),
+    lerp(state1.doodadTranslation, state2.doodadTranslation, t),
+    displayStatePool,
+  )
 }
 
 type NetworkedServer = {

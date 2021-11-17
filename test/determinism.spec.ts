@@ -70,6 +70,7 @@ describe("determinism", () => {
                   clone() {
                     return this
                   },
+                  dispose() {},
                 },
                 mockClientServer.client1Net,
               )
@@ -128,6 +129,7 @@ describe("determinism", () => {
           clone() {
             return this
           },
+          dispose() {},
         },
         mockClientServer.serverNet,
       )

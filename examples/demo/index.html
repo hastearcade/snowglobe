@@ -918,7 +918,14 @@
     </div>
     <!-- <script type="module" src="/src/index.ts"></script> -->
     <script type="module">
-      import { Demo, PlayerSide, PlayerCommand, CommsChannel } from "/src/index.ts"
+      import {
+        Demo,
+        DemoCommand,
+        commandPool,
+        PlayerSide,
+        PlayerCommand,
+        CommsChannel,
+      } from "/src/index.ts"
 
       let IS_SCREEN_CAPTURE = false
       if (new URL(document.location).searchParams.has("screencapture")) {
@@ -1145,14 +1152,9 @@
           const input = INPUT_MAP.get(code)
           if (input) {
             if (input.command !== null) {
-              demo.issueCommand({
-                playerSide: input.side,
-                command: input.command,
-                value: true,
-                clone() {
-                  return { ...this }
-                },
-              })
+              demo.issueCommand(
+                new DemoCommand(input.side, input.command, true, commandPool),
+              )
             }
             input.element.classList.add("pressed")
           }
@@ -1161,14 +1163,9 @@
           const input = INPUT_MAP.get(code)
           if (input) {
             if (input.command !== null) {
-              demo.issueCommand({
-                playerSide: input.side,
-                command: input.command,
-                value: false,
-                clone() {
-                  return { ...this }
-                },
-              })
+              demo.issueCommand(
+                new DemoCommand(input.side, input.command, false, commandPool),
+              )
             }
             input.element.classList.remove("pressed")
           }

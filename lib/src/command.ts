@@ -1,7 +1,8 @@
 import { Cloneable } from "./cloneable"
+import { Disposable } from "./disposable"
 import * as Timestamp from "./timestamp"
 
-export interface Command extends Cloneable {}
+export interface Command extends Cloneable, Disposable {}
 
 export class CommandBuffer<$Command extends Command> implements Cloneable {
   constructor(

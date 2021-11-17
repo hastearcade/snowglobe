@@ -15,6 +15,8 @@ class MockDisplayState implements DisplayState {
   clone() {
     return new MockDisplayState(this.value) as this
   }
+
+  dispose() {}
 }
 
 const mockFromInterpolation: FromInterpolationFn<MockDisplayState> = jest.fn(

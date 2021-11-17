@@ -1,11 +1,10 @@
 import { Cloneable } from "./cloneable"
 import { Command } from "./command"
+import { Disposable } from "./disposable"
 import { Stepper } from "./fixed_timestepper"
 
-export interface Snapshot {
-  clone(): this
-}
-export interface DisplayState extends Cloneable {}
+export interface Snapshot extends Cloneable, Disposable {}
+export interface DisplayState extends Cloneable, Disposable {}
 
 export type World<
   $Command extends Command = Command,

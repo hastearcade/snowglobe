@@ -30,6 +30,7 @@ describe("state init", () => {
           clone() {
             return this
           },
+          dispose() {},
         },
         mockClientServer.serverNet,
       )
@@ -111,6 +112,7 @@ describe("state init", () => {
           clone() {
             return this
           },
+          dispose() {},
         },
         mockClientServer.serverNet,
       )

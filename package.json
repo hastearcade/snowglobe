@@ -50,5 +50,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@javelin/core": "^1.0.0-alpha.12"
   }
 }

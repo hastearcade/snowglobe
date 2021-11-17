@@ -1,4 +1,6 @@
 import { createHrtimeLoop } from "@javelin/hrtime-loop"
+import { StackPool, createStackPool } from "@javelin/core"
+
 import * as Snowglobe from "../lib/src/index"
 import { performance } from "perf_hooks"
 import { makeMockNetwork } from "../test/mock_network"
@@ -9,15 +11,43 @@ import { makeMockNetwork } from "../test/mock_network"
 // will need to have the command processed which will result in
 // a change of world state. This world state change will then
 // need to be syncronized amongst the other clients.
-type MyCommand = Snowglobe.Command & { kind: "accelerate" | "decelerate" | "cheat" }
+
+type PossibleCommands = "accelerate" | "decelerate" | "cheat"
+class MyCommand implements Snowglobe.Command {
+  kind: PossibleCommands
+
+  constructor(kind: PossibleCommands, private pool: StackPool<MyCommand>) {
+    this.kind = kind
+  }
+
+  clone() {
+    return new MyCommand(this.kind, this.pool) as this
+  }
+
+  dispose() {
+    this.pool.release(this)
+  }
+}
 
 // A snapshot is the minimal data object representing the
 // entire physics simulation. The goal should be to keep
 // the size of your snapshots as small as possible to reduce
 // the load on the network.
-type MySnapshot = Snowglobe.Snapshot & {
+class MySnapshot implements Snowglobe.Snapshot {
   position: number
   velocity: number
+  constructor(position: number, velocity: number, private pool: StackPool<MySnapshot>) {
+    this.velocity = velocity
+    this.position = position
+  }
+
+  clone() {
+    return new MySnapshot(this.position, this.velocity, this.pool) as this
+  }
+
+  dispose() {
+    this.pool.release(this)
+  }
 }
 
 // Display State is a representation of what the Player
@@ -25,11 +55,61 @@ type MySnapshot = Snowglobe.Snapshot & {
 // to be seen by the player, and keeping a separate abstraction
 // for Display State helps reduce interpolation complexity
 // when the Server and Client are syncing.
-type MyDisplayState = Snowglobe.DisplayState & {
+class MyDisplayState implements Snowglobe.DisplayState {
   position: number
   velocity: number
+  constructor(
+    position: number,
+    velocity: number,
+    private pool: StackPool<MyDisplayState>,
+  ) {
+    this.velocity = velocity
+    this.position = position
+  }
+
+  clone() {
+    return new MyDisplayState(this.position, this.velocity, this.pool) as this
+  }
+
+  dispose() {
+    this.pool.release(this)
+  }
 }
 
+const snapShotPool = createStackPool<MySnapshot>(
+  (pool: StackPool<MySnapshot>) => {
+    return new MySnapshot(0, 0, pool)
+  },
+  (snapshot: MySnapshot) => {
+    snapshot.position = 0
+    snapshot.velocity = 0
+    return snapshot
+  },
+  1000,
+)
+
+const displayStatePool = createStackPool<MyDisplayState>(
+  (pool: StackPool<MyDisplayState>) => {
+    return new MyDisplayState(0, 0, pool)
+  },
+  (snapshot: MyDisplayState) => {
+    snapshot.position = 0
+    snapshot.velocity = 0
+    return snapshot
+  },
+  1000,
+)
+
+const commandPool = createStackPool<MyCommand>(
+  (pool: StackPool<MyCommand>) => {
+    return new MyCommand("accelerate", pool)
+  },
+  (snapshot: MyCommand) => {
+    snapshot.kind = "accelerate"
+    return snapshot
+  },
+  1000,
+)
 // The interplate function is utilized by Snowglobe to smooth
 // the changes in state between client and server. The server acts
 // as an authoritive player and the clients need to adhere to
@@ -40,13 +120,11 @@ function interpolate(
   state2: MyDisplayState,
   t: number,
 ): MyDisplayState {
-  return {
-    position: (1 - t) * state1.position + t * state2.position,
-    velocity: (1 - t) * state1.velocity + t * state2.velocity,
-    clone() {
-      return { ...this }
-    },
-  }
+  return new MyDisplayState(
+    (1 - t) * state1.position + t * state2.position,
+    (1 - t) * state1.velocity + t * state2.velocity,
+    displayStatePool,
+  )
 }
 
 // constants used by the game loop
@@ -138,26 +216,20 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   // return a minimal representation of your physical world
   // The smaller, the better to prevent network congestion.
   snapshot() {
-    return {
-      position: this.position,
-      velocity: this.velocity,
-      clone() {
-        return { ...this }
-      },
-    }
+    const snapshot = snapShotPool.retain()
+    snapshot.position = this.position
+    snapshot.velocity = this.velocity
+    return snapshot
   }
 
   // return a minimal representation of what will be displayed to
   // the player. If a world object is not visible, it should not
   // be returned from this function.
   displayState() {
-    return {
-      position: this.position,
-      velocity: this.velocity,
-      clone() {
-        return { ...this }
-      },
-    }
+    const displayState = displayStatePool.retain()
+    displayState.position = this.position
+    displayState.velocity = this.velocity
+    return displayState
   }
 }
 
@@ -257,12 +329,7 @@ function main() {
       client1DisplayState = client1Stage.ready.displayState()
       if (secondsSinceStartup % 10 >= 0 && secondsSinceStartup % 10 < 1) {
         client1Stage.ready.issueCommand(
-          {
-            kind: "accelerate",
-            clone() {
-              return { ...this }
-            },
-          },
+          new MyCommand("accelerate", commandPool),
           client1Net,
         )
       }
@@ -272,12 +339,7 @@ function main() {
       client2DisplayState = client2Stage.ready.displayState()
       if (secondsSinceStartup % 10 >= 5 && secondsSinceStartup % 10 < 6) {
         client2Stage.ready.issueCommand(
-          {
-            kind: "decelerate",
-            clone() {
-              return { ...this }
-            },
-          },
+          new MyCommand("decelerate", commandPool),
           client2Net,
         )
       }
