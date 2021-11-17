@@ -44,9 +44,32 @@ class DemoSnapshot implements Snowglobe.Snapshot {
 
   clone() {
     const snap = this.pool.retain()
-    snap.playerLeft = this.playerLeft
-    snap.playerRight = this.playerRight
-    snap.doodad = this.doodad
+    snap.playerLeft.translation.x = this.playerLeft.translation.x
+    snap.playerLeft.translation.y = this.playerLeft.translation.y
+    snap.playerLeft.angvel = this.playerLeft.angvel
+    snap.playerLeft.linvel.x = this.playerLeft.linvel.x
+    snap.playerLeft.linvel.y = this.playerLeft.linvel.y
+    snap.playerLeft.input.jump = this.playerLeft.input.jump
+    snap.playerLeft.input.left = this.playerLeft.input.left
+    snap.playerLeft.input.right = this.playerLeft.input.right
+
+    snap.playerRight.translation.x = this.playerRight.translation.x
+    snap.playerRight.translation.y = this.playerRight.translation.y
+    snap.playerRight.angvel = this.playerRight.angvel
+    snap.playerRight.linvel.x = this.playerRight.linvel.x
+    snap.playerRight.linvel.y = this.playerRight.linvel.y
+    snap.playerRight.input.jump = this.playerRight.input.jump
+    snap.playerRight.input.left = this.playerRight.input.left
+    snap.playerRight.input.right = this.playerRight.input.right
+
+    snap.doodad.translation.x = this.doodad.translation.x
+    snap.doodad.translation.y = this.doodad.translation.y
+    snap.doodad.angvel = this.doodad.angvel
+    snap.doodad.linvel.x = this.doodad.linvel.x
+    snap.doodad.linvel.y = this.doodad.linvel.y
+    snap.doodad.input.jump = this.doodad.input.jump
+    snap.doodad.input.left = this.doodad.input.left
+    snap.doodad.input.right = this.doodad.input.right
     return snap as this
   }
 
@@ -100,9 +123,12 @@ class DemoDisplayState implements Snowglobe.DisplayState {
 
   clone() {
     const state = this.pool.retain()
-    state.doodadTranslation = this.doodadTranslation
-    state.playerLeftTranslation = this.playerLeftTranslation
-    state.playerRightTranslation = this.playerRightTranslation
+    state.playerLeftTranslation.x = this.playerLeftTranslation.x
+    state.playerLeftTranslation.y = this.playerLeftTranslation.y
+    state.playerRightTranslation.x = this.playerRightTranslation.x
+    state.playerRightTranslation.y = this.playerRightTranslation.y
+    state.doodadTranslation.x = this.doodadTranslation.x
+    state.doodadTranslation.y = this.doodadTranslation.y
     return state as this
   }
 
