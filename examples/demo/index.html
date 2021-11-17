@@ -1167,7 +1167,7 @@
             if (input.command !== null) {
               const command = commandPool.retain()
               command.command = input.command
-              command.value = true
+              command.value = false
               command.playerSide = input.side
               demo.issueCommand(command)
             }
