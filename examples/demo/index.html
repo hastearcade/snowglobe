@@ -1152,9 +1152,11 @@
           const input = INPUT_MAP.get(code)
           if (input) {
             if (input.command !== null) {
-              demo.issueCommand(
-                new DemoCommand(input.side, input.command, true, commandPool),
-              )
+              const command = commandPool.retain()
+              command.command = input.command
+              command.value = true
+              command.playerSide = input.side
+              demo.issueCommand(command)
             }
             input.element.classList.add("pressed")
           }
@@ -1163,9 +1165,11 @@
           const input = INPUT_MAP.get(code)
           if (input) {
             if (input.command !== null) {
-              demo.issueCommand(
-                new DemoCommand(input.side, input.command, false, commandPool),
-              )
+              const command = commandPool.retain()
+              command.command = input.command
+              command.value = true
+              command.playerSide = input.side
+              demo.issueCommand(command)
             }
             input.element.classList.remove("pressed")
           }

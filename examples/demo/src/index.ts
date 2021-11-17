@@ -4,10 +4,6 @@ import * as Snowglobe from "../../../lib/src/index"
 import { makeMockNetwork, MockNetwork } from "../../../test/mock_network"
 import { getRapier, Rapier } from "./rapier"
 
-function clone<T>(this: T) {
-  return { ...this }
-}
-
 const Rapier = await getRapier()
 
 const GRAVITY = new Rapier.Vector2(0, -9.81 * 30)
@@ -47,12 +43,11 @@ class DemoSnapshot implements Snowglobe.Snapshot {
   }
 
   clone() {
-    return new DemoSnapshot(
-      this.playerLeft,
-      this.playerRight,
-      this.doodad,
-      this.pool,
-    ) as this
+    const snap = this.pool.retain()
+    snap.playerLeft = this.playerLeft
+    snap.playerRight = this.playerRight
+    snap.doodad = this.doodad
+    return snap as this
   }
 
   dispose() {
@@ -76,7 +71,11 @@ class DemoCommand implements Snowglobe.Command {
   }
 
   clone() {
-    return new DemoCommand(this.playerSide, this.command, this.value, this.pool) as this
+    const command = this.pool.retain()
+    command.playerSide = this.playerSide
+    command.value = this.value
+    command.command = this.command
+    return command as this
   }
 
   dispose() {
@@ -100,12 +99,11 @@ class DemoDisplayState implements Snowglobe.DisplayState {
   }
 
   clone() {
-    return new DemoDisplayState(
-      this.playerLeftTranslation,
-      this.playerRightTranslation,
-      this.doodadTranslation,
-      this.pool,
-    ) as this
+    const state = this.pool.retain()
+    state.doodadTranslation = this.doodadTranslation
+    state.playerLeftTranslation = this.playerLeftTranslation
+    state.playerRightTranslation = this.playerRightTranslation
+    return state as this
   }
 
   dispose() {
@@ -123,26 +121,6 @@ type Player = {
   bodyHandle: RigidBodyHandle
   colliderHandle: ColliderHandle
   input: PlayerInput
-}
-
-class ObjectPool<T> {
-  private pool: T[]
-  private count: number
-  private size: number
-  private construct: () => T
-  constructor(constructorFunction: () => T, initialSize = 10000) {
-    this.pool = new Array(initialSize).fill(0).map(constructorFunction)
-    this.construct = constructorFunction
-    this.size = initialSize
-    this.count = 0
-  }
-  getElement() {
-    if (this.count === this.pool.length - 1) {
-      this.pool = new Array(this.size).fill(0).map(this.construct)
-      this.count = 0
-    }
-    return this.pool[this.count++]
-  }
 }
 
 const displayStatePool = createStackPool<DemoDisplayState>(
@@ -460,15 +438,24 @@ const interpolate = (
   t: number,
 ): DemoDisplayState => {
   // TODO: rotation/slerp
-  return new DemoDisplayState(
-    // playerLeftTranslation: state2.playerLeftTranslation,
-    // playerRightTranslation: state2.playerRightTranslation,
-    // doodadTranslation: state2.doodadTranslation,
-    lerp(state1.playerLeftTranslation, state2.playerLeftTranslation, t),
-    lerp(state1.playerRightTranslation, state2.playerRightTranslation, t),
-    lerp(state1.doodadTranslation, state2.doodadTranslation, t),
-    displayStatePool,
+  const displayState = displayStatePool.retain()
+  displayState.playerLeftTranslation = lerp(
+    state1.playerLeftTranslation,
+    state2.playerLeftTranslation,
+    t,
   )
+  displayState.playerRightTranslation = lerp(
+    state1.playerRightTranslation,
+    state2.playerRightTranslation,
+    t,
+  )
+  displayState.doodadTranslation = lerp(
+    state1.doodadTranslation,
+    state2.doodadTranslation,
+    t,
+  )
+
+  return displayState
 }
 
 type NetworkedServer = {
