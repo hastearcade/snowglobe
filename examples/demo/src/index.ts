@@ -449,13 +449,11 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
   }
 }
 
-function lerp(a: Vector2, b: Vector2, t: number) {
+function lerp(a: Vector2, b: Vector2, t: number, out: Vector2) {
   const ax = a.x
   const ay = a.y
-  const out = new Vector2(0, 0)
   out.x = ax + t * (b.x - ax)
   out.y = ay + t * (b.y - ay)
-  return out
 }
 
 const interpolate = (
@@ -465,20 +463,23 @@ const interpolate = (
 ): DemoDisplayState => {
   // TODO: rotation/slerp
   const displayState = displayStatePool.retain()
-  displayState.playerLeftTranslation = lerp(
+  lerp(
     state1.playerLeftTranslation,
     state2.playerLeftTranslation,
     t,
+    displayState.playerLeftTranslation,
   )
-  displayState.playerRightTranslation = lerp(
+  lerp(
     state1.playerRightTranslation,
     state2.playerRightTranslation,
     t,
+    displayState.playerRightTranslation,
   )
-  displayState.doodadTranslation = lerp(
+  lerp(
     state1.doodadTranslation,
     state2.doodadTranslation,
     t,
+    displayState.doodadTranslation,
   )
 
   return displayState
