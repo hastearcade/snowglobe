@@ -276,8 +276,9 @@ class ClientWorldSimulations<
   step() {
     const loadSnapshot = (snapshot: Timestamp.Timestamped<$Snapshot>) => {
       const worldSimulation = this.worldSimulations.get()
-      this.baseCommandBuffer.drainUpTo(Timestamp.get(snapshot))
+      const commands = this.baseCommandBuffer.drainUpTo(Timestamp.get(snapshot))
       worldSimulation.new.applyCompletedSnapshot(snapshot, this.baseCommandBuffer.clone())
+      commands.forEach(c => c.dispose())
 
       if (
         Timestamp.cmp(

@@ -48,7 +48,9 @@ export function tweenedFromInterpolation<$DisplayState extends DisplayState>(
   const timestampDifference = Timestamp.sub(Timestamp.get(state2), Timestamp.get(state1))
   const timestampOffset = t * timestampDifference
   const timestampInterpolated = Timestamp.get(state1) + timestampOffset
-  return new Tweened(fromInterpolation(state1, state2, t), timestampInterpolated)
+  const results = fromInterpolation(state1, state2, t)
+  state1.dispose()
+  return new Tweened(results, timestampInterpolated)
 }
 
 export function tweenedFromTimestamped<$DisplayState extends DisplayState>(
