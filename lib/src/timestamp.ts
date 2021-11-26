@@ -34,7 +34,7 @@ export function comparableRangeWithMidpoint(timestamp: Timestamp) {
 
 export function acceptableTimestampRange(baseline: Timestamp, timestamp: Timestamp) {
   const { min, max } = comparableRangeWithMidpoint(baseline)
-  return cmp(timestamp, min) >= 0 || cmp(timestamp, max) < 0
+  return cmp(timestamp, min) >= 0 && cmp(timestamp, max) < 0
 }
 
 export function increment(timestamp: Timestamp): Timestamp {
