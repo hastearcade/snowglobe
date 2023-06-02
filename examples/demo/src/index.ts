@@ -4,6 +4,8 @@ import {
   Vector2
 } from '@dimforge/rapier2d-compat'
 import * as Snowglobe from '../../../lib/src/index'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import { makeMockNetwork, type MockNetwork } from '../../../test/mock_network'
 import { getRapier } from './rapier'
 import { type ObjectPool, createObjectPool } from './utilities/object_pool'
@@ -626,6 +628,7 @@ class Demo {
   }
 
   clientReconciliationStatus(side: PlayerSide) {
+    if (!this.client(side).client.stage().ready) return 'Inactive'
     return (
       (
         this.client(side)
