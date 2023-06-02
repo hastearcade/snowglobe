@@ -1,8 +1,8 @@
-import RAPIER from "@dimforge/rapier2d-compat"
+import RAPIER from '@dimforge/rapier2d-compat'
 
 export type Rapier = typeof RAPIER
 
-export function getRapier() {
+export async function getRapier() {
   // eslint-disable-next-line import/no-named-as-default-member
-  return RAPIER.init().then(() => RAPIER)
+  return await RAPIER.init().then(() => RAPIER)
 }

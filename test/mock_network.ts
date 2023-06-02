@@ -1,28 +1,28 @@
-import { Command } from "../lib/src/command"
+import { type Command } from '../lib/src/command'
 import {
-  ClockSyncMessage,
+  type ClockSyncMessage,
   CLOCK_SYNC_MESSAGE_TYPE_ID,
   COMMAND_MESSAGE_TYPE_ID,
-  SNAPSHOT_MESSAGE_TYPE_ID,
-} from "../lib/src/message"
+  SNAPSHOT_MESSAGE_TYPE_ID
+} from '../lib/src/message'
 import {
-  Connection,
-  ConnectionHandle,
-  NetworkResource,
-} from "../lib/src/network_resource"
-import { Timestamped } from "../lib/src/timestamp"
-import { TypeId } from "../lib/src/types"
-import { Snapshot } from "../lib/src/world"
+  type Connection,
+  type ConnectionHandle,
+  type NetworkResource
+} from '../lib/src/network_resource'
+import { type Timestamped } from '../lib/src/timestamp'
+import { type TypeId } from '../lib/src/types'
+import { type Snapshot } from '../lib/src/world'
 
 interface DelayedChannel {
-  tick(deltaSeconds: number): void
-  setDelay(delay: number): void
+  tick: (deltaSeconds: number) => void
+  setDelay: (delay: number) => void
 }
 
 class DelayedQueue<$Type> implements DelayedChannel {
   private _newActivityCount = 0
-  private incoming: [$Type, number][] = []
-  private outgoing: $Type[] = []
+  private readonly incoming: Array<[$Type, number]> = []
+  private readonly outgoing: $Type[] = []
   private delay = 0
 
   setDelay(delay: number) {
@@ -30,7 +30,7 @@ class DelayedQueue<$Type> implements DelayedChannel {
   }
 
   tick(deltaSeconds: number) {
-    while (this.incoming[this.incoming.length - 1]?.[1]! >= this.delay) {
+    while ((this.incoming[this.incoming.length - 1]?.[1] ?? 0) >= this.delay) {
       this.outgoing.unshift(this.incoming.pop()![0])
     }
     for (let i = 0; i < this.incoming.length; i++) {
@@ -55,10 +55,13 @@ class DelayedQueue<$Type> implements DelayedChannel {
 }
 
 class MockChannel<$Type> implements DelayedChannel {
-  constructor(private inbox: DelayedQueue<$Type>, private outbox: DelayedQueue<$Type>) {}
+  constructor(
+    private readonly inbox: DelayedQueue<$Type>,
+    private readonly outbox: DelayedQueue<$Type>
+  ) {}
 
   send(message: $Type) {
-    return this.outbox.send(message)
+    this.outbox.send(message)
   }
 
   recv() {
@@ -120,7 +123,7 @@ export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
     return undefined
   }
 
-  *connections(): IterableIterator<
+  * connections(): IterableIterator<
     [ConnectionHandle, MockConnection<$Command, $Snapshot>]
   > {
     for (const pair of this._connections.entries()) {
@@ -132,7 +135,7 @@ export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
   }
 
   sendMessage<$Type>(handle: ConnectionHandle, typeId: TypeId<$Type>, message: $Type) {
-    return this.getConnection(handle)!.send(typeId, message)
+    this.getConnection(handle)!.send(typeId, message)
   }
 
   broadcastMessage<$Type>(typeId: TypeId<$Type>, message: $Type) {
@@ -148,7 +151,7 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
 {
   constructor(
     public channels: Map<TypeId<unknown>, MockChannel<unknown>>,
-    public isConnected: boolean,
+    public isConnected: boolean
   ) {}
 
   setDelay(delay: number) {
@@ -186,7 +189,7 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
 
   send<$Type>(typeId: TypeId<$Type>, message: $Type) {
     console.assert(this.isConnected)
-    return (this.channels.get(typeId) as MockChannel<$Type>).send(message)
+    ;(this.channels.get(typeId) as MockChannel<$Type>).send(message)
   }
 
   flush<$Type>(typeId: TypeId<$Type>) {
@@ -235,10 +238,10 @@ function makeMockConnectionPair<$Command extends Command, $Snapshot extends Snap
   const clientConnection = new MockConnection<$Command, $Snapshot>(new Map(), false)
   const serverConnection = Object.defineProperty(
     new MockConnection<$Command, $Snapshot>(new Map(), false),
-    "isConnected",
+    'isConnected',
     {
-      get: () => clientConnection.isConnected,
-    },
+      get: () => clientConnection.isConnected
+    }
   )
   return [clientConnection, serverConnection]
 }
@@ -246,7 +249,7 @@ function makeMockConnectionPair<$Command extends Command, $Snapshot extends Snap
 function registerChannel<$Command extends Command, $Snapshot extends Snapshot>(
   connection1: MockConnection<$Command, $Snapshot>,
   connection2: MockConnection<$Command, $Snapshot>,
-  typeId: TypeId<unknown>,
+  typeId: TypeId<unknown>
 ) {
   const [channel1, channel2] = makeMockChannelPair()
   connection1.channels.set(typeId, channel1!)

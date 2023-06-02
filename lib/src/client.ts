@@ -1,31 +1,31 @@
-import { ClockSyncer } from "./clock_sync"
-import { Command, CommandBuffer } from "./command"
+import { ClockSyncer } from './clock_sync'
+import { type Command, CommandBuffer } from './command'
 import {
-  FromInterpolationFn,
+  type FromInterpolationFn,
   timestampedFromInterpolation,
-  Tweened,
-  tweenedFromInterpolation,
-} from "./display_state"
-import { Stepper, TerminationCondition, TimeKeeper } from "./fixed_timestepper"
+  type Tweened,
+  tweenedFromInterpolation
+} from './display_state'
+import { type Stepper, TerminationCondition, TimeKeeper } from './fixed_timestepper'
 import {
   blendProgressPerFrame,
-  Config,
+  type Config,
   lagCompensationFrameCount,
-  shapeInterpolationT,
-} from "./lib"
-import { clamp } from "./math"
-import { COMMAND_MESSAGE_TYPE_ID } from "./message"
-import { NetworkResource } from "./network_resource"
-import { OldNew } from "./old_new"
-import { Simulation } from "./simulation"
-import * as Timestamp from "./timestamp"
-import { Option } from "./types"
-import { DisplayState, Snapshot, World } from "./world"
+  shapeInterpolationT
+} from './lib'
+import { clamp } from './math'
+import { COMMAND_MESSAGE_TYPE_ID } from './message'
+import { type NetworkResource } from './network_resource'
+import { OldNew } from './old_new'
+import { Simulation } from './simulation'
+import * as Timestamp from './timestamp'
+import { type Option } from './types'
+import { type DisplayState, type Snapshot, type World } from './world'
 
 export enum StageState {
   SyncingClock,
   SyncingInitialState,
-  Ready,
+  Ready
 }
 
 export enum ReconciliationState {
@@ -33,14 +33,14 @@ export enum ReconciliationState {
   FastForwardingHealthy,
   FastForwardingObsolete,
   FastForwardingOvershot,
-  Blending,
+  Blending
 }
 
-export type StageOwned<
+export interface StageOwned<
   $Command extends Command,
   $Snapshot extends Snapshot,
-  $DisplayState extends DisplayState,
-> = {
+  $DisplayState extends DisplayState
+> {
   clockSyncer: ClockSyncer
   initStateSync: Option<ActiveClient<$Command, $Snapshot, $DisplayState>>
   ready: Option<ActiveClient<$Command, $Snapshot, $DisplayState>>
@@ -49,18 +49,18 @@ export type StageOwned<
 export class Client<
   $Command extends Command,
   $Snapshot extends Snapshot,
-  $DisplayState extends DisplayState,
+  $DisplayState extends DisplayState
 > {
   private _state: StageState = StageState.SyncingClock
-  private _stage: StageOwned<$Command, $Snapshot, $DisplayState>
-  private _makeWorld: () => World<$Command, $Snapshot, $DisplayState>
-  private _config: Config
+  private readonly _stage: StageOwned<$Command, $Snapshot, $DisplayState>
+  private readonly _makeWorld: () => World<$Command, $Snapshot, $DisplayState>
+  private readonly _config: Config
   fromInterpolation: FromInterpolationFn<$DisplayState>
 
   constructor(
     makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
     config: Config,
-    fromInterpolation: FromInterpolationFn<$DisplayState>,
+    fromInterpolation: FromInterpolationFn<$DisplayState>
   ) {
     this._makeWorld = makeWorld
     this._config = config
@@ -68,7 +68,7 @@ export class Client<
     this._stage = {
       clockSyncer: new ClockSyncer(config),
       initStateSync: undefined,
-      ready: undefined,
+      ready: undefined
     }
   }
 
@@ -83,11 +83,11 @@ export class Client<
   update(
     deltaSeconds: number,
     secondsSinceStartup: number,
-    net: NetworkResource<$Command, $Snapshot>,
+    net: NetworkResource<$Command, $Snapshot>
   ) {
     if (deltaSeconds < 0) {
       console.warn(
-        `Attempt to update a client with negative delta seconds. The delta is being clamped to 0.`,
+        'Attempt to update a client with negative delta seconds. The delta is being clamped to 0.'
       )
       deltaSeconds = 0
     }
@@ -101,7 +101,7 @@ export class Client<
             secondsSinceStartup,
             this._config,
             this._stage.clockSyncer,
-            this.fromInterpolation,
+            this.fromInterpolation
           )
           this._state = StageState.SyncingInitialState
         }
@@ -123,23 +123,24 @@ export class Client<
 export class ActiveClient<
   $Command extends Command,
   $Snapshot extends Snapshot,
-  $DisplayState extends DisplayState,
+  $DisplayState extends DisplayState
 > {
   clockSyncer: ClockSyncer
   timekeepingSimulations: TimeKeeper<
     ClientWorldSimulations<$Command, $Snapshot, $DisplayState>
   >
+
   constructor(
     makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
     secondsSinceStartup: number,
     config: Config,
     clockSyncer: ClockSyncer,
-    fromInterpolation: FromInterpolationFn<$DisplayState>,
+    fromInterpolation: FromInterpolationFn<$DisplayState>
   ) {
     const serverTime = clockSyncer.serverSecondsSinceStartup(secondsSinceStartup)
     console.assert(
       serverTime !== undefined,
-      "Active client can only be constructed with a synchronized clock",
+      'Active client can only be constructed with a synchronized clock'
     )
     // TODO: Proper assert function
     const initialTimestamp = Timestamp.fromSeconds(serverTime!, config.timestepSeconds)
@@ -147,7 +148,7 @@ export class ActiveClient<
     this.timekeepingSimulations = new TimeKeeper(
       new ClientWorldSimulations(makeWorld, config, initialTimestamp, fromInterpolation),
       config,
-      TerminationCondition.FirstOvershoot,
+      TerminationCondition.FirstOvershoot
     )
   }
 
@@ -162,6 +163,7 @@ export class ActiveClient<
   issueCommand(command: $Command, net: NetworkResource<$Command, $Snapshot>) {
     const timestampCommand = Timestamp.set(command, this.simulatingTimestamp())
     this.timekeepingSimulations.stepper.receiveCommand(timestampCommand)
+
     net.broadcastMessage(COMMAND_MESSAGE_TYPE_ID, timestampCommand)
   }
 
@@ -184,29 +186,29 @@ export class ActiveClient<
   update(
     deltaSeconds: number,
     secondsSinceStartup: number,
-    net: NetworkResource<$Command, $Snapshot>,
+    net: NetworkResource<$Command, $Snapshot>
   ) {
     this.clockSyncer.update(deltaSeconds, secondsSinceStartup, net)
 
     for (const [, connection] of net.connections()) {
       let command: Option<Timestamp.Timestamped<$Command>>
-      while ((command = connection.recvCommand())) {
+      while ((command = connection.recvCommand()) != null) {
         this.timekeepingSimulations.stepper.receiveCommand(command)
       }
       let snapshot: Option<Timestamp.Timestamped<$Snapshot>>
-      while ((snapshot = connection.recvSnapshot())) {
+      while ((snapshot = connection.recvSnapshot()) != null) {
         this.timekeepingSimulations.stepper.receiveSnapshot(snapshot)
       }
     }
     const timeSinceSync = this.clockSyncer.serverSecondsSinceStartup(secondsSinceStartup)
 
     if (!timeSinceSync) {
-      throw Error(`Clock should be synced`)
+      throw Error('Clock should be synced')
     }
 
     this.timekeepingSimulations.update(
       deltaSeconds,
-      timeSinceSync + this.timekeepingSimulations.config.lagCompensationLatency,
+      timeSinceSync + this.timekeepingSimulations.config.lagCompensationLatency
     )
   }
 }
@@ -214,7 +216,7 @@ export class ActiveClient<
 class ClientWorldSimulations<
   $Command extends Command,
   $Snapshot extends Snapshot,
-  $DisplayState extends DisplayState,
+  $DisplayState extends DisplayState
 > implements Stepper
 {
   queuedSnapshot: Option<Timestamp.Timestamped<$Snapshot>>
@@ -229,9 +231,9 @@ class ClientWorldSimulations<
 
   constructor(
     makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
-    private config: Config,
+    private readonly config: Config,
     initialTimestamp: Timestamp.Timestamp,
-    fromInterpolation: FromInterpolationFn<$DisplayState>,
+    fromInterpolation: FromInterpolationFn<$DisplayState>
   ) {
     const { old: oldWorldSimulation, new: newWorldSimulation } = (this.worldSimulations =
       new OldNew(new Simulation(makeWorld()), new Simulation(makeWorld()))).get()
@@ -248,7 +250,7 @@ class ClientWorldSimulations<
     if (
       Timestamp.cmp(
         worldSimulation.new.lastCompletedTimestamp(),
-        worldSimulation.old.lastCompletedTimestamp(),
+        worldSimulation.old.lastCompletedTimestamp()
       ) === 0
     ) {
       if (this.blendOldNewInterpolationT < 1) {
@@ -258,7 +260,7 @@ class ClientWorldSimulations<
       }
     } else {
       const isSnapshotNewer =
-        this.queuedSnapshot &&
+        this.queuedSnapshot != null &&
         Timestamp.get(this.queuedSnapshot) > worldSimulation.new.lastCompletedTimestamp()
 
       if (
@@ -278,15 +280,17 @@ class ClientWorldSimulations<
       const worldSimulation = this.worldSimulations.get()
       const commands = this.baseCommandBuffer.drainUpTo(Timestamp.get(snapshot))
       worldSimulation.new.applyCompletedSnapshot(snapshot, this.baseCommandBuffer.clone())
-      commands.forEach(c => c.dispose())
+      commands.forEach(c => {
+        c.dispose()
+      })
 
       if (
         Timestamp.cmp(
           worldSimulation.new.lastCompletedTimestamp(),
-          worldSimulation.old.lastCompletedTimestamp(),
+          worldSimulation.old.lastCompletedTimestamp()
         ) === 1
       ) {
-        console.warn(`Server's snapshot is newer than client!`)
+        console.warn("Server's snapshot is newer than client!")
       }
 
       this.blendOldNewInterpolationT = 0
@@ -297,7 +301,7 @@ class ClientWorldSimulations<
       worldSimulation.old.step()
       worldSimulation.new.tryCompletingSimulationsUpTo(
         worldSimulation.old.lastCompletedTimestamp(),
-        this.config.fastForwardMaxPerStep,
+        this.config.fastForwardMaxPerStep
       )
     }
 
@@ -313,15 +317,14 @@ class ClientWorldSimulations<
       const oldDisplayState = worldSimulation.old.displayState()
       const newDisplayState = worldSimulation.new.displayState()
 
-      if (oldDisplayState && newDisplayState) {
-        // @ts-ignore
+      if (oldDisplayState != null && newDisplayState != null) {
         stateToPublish = timestampedFromInterpolation(
           oldDisplayState,
           newDisplayState,
           this.blendOldNewInterpolationT,
-          this.fromInterpolation,
+          this.fromInterpolation
         )
-      } else if (!oldDisplayState && newDisplayState) {
+      } else if (oldDisplayState == null && newDisplayState != null) {
         stateToPublish = newDisplayState
       }
 
@@ -338,7 +341,7 @@ class ClientWorldSimulations<
       publishBlendedState()
     } else if (status === ReconciliationState.AwaitingSnapshot) {
       const snapshot = this.queuedSnapshot
-      if (snapshot) {
+      if (snapshot != null) {
         this.queuedSnapshot = undefined
         this.worldSimulations.swap()
         loadSnapshot(snapshot)
@@ -353,7 +356,7 @@ class ClientWorldSimulations<
       publishOldState()
     } else if (status === ReconciliationState.FastForwardingObsolete) {
       const snapshot = this.queuedSnapshot
-      if (snapshot) {
+      if (snapshot != null) {
         this.queuedSnapshot = undefined
         loadSnapshot(snapshot)
         simulateNextFrame()
@@ -362,7 +365,7 @@ class ClientWorldSimulations<
     } else {
       const worldSimulation = this.worldSimulations.get()
       worldSimulation.new.resetLastCompletedTimestamp(
-        worldSimulation.old.lastCompletedTimestamp(),
+        worldSimulation.old.lastCompletedTimestamp()
       )
       simulateNextFrame()
       publishBlendedState()
@@ -386,21 +389,21 @@ class ClientWorldSimulations<
     this.lastReceivedSnapshotTimestamp = timestamp
 
     if (Timestamp.cmp(timestamp, this.lastCompletedTimestamp()) === 1) {
-      console.warn("Received snapshot from the future! Ignoring snapshot.")
+      console.warn('Received snapshot from the future! Ignoring snapshot.')
       return
     }
 
-    if (!this.lastQueuedSnapshotTimestamp) {
+    if (this.lastQueuedSnapshotTimestamp == null) {
       this.queuedSnapshot = snapshot
     } else {
       if (Timestamp.cmp(timestamp, this.lastQueuedSnapshotTimestamp) === 1) {
         this.queuedSnapshot = snapshot
       } else {
-        console.warn("Received stale snapshot, ignoring")
+        console.warn('Received stale snapshot, ignoring')
       }
     }
 
-    if (this.queuedSnapshot) {
+    if (this.queuedSnapshot != null) {
       this.lastQueuedSnapshotTimestamp = Timestamp.get(this.queuedSnapshot)
     }
   }
@@ -431,32 +434,32 @@ class ClientWorldSimulations<
     const { old: optionalUndershotState, new: optionalOvershotState } = this.states.get()
     const tweenT = shapeInterpolationT(
       this.config.tweeningMethod,
-      1 - timestepOvershootSeconds / this.config.timestepSeconds,
+      1 - timestepOvershootSeconds / this.config.timestepSeconds
     )
 
-    if (optionalUndershotState && optionalOvershotState) {
+    if (optionalUndershotState != null && optionalOvershotState != null) {
       this.displayState = tweenedFromInterpolation(
         optionalUndershotState,
         optionalOvershotState,
         tweenT,
-        this.fromInterpolation,
+        this.fromInterpolation
       )
     }
 
     this.baseCommandBuffer.updateTimestamp(this.lastCompletedTimestamp())
 
-    if (this.lastQueuedSnapshotTimestamp) {
+    if (this.lastQueuedSnapshotTimestamp != null) {
       if (
         !Timestamp.acceptableTimestampRange(
           this.lastCompletedTimestamp(),
-          this.lastQueuedSnapshotTimestamp,
+          this.lastQueuedSnapshotTimestamp
         ) ||
         Timestamp.cmp(this.lastQueuedSnapshotTimestamp, this.lastCompletedTimestamp()) ===
           1
       ) {
         this.lastQueuedSnapshotTimestamp = Timestamp.sub(
           this.lastCompletedTimestamp(),
-          lagCompensationFrameCount(this.config) * 2,
+          lagCompensationFrameCount(this.config) * 2
         )
       }
     }

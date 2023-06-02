@@ -5,9 +5,9 @@ export function remEuclid(lhs: number, rhs: number): number {
 
 export function cartesian<T extends unknown[][]>(
   ...a: T
-): { [K in keyof T]: T[K] extends (infer _)[] ? _ : never }[] {
+): Array<{ [K in keyof T]: T[K] extends Array<infer _> ? _ : never }> {
   return a.reduce((a, b) =>
-    a.flatMap((d: any) => b.map((e: any) => [d, e].flat())),
+    a.flatMap((d: any) => b.map((e: any) => [d, e].flat()))
   ) as any
 }
 

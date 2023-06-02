@@ -1,26 +1,30 @@
-import { ColliderHandle, RigidBodyHandle, Vector2 } from "@dimforge/rapier2d-compat"
-import { createStackPool, StackPool } from "@javelin/core"
-import * as Snowglobe from "../../../lib/src/index"
-import { makeMockNetwork, MockNetwork } from "../../../test/mock_network"
-import { getRapier, Rapier } from "./rapier"
+import {
+  type ColliderHandle,
+  type RigidBodyHandle,
+  Vector2
+} from '@dimforge/rapier2d-compat'
+import { createStackPool, type StackPool } from '@javelin/core'
+import * as Snowglobe from '../../../lib/src/index'
+import { makeMockNetwork, type MockNetwork } from '../../../test/mock_network'
+import { getRapier } from './rapier'
 
-const Rapier = await getRapier()
+const RapierInstance = await getRapier()
 
-const GRAVITY = new Rapier.Vector2(0, -9.81 * 30)
+const GRAVITY = new RapierInstance.Vector2(0, -9.81 * 30)
 const TIMESTEP = 1 / 60
 
 enum PlayerSide {
   Left,
-  Right,
+  Right
 }
 
 enum PlayerCommand {
   Jump,
   Left,
-  Right,
+  Right
 }
 
-type PlayerSnapshot = {
+interface PlayerSnapshot {
   translation: Vector2
   linvel: Vector2
   angvel: number
@@ -35,7 +39,7 @@ class DemoSnapshot implements Snowglobe.Snapshot {
     playerLeft: PlayerSnapshot,
     playerRight: PlayerSnapshot,
     doodad: PlayerSnapshot,
-    private pool: StackPool<DemoSnapshot>,
+    private readonly pool: StackPool<DemoSnapshot>
   ) {
     this.playerLeft = playerLeft
     this.playerRight = playerRight
@@ -86,7 +90,7 @@ class DemoCommand implements Snowglobe.Command {
     playerSide: PlayerSide,
     command: PlayerCommand,
     value: boolean,
-    private pool: StackPool<DemoCommand>,
+    private readonly pool: StackPool<DemoCommand>
   ) {
     this.playerSide = playerSide
     this.command = command
@@ -114,7 +118,7 @@ class DemoDisplayState implements Snowglobe.DisplayState {
     playerLeftTranslation: Vector2,
     playerRightTranslation: Vector2,
     doodadTranslation: Vector2,
-    private pool: StackPool<DemoDisplayState>,
+    private readonly pool: StackPool<DemoDisplayState>
   ) {
     this.playerLeftTranslation = playerLeftTranslation
     this.playerRightTranslation = playerRightTranslation
@@ -137,13 +141,13 @@ class DemoDisplayState implements Snowglobe.DisplayState {
   }
 }
 
-type PlayerInput = {
+interface PlayerInput {
   jump: boolean
   left: boolean
   right: boolean
 }
 
-type Player = {
+interface Player {
   bodyHandle: RigidBodyHandle
   colliderHandle: ColliderHandle
   input: PlayerInput
@@ -155,7 +159,7 @@ const displayStatePool = createStackPool<DemoDisplayState>(
       new Vector2(0, 0),
       new Vector2(0, 0),
       new Vector2(0, 0),
-      pool,
+      pool
     )
   },
   (snapshot: DemoDisplayState) => {
@@ -164,7 +168,7 @@ const displayStatePool = createStackPool<DemoDisplayState>(
     snapshot.playerRightTranslation = new Vector2(0, 0)
     return snapshot
   },
-  1000,
+  1000
 )
 
 const snapshotPool = createStackPool<DemoSnapshot>(
@@ -174,21 +178,21 @@ const snapshotPool = createStackPool<DemoSnapshot>(
         angvel: 0,
         linvel: new Vector2(0, 0),
         input: { jump: false, left: false, right: false },
-        translation: new Vector2(0, 0),
+        translation: new Vector2(0, 0)
       },
       {
         angvel: 0,
         linvel: new Vector2(0, 0),
         input: { jump: false, left: false, right: false },
-        translation: new Vector2(0, 0),
+        translation: new Vector2(0, 0)
       },
       {
         angvel: 0,
         linvel: new Vector2(0, 0),
         input: { jump: false, left: false, right: false },
-        translation: new Vector2(0, 0),
+        translation: new Vector2(0, 0)
       },
-      pool,
+      pool
     )
   },
   (snapshot: DemoSnapshot) => {
@@ -196,23 +200,23 @@ const snapshotPool = createStackPool<DemoSnapshot>(
       angvel: 0,
       linvel: new Vector2(0, 0),
       input: { jump: false, left: false, right: false },
-      translation: new Vector2(0, 0),
+      translation: new Vector2(0, 0)
     }
     snapshot.playerRight = {
       angvel: 0,
       linvel: new Vector2(0, 0),
       input: { jump: false, left: false, right: false },
-      translation: new Vector2(0, 0),
+      translation: new Vector2(0, 0)
     }
     snapshot.doodad = {
       angvel: 0,
       linvel: new Vector2(0, 0),
       input: { jump: false, left: false, right: false },
-      translation: new Vector2(0, 0),
+      translation: new Vector2(0, 0)
     }
     return snapshot
   },
-  1000,
+  1000
 )
 
 export const commandPool = createStackPool<DemoCommand>(
@@ -225,106 +229,106 @@ export const commandPool = createStackPool<DemoCommand>(
     snapshot.value = false
     return snapshot
   },
-  1000,
+  1000
 )
 
 class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDisplayState> {
-  private simulation = new Rapier.World(GRAVITY)
-  private playerLeft: Player
-  private playerRight: Player
-  private doodad: Player
+  private readonly simulation = new RapierInstance.World(GRAVITY)
+  private readonly playerLeft: Player
+  private readonly playerRight: Player
+  private readonly doodad: Player
 
   constructor() {
     this.simulation.timestep = TIMESTEP
     // left wall
     this.simulation
       .createCollider(
-        Rapier.ColliderDesc.cuboid(1, 100),
+        RapierInstance.ColliderDesc.cuboid(1, 100),
         this.simulation.createRigidBody(
-          new Rapier.RigidBodyDesc(Rapier.RigidBodyType.Static)
+          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Static)
             .setTranslation(0, 0)
-            .setCcdEnabled(true),
-        ).handle,
+            .setCcdEnabled(true)
+        ).handle
       )
       .setRestitution(0.5)
     // right wall
     this.simulation
       .createCollider(
-        Rapier.ColliderDesc.cuboid(1, 100),
+        RapierInstance.ColliderDesc.cuboid(1, 100),
         this.simulation.createRigidBody(
-          new Rapier.RigidBodyDesc(Rapier.RigidBodyType.Static)
+          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Static)
             .setTranslation(180, 0)
-            .setCcdEnabled(true),
-        ).handle,
+            .setCcdEnabled(true)
+        ).handle
       )
       .setRestitution(0.5)
     // floor
     this.simulation
       .createCollider(
-        Rapier.ColliderDesc.cuboid(180, 1),
+        RapierInstance.ColliderDesc.cuboid(180, 1),
         this.simulation.createRigidBody(
-          new Rapier.RigidBodyDesc(Rapier.RigidBodyType.Static)
+          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Static)
             .setTranslation(0, 0)
-            .setCcdEnabled(true),
-        ).handle,
+            .setCcdEnabled(true)
+        ).handle
       )
       .setRestitution(0.5)
     // ceiling
     this.simulation
       .createCollider(
-        Rapier.ColliderDesc.cuboid(180, 1),
+        RapierInstance.ColliderDesc.cuboid(180, 1),
         this.simulation.createRigidBody(
-          new Rapier.RigidBodyDesc(Rapier.RigidBodyType.Static)
+          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Static)
             .setTranslation(0, 100)
-            .setCcdEnabled(true),
-        ).handle,
+            .setCcdEnabled(true)
+        ).handle
       )
       .setRestitution(0.5)
     // dynamic
     const leftBody = this.simulation.createRigidBody(
-      new Rapier.RigidBodyDesc(Rapier.RigidBodyType.Dynamic)
+      new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Dynamic)
         .setTranslation(10, 80)
-        .setCcdEnabled(true),
+        .setCcdEnabled(true)
     )
     const rightBody = this.simulation.createRigidBody(
-      new Rapier.RigidBodyDesc(Rapier.RigidBodyType.Dynamic)
+      new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Dynamic)
         .setTranslation(150, 80)
-        .setCcdEnabled(true),
+        .setCcdEnabled(true)
     )
     const doodadBody = this.simulation.createRigidBody(
-      new Rapier.RigidBodyDesc(Rapier.RigidBodyType.Dynamic)
+      new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Dynamic)
         .setTranslation(80, 80)
-        .setCcdEnabled(true),
+        .setCcdEnabled(true)
     )
     // colliders
     const leftCollider = this.simulation.createCollider(
-      Rapier.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
-      leftBody.handle,
+      RapierInstance.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
+      leftBody.handle
     )
     const rightCollider = this.simulation.createCollider(
-      Rapier.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
-      rightBody.handle,
+      RapierInstance.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
+      rightBody.handle
     )
 
     const doodadCollider = this.simulation.createCollider(
-      Rapier.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
-      doodadBody.handle,
+      RapierInstance.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
+      doodadBody.handle
     )
 
     this.playerLeft = {
       bodyHandle: leftBody.handle,
       colliderHandle: leftCollider.handle,
-      input: { left: false, right: false, jump: false },
+      input: { left: false, right: false, jump: false }
     }
     this.playerRight = {
       bodyHandle: rightBody.handle,
       colliderHandle: rightCollider.handle,
-      input: { left: false, right: false, jump: false },
+      input: { left: false, right: false, jump: false }
     }
     this.doodad = {
       bodyHandle: doodadBody.handle,
       colliderHandle: doodadCollider.handle,
-      input: { left: false, right: false, jump: false },
+      input: { left: false, right: false, jump: false }
     }
   }
 
@@ -397,20 +401,20 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
       translation: bodyLeft.translation(),
       linvel: bodyLeft.linvel(),
       angvel: bodyLeft.angvel(),
-      input: { ...this.playerLeft.input },
+      input: { ...this.playerLeft.input }
     }
 
     element.playerRight = {
       translation: bodyRight.translation(),
       linvel: bodyRight.linvel(),
       angvel: bodyRight.angvel(),
-      input: { ...this.playerRight.input },
+      input: { ...this.playerRight.input }
     }
     element.doodad = {
       translation: bodyDoodad.translation(),
       linvel: bodyDoodad.linvel(),
       angvel: bodyDoodad.angvel(),
-      input: { ...this.doodad.input },
+      input: { ...this.doodad.input }
     }
 
     return element
@@ -434,8 +438,8 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
     for (const player of [this.playerLeft, this.playerRight]) {
       const body = this.simulation.getRigidBody(player.bodyHandle)
       body.applyForce(
-        new Rapier.Vector2((+player.input.right - +player.input.left) * 4000, 0),
-        true,
+        new RapierInstance.Vector2((+player.input.right - +player.input.left) * 4000, 0),
+        true
       )
       // player.input.left = false
       // player.input.right = false
@@ -459,7 +463,7 @@ function lerp(a: Vector2, b: Vector2, t: number, out: Vector2) {
 const interpolate = (
   state1: DemoDisplayState,
   state2: DemoDisplayState,
-  t: number,
+  t: number
 ): DemoDisplayState => {
   // TODO: rotation/slerp
   const displayState = displayStatePool.retain()
@@ -467,30 +471,30 @@ const interpolate = (
     state1.playerLeftTranslation,
     state2.playerLeftTranslation,
     t,
-    displayState.playerLeftTranslation,
+    displayState.playerLeftTranslation
   )
   lerp(
     state1.playerRightTranslation,
     state2.playerRightTranslation,
     t,
-    displayState.playerRightTranslation,
+    displayState.playerRightTranslation
   )
   lerp(
     state1.doodadTranslation,
     state2.doodadTranslation,
     t,
-    displayState.doodadTranslation,
+    displayState.doodadTranslation
   )
 
   return displayState
 }
 
-type NetworkedServer = {
+interface NetworkedServer {
   server: Snowglobe.Server<DemoCommand, DemoSnapshot, DemoDisplayState>
   network: MockNetwork<DemoCommand, DemoSnapshot>
 }
 
-type NetworkedClient = {
+interface NetworkedClient {
   client: Snowglobe.Client<DemoCommand, DemoSnapshot, DemoDisplayState>
   network: MockNetwork<DemoCommand, DemoSnapshot>
 }
@@ -500,7 +504,7 @@ enum CommsChannel {
   ToServerCommand,
   ToClientClocksync,
   ToClientCommand,
-  ToClientSnapshot,
+  ToClientSnapshot
 }
 
 class Demo {
@@ -511,7 +515,7 @@ class Demo {
   constructor(secondsSinceStartup: number) {
     const config: Snowglobe.Config = Snowglobe.makeConfig({
       timestepSeconds: TIMESTEP,
-      tweeningMethod: Snowglobe.TweeningMethod.MostRecentlyPassed,
+      tweeningMethod: Snowglobe.TweeningMethod.MostRecentlyPassed
     })
     const [serverNetwork, [clientLeftNetwork, clientRightNetwork]] = makeMockNetwork<
       DemoCommand,
@@ -519,15 +523,15 @@ class Demo {
     >()
     this.server = {
       server: new Snowglobe.Server(DemoWorld.make(), config, secondsSinceStartup),
-      network: serverNetwork,
+      network: serverNetwork
     }
     this.clientLeft = {
       client: new Snowglobe.Client(DemoWorld.make, config, interpolate),
-      network: clientLeftNetwork,
+      network: clientLeftNetwork
     }
     this.clientRight = {
       client: new Snowglobe.Client(DemoWorld.make, config, interpolate),
-      network: clientRightNetwork,
+      network: clientRightNetwork
     }
   }
 
@@ -539,12 +543,12 @@ class Demo {
     this.clientLeft.client.update(
       deltaSeconds,
       secondsSinceStartup,
-      this.clientLeft.network,
+      this.clientLeft.network
     )
     this.clientRight.client.update(
       deltaSeconds,
       secondsSinceStartup,
-      this.clientRight.network,
+      this.clientRight.network
     )
   }
 
@@ -601,7 +605,7 @@ class Demo {
       case Snowglobe.StageState.SyncingClock:
         return `Syncing ${client.stage().clockSyncer?.sampleCount()}/${client
           .stage()
-          .clockSyncer!.samplesNeeded()}`
+          .clockSyncer.samplesNeeded()}`
       case Snowglobe.StageState.SyncingInitialState:
       case Snowglobe.StageState.Ready:
         return `Timestamp(${client.stage().ready?.lastCompletedTimestamp()})`
@@ -614,7 +618,7 @@ class Demo {
 
   clientReconciliationStatus(side: PlayerSide) {
     return (
-      this.client(side).client.stage().ready?.reconciliationStatus().state ?? "Inactive"
+      this.client(side).client.stage().ready?.reconciliationStatus().state ?? 'Inactive'
     )
   }
 

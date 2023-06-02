@@ -1,7 +1,7 @@
-import { Command } from "./command"
-import { Timestamped } from "./timestamp"
-import { TypeId } from "./types"
-import { Snapshot } from "./world"
+import { type Command } from './command'
+import { type Timestamped } from './timestamp'
+import { type TypeId } from './types'
+import { type Snapshot } from './world'
 
 let nextTypeId = 0
 
@@ -9,7 +9,7 @@ export function makeTypeId<$MessageType>() {
   return nextTypeId++ as TypeId<$MessageType>
 }
 
-export type ClockSyncMessage = {
+export interface ClockSyncMessage {
   clientSendSecondsSinceStartup: number
   serverSecondsSinceStartup: number
   clientId: number
@@ -22,5 +22,5 @@ export const SNAPSHOT_MESSAGE_TYPE_ID = makeTypeId<Timestamped<Snapshot>>()
 export enum NetworkMessageType {
   ClockSyncMessage = CLOCK_SYNC_MESSAGE_TYPE_ID,
   CommandMessage = COMMAND_MESSAGE_TYPE_ID,
-  SnapshotMessage = SNAPSHOT_MESSAGE_TYPE_ID,
+  SnapshotMessage = SNAPSHOT_MESSAGE_TYPE_ID
 }

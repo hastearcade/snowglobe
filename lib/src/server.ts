@@ -1,41 +1,42 @@
-import { Command } from "./command"
-import { TerminationCondition, TimeKeeper } from "./fixed_timestepper"
-import { Config, lagCompensationFrameCount } from "./lib"
+import { type Command } from './command'
+import { TerminationCondition, TimeKeeper } from './fixed_timestepper'
+import { type Config, lagCompensationFrameCount } from './lib'
 import {
-  ClockSyncMessage,
+  type ClockSyncMessage,
   CLOCK_SYNC_MESSAGE_TYPE_ID,
   COMMAND_MESSAGE_TYPE_ID,
-  SNAPSHOT_MESSAGE_TYPE_ID,
-} from "./message"
-import { ConnectionHandle, NetworkResource } from "./network_resource"
-import * as Timestamp from "./timestamp"
-import { Snapshot, World } from "./world"
-import { DisplayState } from "./display_state"
-import { InitializationType, Simulation } from "./simulation"
+  SNAPSHOT_MESSAGE_TYPE_ID
+} from './message'
+import { type ConnectionHandle, type NetworkResource } from './network_resource'
+import * as Timestamp from './timestamp'
+import { type Snapshot, type World } from './world'
+import { type DisplayState } from './display_state'
+import { InitializationType, Simulation } from './simulation'
 
 export class Server<
   $Command extends Command,
   $Snapshot extends Snapshot,
-  $DisplayState extends DisplayState,
+  $DisplayState extends DisplayState
 > {
-  private timekeepingSimulation: TimeKeeper<
+  private readonly timekeepingSimulation: TimeKeeper<
     Simulation<$Command, $Snapshot, $DisplayState>
   >
+
   private secondsSinceLastSnapshot = 0
 
   constructor(
-    private world: World<$Command, $Snapshot, $DisplayState>,
-    private config: Config,
-    secondsSinceStartup: number,
+    private readonly world: World<$Command, $Snapshot, $DisplayState>,
+    private readonly config: Config,
+    secondsSinceStartup: number
   ) {
     this.timekeepingSimulation = new TimeKeeper(
       new Simulation(world, InitializationType.PreInitialized),
       config,
-      TerminationCondition.LastUndershoot,
+      TerminationCondition.LastUndershoot
     )
     const initialTimestamp = Timestamp.sub(
       Timestamp.fromSeconds(secondsSinceStartup, config.timestepSeconds),
-      lagCompensationFrameCount(config),
+      lagCompensationFrameCount(config)
     )
 
     this.timekeepingSimulation.stepper.resetLastCompletedTimestamp(initialTimestamp)
@@ -52,21 +53,21 @@ export class Server<
   estimatedClientSimulatingTimestamp() {
     return Timestamp.add(
       this.simulatingTimestamp(),
-      lagCompensationFrameCount(this.config),
+      lagCompensationFrameCount(this.config)
     )
   }
 
   estimatedClientLastCompletedTimestamp() {
     return Timestamp.add(
       this.lastCompletedTimestamp(),
-      lagCompensationFrameCount(this.config),
+      lagCompensationFrameCount(this.config)
     )
   }
 
   applyValidatedCommand(
     command: Timestamp.Timestamped<$Command>,
     commandSource: ConnectionHandle | undefined,
-    net: NetworkResource<$Command>,
+    net: NetworkResource<$Command>
   ) {
     this.timekeepingSimulation.stepper.scheduleCommand(command)
     for (const [handle, connection] of net.connections()) {
@@ -75,11 +76,11 @@ export class Server<
       }
       const result = connection.send(
         COMMAND_MESSAGE_TYPE_ID,
-        Timestamp.set(command.clone(), Timestamp.get(command)),
+        Timestamp.set(command.clone(), Timestamp.get(command))
       )
       connection.flush(COMMAND_MESSAGE_TYPE_ID)
-      if (result) {
-        console.error(`Failed to relay command to ${handle}: ${result}`)
+      if (result != null) {
+        console.error(`Failed to relay command to ${handle}: ${JSON.stringify(result)}`)
       }
     }
   }
@@ -87,7 +88,7 @@ export class Server<
   receiveCommand<$Net extends NetworkResource<$Command>>(
     command: Timestamp.Timestamped<$Command>,
     commandSource: ConnectionHandle,
-    net: $Net,
+    net: $Net
   ) {
     if (this.world.commandIsValid(command, commandSource)) {
       this.applyValidatedCommand(command, commandSource, net)
@@ -98,7 +99,7 @@ export class Server<
     this.applyValidatedCommand(
       Timestamp.set(command, this.estimatedClientSimulatingTimestamp()),
       undefined,
-      net,
+      net
     )
   }
 
@@ -115,23 +116,23 @@ export class Server<
   update<$Net extends NetworkResource<$Command>>(
     deltaSeconds: number,
     secondsSinceStartup: number,
-    net: $Net,
+    net: $Net
   ) {
     const positiveDeltaSeconds = Math.max(deltaSeconds, 0)
     if (deltaSeconds !== positiveDeltaSeconds) {
       console.warn(
-        "Attempted to update client with a negative delta seconds. Clamping it to zero.",
+        'Attempted to update client with a negative delta seconds. Clamping it to zero.'
       )
     }
-    const newCommands: [Timestamp.Timestamped<$Command>, ConnectionHandle][] = []
-    const clockSyncs: [ConnectionHandle, ClockSyncMessage][] = []
+    const newCommands: Array<[Timestamp.Timestamped<$Command>, ConnectionHandle]> = []
+    const clockSyncs: Array<[ConnectionHandle, ClockSyncMessage]> = []
     for (const [handle, connection] of net.connections()) {
       let command: Timestamp.Timestamped<$Command> | undefined
       let clockSyncMessage: ClockSyncMessage | undefined
-      while ((command = connection.recvCommand())) {
+      while ((command = connection.recvCommand()) != null) {
         newCommands.push([command, handle])
       }
-      while ((clockSyncMessage = connection.recvClockSync())) {
+      while ((clockSyncMessage = connection.recvClockSync()) != null) {
         clockSyncMessage.serverSecondsSinceStartup = secondsSinceStartup
         clockSyncMessage.clientId = handle
         clockSyncs.push([handle, clockSyncMessage])
@@ -141,9 +142,9 @@ export class Server<
       this.receiveCommand(command, commandSource, net)
     }
     for (const [handle, clockSyncMessage] of clockSyncs) {
-      if (net.sendMessage(handle, CLOCK_SYNC_MESSAGE_TYPE_ID, clockSyncMessage)) {
+      if (net.sendMessage(handle, CLOCK_SYNC_MESSAGE_TYPE_ID, clockSyncMessage) != null) {
         console.error(
-          "Connection from which clocksync request came from should still exist",
+          'Connection from which clocksync request came from should still exist'
         )
       }
     }
@@ -153,7 +154,7 @@ export class Server<
       this.secondsSinceLastSnapshot = 0
       net.broadcastMessage(
         SNAPSHOT_MESSAGE_TYPE_ID,
-        this.timekeepingSimulation.stepper.lastCompletedSnapshot(),
+        this.timekeepingSimulation.stepper.lastCompletedSnapshot()
       )
     }
   }

@@ -1,9 +1,9 @@
-import { createHrtimeLoop } from "@javelin/hrtime-loop"
-import { StackPool, createStackPool } from "@javelin/core"
+import { createHrtimeLoop } from '@javelin/hrtime-loop'
+import { type StackPool, createStackPool } from '@javelin/core'
 
-import * as Snowglobe from "../lib/src/index"
-import { performance } from "perf_hooks"
-import { makeMockNetwork } from "../test/mock_network"
+import * as Snowglobe from '../lib/src/index'
+import { performance } from 'perf_hooks'
+import { makeMockNetwork } from '../test/mock_network'
 
 // A Snowglobe command represents a player or server
 // issuing an instruction to the game world.
@@ -12,11 +12,11 @@ import { makeMockNetwork } from "../test/mock_network"
 // a change of world state. This world state change will then
 // need to be syncronized amongst the other clients.
 
-type PossibleCommands = "accelerate" | "decelerate" | "cheat"
+type PossibleCommands = 'accelerate' | 'decelerate' | 'cheat'
 class MyCommand implements Snowglobe.Command {
   kind: PossibleCommands
 
-  constructor(kind: PossibleCommands, private pool: StackPool<MyCommand>) {
+  constructor(kind: PossibleCommands, private readonly pool: StackPool<MyCommand>) {
     this.kind = kind
   }
 
@@ -36,7 +36,11 @@ class MyCommand implements Snowglobe.Command {
 class MySnapshot implements Snowglobe.Snapshot {
   position: number
   velocity: number
-  constructor(position: number, velocity: number, private pool: StackPool<MySnapshot>) {
+  constructor(
+    position: number,
+    velocity: number,
+    private readonly pool: StackPool<MySnapshot>
+  ) {
     this.velocity = velocity
     this.position = position
   }
@@ -61,7 +65,7 @@ class MyDisplayState implements Snowglobe.DisplayState {
   constructor(
     position: number,
     velocity: number,
-    private pool: StackPool<MyDisplayState>,
+    private readonly pool: StackPool<MyDisplayState>
   ) {
     this.velocity = velocity
     this.position = position
@@ -85,7 +89,7 @@ const snapShotPool = createStackPool<MySnapshot>(
     snapshot.velocity = 0
     return snapshot
   },
-  1000,
+  1000
 )
 
 const displayStatePool = createStackPool<MyDisplayState>(
@@ -97,18 +101,18 @@ const displayStatePool = createStackPool<MyDisplayState>(
     snapshot.velocity = 0
     return snapshot
   },
-  1000,
+  1000
 )
 
 const commandPool = createStackPool<MyCommand>(
   (pool: StackPool<MyCommand>) => {
-    return new MyCommand("accelerate", pool)
+    return new MyCommand('accelerate', pool)
   },
   (snapshot: MyCommand) => {
-    snapshot.kind = "accelerate"
+    snapshot.kind = 'accelerate'
     return snapshot
   },
-  1000,
+  1000
 )
 // The interplate function is utilized by Snowglobe to smooth
 // the changes in state between client and server. The server acts
@@ -118,12 +122,12 @@ const commandPool = createStackPool<MyCommand>(
 function interpolate(
   state1: MyDisplayState,
   state2: MyDisplayState,
-  t: number,
+  t: number
 ): MyDisplayState {
   return new MyDisplayState(
     (1 - t) * state1.position + t * state2.position,
     (1 - t) * state1.velocity + t * state2.velocity,
-    displayStatePool,
+    displayStatePool
   )
 }
 
@@ -137,14 +141,14 @@ const TIMESTEP_MS = TIMESTEP_SECONDS * 1000
 // for syncing commands and snapshots between the client and server.
 // These commands and snapshots assist in the following:
 /*
-- Client-side prediction. Clients immediately apply their local 
-input to their simulation before waiting for the server, 
+- Client-side prediction. Clients immediately apply their local
+input to their simulation before waiting for the server,
 so that the player's inputs feel responsive.
-- Server reconciliation. Server runs a delayed, authoritative version 
-of the simulation, and periodically sends authoritative snapshots to 
-each client. Since the server's snapshots represent an earlier simulation 
-frame, each client fast-forwards the snapshot they receive until it matches 
-the same timestamp as what's being shown on screen. Once the timestamps 
+- Server reconciliation. Server runs a delayed, authoritative version
+of the simulation, and periodically sends authoritative snapshots to
+each client. Since the server's snapshots represent an earlier simulation
+frame, each client fast-forwards the snapshot they receive until it matches
+the same timestamp as what's being shown on screen. Once the timestamps
 match, clients smoothly blend their states to the snapshot states.
 */
 
@@ -171,7 +175,7 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   // In this example, only the server is allowed to send the 'cheat'
   // command to the simulation for processing.
   commandIsValid(command: MyCommand, clientId: number) {
-    if (command.kind === "cheat") {
+    if (command.kind === 'cheat') {
       return clientId === 42
     }
     return true
@@ -187,13 +191,13 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   // state of the world.
   applyCommand(command: MyCommand) {
     switch (command.kind) {
-      case "accelerate":
+      case 'accelerate':
         this.velocity += 1
         break
-      case "decelerate":
+      case 'decelerate':
         this.velocity -= 1
         break
-      case "cheat":
+      case 'cheat':
         this.position = 0
         break
     }
@@ -269,7 +273,7 @@ function main() {
   // needed in a production environment as not all
   // environments are created equal
   const config = Snowglobe.makeConfig({
-    clockSyncNeededSampleCount: 32,
+    clockSyncNeededSampleCount: 32
   })
 
   // interpolate and makeWorld need to be injected
@@ -329,8 +333,8 @@ function main() {
       client1DisplayState = client1Stage.ready.displayState()
       if (secondsSinceStartup % 10 >= 0 && secondsSinceStartup % 10 < 1) {
         client1Stage.ready.issueCommand(
-          new MyCommand("accelerate", commandPool),
-          client1Net,
+          new MyCommand('accelerate', commandPool),
+          client1Net
         )
       }
     }
@@ -339,8 +343,8 @@ function main() {
       client2DisplayState = client2Stage.ready.displayState()
       if (secondsSinceStartup % 10 >= 5 && secondsSinceStartup % 10 < 6) {
         client2Stage.ready.issueCommand(
-          new MyCommand("decelerate", commandPool),
-          client2Net,
+          new MyCommand('decelerate', commandPool),
+          client2Net
         )
       }
     }
@@ -348,7 +352,7 @@ function main() {
     console.log(
       serverDisplayState?.position,
       client1DisplayState?.displayState().position,
-      client2DisplayState?.displayState().position,
+      client2DisplayState?.displayState().position
     )
 
     // At the end of the game loop the developer needs

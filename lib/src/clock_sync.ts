@@ -1,19 +1,19 @@
 import {
   clockSyncSamplesNeededToStore,
   clockSyncSamplesToDiscardPerExtreme,
-  Config,
-} from "./lib"
-import { ClockSyncMessage, CLOCK_SYNC_MESSAGE_TYPE_ID } from "./message"
-import { NetworkResource } from "./network_resource"
-import { Option } from "./types"
+  type Config
+} from './lib'
+import { type ClockSyncMessage, CLOCK_SYNC_MESSAGE_TYPE_ID } from './message'
+import { type NetworkResource } from './network_resource'
+import { type Option } from './types'
 
 export class ClockSyncer {
   private _serverSecondsOffset: Option<number>
-  private _serverSecondsOffsetSamples: number[] = []
+  private readonly _serverSecondsOffsetSamples: number[] = []
   private _secondsSinceLastRequestSent = 0
   private _clientId: Option<number>
 
-  constructor(private _config: Config) {}
+  constructor(private readonly _config: Config) {}
 
   update(deltaSeconds: number, secondsSinceStartup: number, net: NetworkResource) {
     this._secondsSinceLastRequestSent += deltaSeconds
@@ -23,21 +23,21 @@ export class ClockSyncer {
       net.broadcastMessage(CLOCK_SYNC_MESSAGE_TYPE_ID, {
         clientSendSecondsSinceStartup: secondsSinceStartup,
         serverSecondsSinceStartup: 0,
-        clientId: 0,
+        clientId: 0
       })
     }
 
     let latestServerSecondsOffset: Option<number>
     for (const [, connection] of net.connections()) {
       let sync: ClockSyncMessage | undefined
-      while ((sync = connection.recvClockSync())) {
+      while ((sync = connection.recvClockSync()) != null) {
         const { clientId, clientSendSecondsSinceStartup, serverSecondsSinceStartup } =
           sync
-        let receivedTime = secondsSinceStartup
-        let correspondingClientTime = (clientSendSecondsSinceStartup + receivedTime) / 2
-        let offset = serverSecondsSinceStartup - correspondingClientTime
+        const receivedTime = secondsSinceStartup
+        const correspondingClientTime = (clientSendSecondsSinceStartup + receivedTime) / 2
+        const offset = serverSecondsSinceStartup - correspondingClientTime
         latestServerSecondsOffset = offset
-        let existingId = this._clientId ?? (this._clientId = clientId)
+        const existingId = this._clientId ?? (this._clientId = clientId)
         console.assert(existingId === clientId)
       }
     }
@@ -78,7 +78,7 @@ export class ClockSyncer {
 
     console.assert(
       this._serverSecondsOffsetSamples.length <=
-        clockSyncSamplesNeededToStore(this._config),
+        clockSyncSamplesNeededToStore(this._config)
     )
 
     if (
@@ -106,7 +106,7 @@ export class ClockSyncer {
     samples.sort((a, b) => a - b)
     const samplesWithoutOutliers = samples.slice(
       clockSyncSamplesToDiscardPerExtreme(this._config),
-      samples.length - clockSyncSamplesToDiscardPerExtreme(this._config),
+      samples.length - clockSyncSamplesToDiscardPerExtreme(this._config)
     )
 
     return (

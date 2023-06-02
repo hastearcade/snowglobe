@@ -1,4 +1,4 @@
-import * as Timestamp from "../lib/src/timestamp"
+import * as Timestamp from '../lib/src/timestamp'
 
 export function makeTimestamps() {
   return [
@@ -8,7 +8,7 @@ export function makeTimestamps() {
     Timestamp.make(),
     Timestamp.make(1),
     Timestamp.make(Timestamp.MAX / 2),
-    Timestamp.make(Timestamp.MAX),
+    Timestamp.make(Timestamp.MAX)
   ]
 }
 
@@ -33,12 +33,12 @@ function makeOffsets(initial: Timestamp.Timestamp) {
     minusLimit,
     minusWrapped,
     minusWrappedLimit,
-    minusWrappedFull,
+    minusWrappedFull
   }
 }
 
-describe("Timestamp", () => {
-  test("order", () => {
+describe('Timestamp', () => {
+  test('order', () => {
     function testTimestampOrderWithInitial(initial: Timestamp.Timestamp) {
       const offsets = makeOffsets(initial)
       expect(Timestamp.cmp(offsets.plusOne, initial)).toBe(1)
@@ -57,24 +57,24 @@ describe("Timestamp", () => {
       testTimestampOrderWithInitial(timestamp)
     }
   })
-  test("difference", () => {
+  test('difference', () => {
     function testTimestampDifferenceWithInitial(initial: Timestamp.Timestamp) {
       const offsets = makeOffsets(initial)
       expect(Timestamp.sub(offsets.plusOne, initial)).toEqual(Timestamp.make(1))
       expect(Timestamp.sub(offsets.plusLimit, initial)).toEqual(
-        Timestamp.make(Timestamp.MAX),
+        Timestamp.make(Timestamp.MAX)
       )
       expect(Timestamp.sub(offsets.plusWrapped, initial)).toEqual(
-        Timestamp.make(Timestamp.MIN),
+        Timestamp.make(Timestamp.MIN)
       )
       expect(Timestamp.sub(offsets.plusWrappedLimit, initial)).toEqual(Timestamp.make(-1))
       expect(Timestamp.sub(offsets.plusWrappedFull, initial)).toEqual(Timestamp.make())
       expect(Timestamp.sub(offsets.minusOne, initial)).toEqual(Timestamp.make(-1))
       expect(Timestamp.sub(offsets.minusLimit, initial)).toEqual(
-        Timestamp.make(Timestamp.MIN),
+        Timestamp.make(Timestamp.MIN)
       )
       expect(Timestamp.sub(offsets.minusWrapped, initial)).toEqual(
-        Timestamp.make(Timestamp.MAX),
+        Timestamp.make(Timestamp.MAX)
       )
       expect(Timestamp.sub(offsets.minusWrappedLimit, initial)).toEqual(Timestamp.make(1))
       expect(Timestamp.sub(offsets.minusWrappedFull, initial)).toEqual(Timestamp.make())
@@ -84,14 +84,14 @@ describe("Timestamp", () => {
       testTimestampDifferenceWithInitial(timestamp)
     }
   })
-  test("increment", () => {
+  test('increment', () => {
     for (const timestamp of makeTimestamps()) {
       const incremented = Timestamp.increment(Timestamp.make(timestamp))
       expect(Timestamp.cmp(incremented, timestamp)).toBe(1)
       expect(Timestamp.sub(incremented, timestamp)).toBe(Timestamp.make(1))
     }
   })
-  test("from seconds", () => {
+  test('from seconds', () => {
     expect(Timestamp.fromSeconds(0, 1)).toEqual(Timestamp.make())
     expect(Timestamp.fromSeconds(1, 1)).toEqual(Timestamp.make(1))
     expect(Timestamp.fromSeconds(0.25, 0.25)).toEqual(Timestamp.make(1))
@@ -101,23 +101,23 @@ describe("Timestamp", () => {
     expect(Timestamp.fromSeconds(Timestamp.MIN, 1)).toEqual(Timestamp.MIN)
     expect(Timestamp.fromSeconds(Timestamp.MIN - 1, 1)).toEqual(Timestamp.MAX)
   })
-  test("as seconds", () => {
+  test('as seconds', () => {
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(0, 1), 1)).toEqual(0)
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(1, 1), 1)).toEqual(1)
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(1, 1), 0.25)).toEqual(0.25)
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(0.25, 0.25), 0.25)).toEqual(0.25)
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(-1, 1), 1)).toEqual(-1)
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(Timestamp.MAX, 1), 1)).toEqual(
-      Timestamp.MAX,
+      Timestamp.MAX
     )
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(Timestamp.MAX + 1, 1), 1)).toEqual(
-      Timestamp.MIN,
+      Timestamp.MIN
     )
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(Timestamp.MIN, 1), 1)).toEqual(
-      Timestamp.MIN,
+      Timestamp.MIN
     )
     expect(Timestamp.asSeconds(Timestamp.fromSeconds(Timestamp.MIN - 1, 1), 1)).toEqual(
-      Timestamp.MAX,
+      Timestamp.MAX
     )
   })
 })

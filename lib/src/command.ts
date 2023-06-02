@@ -1,13 +1,13 @@
-import { Cloneable } from "./cloneable"
-import { Disposable } from "./disposable"
-import * as Timestamp from "./timestamp"
+import { type Cloneable } from './cloneable'
+import { type Disposable } from './disposable'
+import * as Timestamp from './timestamp'
 
 export interface Command extends Cloneable, Disposable {}
 
 export class CommandBuffer<$Command extends Command> implements Cloneable {
   constructor(
-    private map: Map<Timestamp.Timestamp, $Command[]> = new Map(),
-    private _timestamp = Timestamp.make(),
+    private readonly map: Map<Timestamp.Timestamp, $Command[]> = new Map(),
+    private _timestamp = Timestamp.make()
   ) {
     // The original crystalorb implementation used a more effecient datatype
     // to insert commands in reverse timestamp order.
@@ -20,9 +20,9 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
 
   private filterStaleTimestamps(
     timestamp: Timestamp.Timestamp | undefined,
-    before: boolean,
+    before: boolean
   ) {
-    if (timestamp) {
+    if (timestamp != null) {
       this.map.forEach((value, key) => {
         if (Timestamp.cmp(key, timestamp) === (before ? -1 : 1)) {
           this.map.delete(key)
@@ -40,7 +40,7 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
 
   drainAll() {
     const sortedCommands = [...this.map.entries()].sort((a, b) =>
-      Timestamp.cmp(a[0], b[0]),
+      Timestamp.cmp(a[0], b[0])
     )
     this.map.clear()
     return sortedCommands.map(tc => tc[1]).flat()
@@ -48,10 +48,10 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
 
   drainUpTo(timestamp: Timestamp.Timestamp) {
     const sortedCommands = [...this.map.entries()].sort((a, b) =>
-      Timestamp.cmp(a[0], b[0]),
+      Timestamp.cmp(a[0], b[0])
     )
     const filteredCommands = sortedCommands.filter(
-      tc => Timestamp.cmp(tc[0], timestamp) <= 0,
+      tc => Timestamp.cmp(tc[0], timestamp) <= 0
     )
 
     for (const [timestamp] of filteredCommands) {
@@ -67,14 +67,14 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
     if (Timestamp.acceptableTimestampRange(this._timestamp, incomingTimestamp)) {
       const commandsExist = this.map.get(incomingTimestamp)
 
-      if (!commandsExist) {
+      if (commandsExist == null) {
         this.map.set(incomingTimestamp, [timestampedCommand])
       } else {
         this.map.set(incomingTimestamp, [...commandsExist, timestampedCommand])
       }
     } else {
       console.warn(
-        "The command's timestamp is outside the acceptable range and will be ignored",
+        "The command's timestamp is outside the acceptable range and will be ignored"
       )
     }
   }
@@ -96,10 +96,10 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
       new Map(
         Array.from(this.map.entries()).map(([timestamp, commands]) => [
           timestamp,
-          commands.map(command => command.clone()),
-        ]),
+          commands.map(command => command.clone())
+        ])
       ),
-      Timestamp.make(this._timestamp),
+      Timestamp.make(this._timestamp)
     ) as this
   }
 }

@@ -1,9 +1,9 @@
-import { TweeningMethod } from "../lib/src/lib"
-import { cartesian } from "../lib/src/math"
-import { MockClientServer } from "./mocks"
+import { TweeningMethod } from '../lib/src/lib'
+import { cartesian } from '../lib/src/math'
+import { MockClientServer } from './mocks'
 
-describe("state init", () => {
-  test("when client becomes ready state should already be initialized", () => {
+describe('state init', () => {
+  test('when client becomes ready state should already be initialized', () => {
     const TIMESTEP_SECONDS = 1 / 60
     for (const framesPerUpdate of [1, 0.5, 0.3, 2.0, 1.5, 10]) {
       const FRAMES_TO_LAG_BEHIND = 10
@@ -20,7 +20,7 @@ describe("state init", () => {
         updateDeltaSecondsMax: 0.25,
         timestampSkipThresholdSeconds: 1,
         fastForwardMaxPerStep: 10,
-        tweeningMethod: TweeningMethod.MostRecentlyPassed,
+        tweeningMethod: TweeningMethod.MostRecentlyPassed
       })
 
       // GIVEN the server has some specific non-default initial state.
@@ -30,9 +30,9 @@ describe("state init", () => {
           clone() {
             return this
           },
-          dispose() {},
+          dispose() {}
         },
-        mockClientServer.serverNet,
+        mockClientServer.serverNet
       )
       mockClientServer.update(1)
 
@@ -48,13 +48,13 @@ describe("state init", () => {
         const stage = client.stage().ready!
         // expect(stage.displayState()?.dx).toBe(1234)
         expect(stage.displayState()?.displayState().initialEmptyTicks).toBe(
-          mockClientServer.server.displayState()?.initialEmptyTicks,
+          mockClientServer.server.displayState()?.initialEmptyTicks
         )
       }
     }
   })
 
-  test("when client doesnt receive snapshot for a while then new snapshot is still accepted", () => {
+  test('when client doesnt receive snapshot for a while then new snapshot is still accepted', () => {
     const TIMESTEP_SECONDS = 1 / 60
 
     for (const [longDelaySeconds, shouldDisconnect] of cartesian(
@@ -63,9 +63,9 @@ describe("state init", () => {
         TIMESTEP_SECONDS * Math.pow(2, 14),
         TIMESTEP_SECONDS * Math.pow(2, 14.5),
         TIMESTEP_SECONDS * Math.pow(2, 15),
-        TIMESTEP_SECONDS * Math.pow(2, 15.5),
+        TIMESTEP_SECONDS * Math.pow(2, 15.5)
       ],
-      [false, true],
+      [false, true]
     )) {
       const FRAMES_TO_LAG_BEHIND = 10
       // GIVEN a server and multiple clients in a perfect network.
@@ -81,7 +81,7 @@ describe("state init", () => {
         updateDeltaSecondsMax: 0.25,
         timestampSkipThresholdSeconds: 1,
         fastForwardMaxPerStep: 10,
-        tweeningMethod: TweeningMethod.MostRecentlyPassed,
+        tweeningMethod: TweeningMethod.MostRecentlyPassed
       })
       mockClientServer.client1Net.connect()
       mockClientServer.client2Net.connect()
@@ -112,9 +112,9 @@ describe("state init", () => {
           clone() {
             return this
           },
-          dispose() {},
+          dispose() {}
         },
-        mockClientServer.serverNet,
+        mockClientServer.serverNet
       )
       const timestampForNewCommand =
         mockClientServer.server.estimatedClientSimulatingTimestamp()
@@ -131,15 +131,15 @@ describe("state init", () => {
       }
 
       // THEN that client should accept the server's new snapshots.
-      let lastAcceptedSnapshotTimestampAfterDisconnect =
+      const lastAcceptedSnapshotTimestampAfterDisconnect =
         mockClientServer.client1.stage().ready!.timekeepingSimulations.stepper
           .lastQueuedSnapshotTimestamp
 
       expect(lastAcceptedSnapshotTimestampAfterDisconnect).toEqual(
-        lastReceivedSnapshotTimestampAfterDisconnect,
+        lastReceivedSnapshotTimestampAfterDisconnect
       )
       expect(lastAcceptedSnapshotTimestampBeforeDisconnect).not.toEqual(
-        lastAcceptedSnapshotTimestampAfterDisconnect,
+        lastAcceptedSnapshotTimestampAfterDisconnect
       )
 
       // THEN that client state should eventually reflect the server state change.

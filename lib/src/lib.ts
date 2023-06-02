@@ -1,4 +1,4 @@
-export type Config = {
+export interface Config {
   lagCompensationLatency: number
   blendLatency: number
   timestepSeconds: number
@@ -27,16 +27,16 @@ export function makeConfig(config: Partial<Config> = {}): Config {
       updateDeltaSecondsMax: 0.25,
       timestampSkipThresholdSeconds: 1.0,
       fastForwardMaxPerStep: 10,
-      tweeningMethod: TweeningMethod.Interpolated,
+      tweeningMethod: TweeningMethod.Interpolated
     },
-    config,
+    config
   )
 }
 
 export enum TweeningMethod {
   MostRecentlyPassed,
   Nearest,
-  Interpolated,
+  Interpolated
 }
 
 export function shapeInterpolationT(method: TweeningMethod, t: number) {
@@ -58,8 +58,8 @@ export function clockSyncSamplesToDiscardPerExtreme(config: Config) {
   return Math.ceil(
     Math.max(
       (config.clockSyncNeededSampleCount * config.clockSyncAssumedOutlierRate) / 2,
-      1,
-    ),
+      1
+    )
   )
 }
 

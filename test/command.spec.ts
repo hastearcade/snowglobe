@@ -1,8 +1,8 @@
-import { Command, CommandBuffer } from "../lib/src/command"
-import * as Timestamp from "../lib/src/timestamp"
+import { type Command, CommandBuffer } from '../lib/src/command'
+import * as Timestamp from '../lib/src/timestamp'
 
-describe("Command", () => {
-  test("insert single command", () => {
+describe('Command', () => {
+  test('insert single command', () => {
     const timestampedCommand = Timestamp.set({} as Command, Timestamp.make())
     const buffer = new CommandBuffer()
 
@@ -11,7 +11,7 @@ describe("Command", () => {
     expect(buffer.length()).toBe(1)
   })
 
-  test("insert multiple commands different timestamps", () => {
+  test('insert multiple commands different timestamps', () => {
     const timestamp = Timestamp.make()
     const timestampTwo = Timestamp.make(1)
     const timestampThree = Timestamp.make(2)
@@ -30,7 +30,7 @@ describe("Command", () => {
     expect(buffer.commandsAt(timestamp)?.length).toBe(1)
   })
 
-  test("insert multiple commands same timestamps", () => {
+  test('insert multiple commands same timestamps', () => {
     const timestamp = Timestamp.make()
     const timestampedCommand = Timestamp.set({} as Command, timestamp)
     const buffer = new CommandBuffer()
@@ -43,7 +43,7 @@ describe("Command", () => {
     expect(buffer.commandsAt(timestamp)?.length).toBe(3)
   })
 
-  test("insert command for invalid timestamp", () => {
+  test('insert command for invalid timestamp', () => {
     const timestamp = Timestamp.make(Timestamp.MAX)
     const timestampedCommand = Timestamp.set({} as Command, timestamp)
     const buffer = new CommandBuffer()
@@ -53,7 +53,7 @@ describe("Command", () => {
     expect(buffer.length()).toBe(0)
   })
 
-  test("update timestamp no stale commands", () => {
+  test('update timestamp no stale commands', () => {
     const timestampedCommand = Timestamp.set({} as Command, Timestamp.make())
     const buffer = new CommandBuffer()
 
@@ -64,7 +64,7 @@ describe("Command", () => {
     expect(buffer.length()).toBe(1)
   })
 
-  test("update timestamp stale commands before", () => {
+  test('update timestamp stale commands before', () => {
     const timestampedCommand = Timestamp.set({} as Command, Timestamp.make())
     const buffer = new CommandBuffer()
 
@@ -75,7 +75,7 @@ describe("Command", () => {
     expect(buffer.length()).toBe(0)
   })
 
-  test("update timestamp stale commands after", () => {
+  test('update timestamp stale commands after', () => {
     const timestampedCommand = Timestamp.set({} as Command, Timestamp.make())
     const buffer = new CommandBuffer()
 
@@ -86,7 +86,7 @@ describe("Command", () => {
     expect(buffer.length()).toBe(0)
   })
 
-  test("test drain all inserts in order", () => {
+  test('test drain all inserts in order', () => {
     const timestamp = Timestamp.make()
     const timestampTwo = Timestamp.make(1)
     const timestampThree = Timestamp.make(2)
@@ -108,7 +108,7 @@ describe("Command", () => {
     expect(buffer.length()).toBe(0)
   })
 
-  test("test drain all inserts out of order", () => {
+  test('test drain all inserts out of order', () => {
     const timestamp = Timestamp.make()
     const timestampTwo = Timestamp.make(1)
     const timestampThree = Timestamp.make(2)
@@ -130,7 +130,7 @@ describe("Command", () => {
     expect(buffer.length()).toBe(0)
   })
 
-  test("test drain up to timestamp inserts out of order", () => {
+  test('test drain up to timestamp inserts out of order', () => {
     const timestamp = Timestamp.make()
     const timestampTwo = Timestamp.make(1)
     const timestampThree = Timestamp.make(2)
