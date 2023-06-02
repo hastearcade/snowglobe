@@ -3,10 +3,11 @@ import {
   type RigidBodyHandle,
   Vector2
 } from '@dimforge/rapier2d-compat'
-import { createStackPool, type StackPool } from '@javelin/core'
 import * as Snowglobe from '../../../lib/src/index'
 import { makeMockNetwork, type MockNetwork } from '../../../test/mock_network'
 import { getRapier } from './rapier'
+import { type ObjectPool, createObjectPool } from './utilities/object_pool'
+import { type ReconciliationState } from '../../../lib/src/client'
 
 const RapierInstance = await getRapier()
 
@@ -39,7 +40,7 @@ class DemoSnapshot implements Snowglobe.Snapshot {
     playerLeft: PlayerSnapshot,
     playerRight: PlayerSnapshot,
     doodad: PlayerSnapshot,
-    private readonly pool: StackPool<DemoSnapshot>
+    private readonly pool: ObjectPool<DemoSnapshot>
   ) {
     this.playerLeft = playerLeft
     this.playerRight = playerRight
@@ -90,7 +91,7 @@ class DemoCommand implements Snowglobe.Command {
     playerSide: PlayerSide,
     command: PlayerCommand,
     value: boolean,
-    private readonly pool: StackPool<DemoCommand>
+    private readonly pool: ObjectPool<DemoCommand>
   ) {
     this.playerSide = playerSide
     this.command = command
@@ -118,7 +119,7 @@ class DemoDisplayState implements Snowglobe.DisplayState {
     playerLeftTranslation: Vector2,
     playerRightTranslation: Vector2,
     doodadTranslation: Vector2,
-    private readonly pool: StackPool<DemoDisplayState>
+    private readonly pool: ObjectPool<DemoDisplayState>
   ) {
     this.playerLeftTranslation = playerLeftTranslation
     this.playerRightTranslation = playerRightTranslation
@@ -153,8 +154,8 @@ interface Player {
   input: PlayerInput
 }
 
-const displayStatePool = createStackPool<DemoDisplayState>(
-  (pool: StackPool<DemoDisplayState>) => {
+const displayStatePool = createObjectPool<DemoDisplayState>(
+  (pool: ObjectPool<DemoDisplayState>) => {
     return new DemoDisplayState(
       new Vector2(0, 0),
       new Vector2(0, 0),
@@ -171,8 +172,8 @@ const displayStatePool = createStackPool<DemoDisplayState>(
   1000
 )
 
-const snapshotPool = createStackPool<DemoSnapshot>(
-  (pool: StackPool<DemoSnapshot>) => {
+const snapshotPool = createObjectPool<DemoSnapshot>(
+  (pool: ObjectPool<DemoSnapshot>) => {
     return new DemoSnapshot(
       {
         angvel: 0,
@@ -219,8 +220,8 @@ const snapshotPool = createStackPool<DemoSnapshot>(
   1000
 )
 
-export const commandPool = createStackPool<DemoCommand>(
-  (pool: StackPool<DemoCommand>) => {
+export const commandPool = createObjectPool<DemoCommand>(
+  (pool: ObjectPool<DemoCommand>) => {
     return new DemoCommand(PlayerSide.Left, PlayerCommand.Left, false, pool)
   },
   (snapshot: DemoCommand) => {
@@ -245,10 +246,10 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
       .createCollider(
         RapierInstance.ColliderDesc.cuboid(1, 100),
         this.simulation.createRigidBody(
-          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Static)
+          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Fixed)
             .setTranslation(0, 0)
             .setCcdEnabled(true)
-        ).handle
+        )
       )
       .setRestitution(0.5)
     // right wall
@@ -256,10 +257,10 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
       .createCollider(
         RapierInstance.ColliderDesc.cuboid(1, 100),
         this.simulation.createRigidBody(
-          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Static)
+          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Fixed)
             .setTranslation(180, 0)
             .setCcdEnabled(true)
-        ).handle
+        )
       )
       .setRestitution(0.5)
     // floor
@@ -267,10 +268,10 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
       .createCollider(
         RapierInstance.ColliderDesc.cuboid(180, 1),
         this.simulation.createRigidBody(
-          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Static)
+          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Fixed)
             .setTranslation(0, 0)
             .setCcdEnabled(true)
-        ).handle
+        )
       )
       .setRestitution(0.5)
     // ceiling
@@ -278,10 +279,10 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
       .createCollider(
         RapierInstance.ColliderDesc.cuboid(180, 1),
         this.simulation.createRigidBody(
-          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Static)
+          new RapierInstance.RigidBodyDesc(RapierInstance.RigidBodyType.Fixed)
             .setTranslation(0, 100)
             .setCcdEnabled(true)
-        ).handle
+        )
       )
       .setRestitution(0.5)
     // dynamic
@@ -303,16 +304,16 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
     // colliders
     const leftCollider = this.simulation.createCollider(
       RapierInstance.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
-      leftBody.handle
+      leftBody
     )
     const rightCollider = this.simulation.createCollider(
       RapierInstance.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
-      rightBody.handle
+      rightBody
     )
 
     const doodadCollider = this.simulation.createCollider(
       RapierInstance.ColliderDesc.ball(10).setDensity(0.1).setRestitution(0.5),
-      doodadBody.handle
+      doodadBody
     )
 
     this.playerLeft = {
@@ -437,7 +438,7 @@ class DemoWorld implements Snowglobe.World<DemoCommand, DemoSnapshot, DemoDispla
   step() {
     for (const player of [this.playerLeft, this.playerRight]) {
       const body = this.simulation.getRigidBody(player.bodyHandle)
-      body.applyForce(
+      body.addForce(
         new RapierInstance.Vector2((+player.input.right - +player.input.left) * 4000, 0),
         true
       )
@@ -577,7 +578,7 @@ class Demo {
     return Array.from(client.stage().ready!.bufferedCommands())
       .map(([, commands]) => commands)
       .flat()
-      .map(command => `${command.command} ${command.value}`)
+      .map(command => `${command.command} ${JSON.stringify(command.value)}`)
   }
 
   newCommsActivityCount(side: PlayerSide, channel: CommsChannel) {
@@ -608,17 +609,29 @@ class Demo {
           .clockSyncer.samplesNeeded()}`
       case Snowglobe.StageState.SyncingInitialState:
       case Snowglobe.StageState.Ready:
-        return `Timestamp(${client.stage().ready?.lastCompletedTimestamp()})`
+        return `Timestamp(${JSON.stringify(
+          client.stage().ready?.lastCompletedTimestamp()
+        )})`
     }
   }
 
   clientDisplayState(side: PlayerSide) {
-    return this.client(side).client.stage().ready?.displayState().displayState().clone()
+    const displayStateOwner =
+      this.client(side).client.stage().ready?.displayState() ?? undefined
+    if (displayStateOwner) {
+      return displayStateOwner.displayState().clone()
+    }
+
+    return undefined
   }
 
   clientReconciliationStatus(side: PlayerSide) {
     return (
-      this.client(side).client.stage().ready?.reconciliationStatus().state ?? 'Inactive'
+      (
+        this.client(side)
+          .client.stage()
+          .ready?.reconciliationStatus() as ReconciliationState
+      ).toString() ?? 'Inactive'
     )
   }
 

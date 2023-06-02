@@ -17,6 +17,7 @@ module.exports = {
     '@typescript-eslint/no-invalid-void-type': 'off',
     '@typescript-eslint/indent': 'off',
     '@typescript-eslint/consistent-type-assertions': 'off',
-    '@typescript-eslint/brace-style': 'off'
+    '@typescript-eslint/brace-style': 'off',
+    'generator-star-spacing': 'off'
   }
 }

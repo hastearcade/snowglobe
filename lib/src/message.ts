@@ -15,6 +15,8 @@ export interface ClockSyncMessage {
   clientId: number
 }
 
+export type AvailableMessages = ClockSyncMessage | Command | Snapshot
+
 export const CLOCK_SYNC_MESSAGE_TYPE_ID = makeTypeId<ClockSyncMessage>()
 export const COMMAND_MESSAGE_TYPE_ID = makeTypeId<Timestamped<Command>>()
 export const SNAPSHOT_MESSAGE_TYPE_ID = makeTypeId<Timestamped<Snapshot>>()

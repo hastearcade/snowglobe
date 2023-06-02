@@ -3,7 +3,8 @@ import {
   type ClockSyncMessage,
   CLOCK_SYNC_MESSAGE_TYPE_ID,
   COMMAND_MESSAGE_TYPE_ID,
-  SNAPSHOT_MESSAGE_TYPE_ID
+  SNAPSHOT_MESSAGE_TYPE_ID,
+  type AvailableMessages
 } from '../lib/src/message'
 import {
   type Connection,
@@ -123,7 +124,7 @@ export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
     return undefined
   }
 
-  * connections(): IterableIterator<
+  *connections(): IterableIterator<
     [ConnectionHandle, MockConnection<$Command, $Snapshot>]
   > {
     for (const pair of this._connections.entries()) {
@@ -134,11 +135,15 @@ export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
     }
   }
 
-  sendMessage<$Type>(handle: ConnectionHandle, typeId: TypeId<$Type>, message: $Type) {
+  sendMessage<$Type>(
+    handle: ConnectionHandle,
+    typeId: TypeId<AvailableMessages>,
+    message: $Type
+  ) {
     this.getConnection(handle)!.send(typeId, message)
   }
 
-  broadcastMessage<$Type>(typeId: TypeId<$Type>, message: $Type) {
+  broadcastMessage<$Type>(typeId: TypeId<AvailableMessages>, message: $Type) {
     for (const [, connection] of this.connections()) {
       connection.send(typeId, message)
       connection.flush(typeId)
@@ -187,12 +192,12 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
     ).recv()
   }
 
-  send<$Type>(typeId: TypeId<$Type>, message: $Type) {
+  send<$Type>(typeId: TypeId<AvailableMessages>, message: $Type) {
     console.assert(this.isConnected)
     ;(this.channels.get(typeId) as MockChannel<$Type>).send(message)
   }
 
-  flush<$Type>(typeId: TypeId<$Type>) {
+  flush(typeId: TypeId<AvailableMessages>) {
     console.assert(this.isConnected)
   }
 }

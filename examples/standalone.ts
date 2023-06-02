@@ -1,9 +1,8 @@
-import { createHrtimeLoop } from '@javelin/hrtime-loop'
-import { type StackPool, createStackPool } from '@javelin/core'
-
 import * as Snowglobe from '../lib/src/index'
 import { performance } from 'perf_hooks'
 import { makeMockNetwork } from '../test/mock_network'
+import { createHighResolutionLoop } from './demo/src/utilities/game_loop'
+import { type ObjectPool, createObjectPool } from './demo/src/utilities/object_pool'
 
 // A Snowglobe command represents a player or server
 // issuing an instruction to the game world.
@@ -16,7 +15,7 @@ type PossibleCommands = 'accelerate' | 'decelerate' | 'cheat'
 class MyCommand implements Snowglobe.Command {
   kind: PossibleCommands
 
-  constructor(kind: PossibleCommands, private readonly pool: StackPool<MyCommand>) {
+  constructor(kind: PossibleCommands, private readonly pool: ObjectPool<MyCommand>) {
     this.kind = kind
   }
 
@@ -39,7 +38,7 @@ class MySnapshot implements Snowglobe.Snapshot {
   constructor(
     position: number,
     velocity: number,
-    private readonly pool: StackPool<MySnapshot>
+    private readonly pool: ObjectPool<MySnapshot>
   ) {
     this.velocity = velocity
     this.position = position
@@ -65,7 +64,7 @@ class MyDisplayState implements Snowglobe.DisplayState {
   constructor(
     position: number,
     velocity: number,
-    private readonly pool: StackPool<MyDisplayState>
+    private readonly pool: ObjectPool<MyDisplayState>
   ) {
     this.velocity = velocity
     this.position = position
@@ -80,8 +79,8 @@ class MyDisplayState implements Snowglobe.DisplayState {
   }
 }
 
-const snapShotPool = createStackPool<MySnapshot>(
-  (pool: StackPool<MySnapshot>) => {
+const snapShotPool = createObjectPool<MySnapshot>(
+  (pool: ObjectPool<MySnapshot>) => {
     return new MySnapshot(0, 0, pool)
   },
   (snapshot: MySnapshot) => {
@@ -92,8 +91,8 @@ const snapShotPool = createStackPool<MySnapshot>(
   1000
 )
 
-const displayStatePool = createStackPool<MyDisplayState>(
-  (pool: StackPool<MyDisplayState>) => {
+const displayStatePool = createObjectPool<MyDisplayState>(
+  (pool: ObjectPool<MyDisplayState>) => {
     return new MyDisplayState(0, 0, pool)
   },
   (snapshot: MyDisplayState) => {
@@ -104,8 +103,8 @@ const displayStatePool = createStackPool<MyDisplayState>(
   1000
 )
 
-const commandPool = createStackPool<MyCommand>(
-  (pool: StackPool<MyCommand>) => {
+const commandPool = createObjectPool<MyCommand>(
+  (pool: ObjectPool<MyCommand>) => {
     return new MyCommand('accelerate', pool)
   },
   (snapshot: MyCommand) => {
@@ -297,7 +296,7 @@ function main() {
   // and separate game loops, but for standalone
   // example the Client and Server share the same
   // loop.
-  const loop = createHrtimeLoop(() => {
+  const loop = createHighResolutionLoop(() => {
     const currentTime = performance.now()
     const deltaSeconds = (currentTime - previousTime) / 1000
     const secondsSinceStartup = (currentTime - startupTime) / 1000

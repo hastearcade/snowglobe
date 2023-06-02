@@ -1,5 +1,5 @@
 import { type Command } from './command'
-import { type ClockSyncMessage } from './message'
+import { type AvailableMessages, type ClockSyncMessage } from './message'
 import { type Timestamped } from './timestamp'
 import { type TypeId } from './types'
 import { type Snapshot } from './world'
@@ -10,11 +10,8 @@ export interface Connection<$Command extends Command, $Snapshot extends Snapshot
   recvCommand: () => Timestamped<$Command> | undefined
   recvClockSync: () => ClockSyncMessage | undefined
   recvSnapshot: () => Timestamped<$Snapshot> | undefined
-  send: <$Type>(
-    typeId: TypeId<Command | Snapshot | ClockSyncMessage>,
-    message: $Type
-  ) => $Type | void
-  flush: (typeId: number) => void
+  send: <$Type>(typeId: TypeId<AvailableMessages>, message: $Type) => $Type | void
+  flush: (typeId: TypeId<AvailableMessages>) => void
 }
 
 export interface NetworkResource<
@@ -24,11 +21,8 @@ export interface NetworkResource<
   connections: () => IterableIterator<[ConnectionHandle, Connection<$Command, $Snapshot>]>
   sendMessage: <$Type>(
     handle: ConnectionHandle,
-    typeId: TypeId<$Type>,
+    typeId: TypeId<AvailableMessages>,
     message: $Type
   ) => $Type | void
-  broadcastMessage: <$Type>(
-    typeId: TypeId<Command | Snapshot | ClockSyncMessage>,
-    message: $Type
-  ) => void
+  broadcastMessage: <$Type>(typeId: TypeId<AvailableMessages>, message: $Type) => void
 }
