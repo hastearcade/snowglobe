@@ -4,6 +4,5 @@
     "rootDir": "src",
     "noEmit": true
   },
-  "include": ["../../test"],
   "references": [{ "path": "../../lib" }]
 }
