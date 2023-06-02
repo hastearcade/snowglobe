@@ -31,7 +31,7 @@ class DelayedQueue<$Type> implements DelayedChannel {
   }
 
   tick(deltaSeconds: number) {
-    while ((this.incoming[this.incoming.length - 1]?.[1] ?? 0) >= this.delay) {
+    while ((this.incoming[this.incoming.length - 1]?.[1] ?? -1) >= this.delay) {
       this.outgoing.unshift(this.incoming.pop()![0])
     }
     for (let i = 0; i < this.incoming.length; i++) {
