@@ -33,7 +33,7 @@
     "example:standalone": "node --loader ts-node/esm --experimental-specifier-resolution=node examples/standalone.ts",
     "example:demo": "cd ./examples/demo && vite --host",
     "debug:example": "node --inspect-brk --loader ts-node/esm --experimental-specifier-resolution=node examples/standalone.ts",
-    "prepare": "npm run build",
+    "prepublishOnly": "npm run build",
     "test": "jest"
   },
   "devDependencies": {
