@@ -1,14 +1,14 @@
-import { defineConfig } from "vite"
+import { defineConfig } from 'vite'
 
 export default defineConfig({
-  root: ".",
+  root: '.',
   build: {
     rollupOptions: {
       output: {
-        entryFileNames: `assets/[name].js`,
-        chunkFileNames: `assets/[name].js`,
-        assetFileNames: `assets/[name].[ext]`,
-      },
-    },
-  },
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]'
+      }
+    }
+  }
 })
