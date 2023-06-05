@@ -1,11 +1,9 @@
 import { remEuclid } from './math'
 import { type Opaque } from './types'
 
-export const $timestamp = Symbol('timestamp')
-
 export type Timestamp = Opaque<number, 'Timestamp'>
 export type FloatTimestamp = Opaque<number, 'FloatTimestamp'>
-export type Timestamped<$Type = unknown> = $Type & { [$timestamp]: Timestamp }
+export type Timestamped<$Type = unknown> = $Type & { timestamp: Timestamp }
 
 export const MIN = -32768
 export const MAX = 32767
@@ -103,10 +101,10 @@ export function set<$Type>(
   timestamped: $Type | Timestamped<$Type>,
   timestamp: Timestamp
 ) {
-  ;(timestamped as Timestamped)[$timestamp] = timestamp
+  ;(timestamped as Timestamped).timestamp = timestamp
   return timestamped as Timestamped<$Type>
 }
 
 export function get(timestamped: Timestamped) {
-  return timestamped[$timestamp]
+  return timestamped.timestamp
 }
