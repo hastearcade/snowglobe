@@ -1,11 +1,11 @@
-import { Client, StageState } from "../lib/src/client"
-import { Cloneable } from "../lib/src/cloneable"
-import { Config } from "../lib/src/lib"
-import { Server } from "../lib/src/server"
-import { World } from "../lib/src/world"
-import { FromInterpolationFn } from "../lib/src/display_state"
-import { makeMockNetwork, MockNetwork } from "./mock_network"
-import { Disposable } from "../lib/src/disposable"
+import { Client, StageState } from '../lib/src/client'
+import { type Cloneable } from '../lib/src/cloneable'
+import { type Config } from '../lib/src/lib'
+import { Server } from '../lib/src/server'
+import { type World } from '../lib/src/world'
+import { type FromInterpolationFn } from '../lib/src/display_state'
+import { makeMockNetwork, type MockNetwork } from './mock_network'
+import { type Disposable } from '../lib/src/disposable'
 
 export class MockWorld
   implements Cloneable, Disposable, World<MockCommand, MockWorld, MockSnapshot>
@@ -65,7 +65,7 @@ type MockSnapshot = MockWorld
 export function mockWorldFromInterpolation(
   state1: MockWorld,
   state2: MockWorld,
-  t: number,
+  t: number
 ) {
   if (t === 1) {
     return state2.clone()
@@ -126,12 +126,12 @@ export class MockClientServer {
     this.client1.update(
       deltaSeconds,
       this.clock + this.client1ClockOffset,
-      this.client1Net,
+      this.client1Net
     )
     this.client2.update(
       deltaSeconds,
       this.clock + this.client2ClockOffset,
-      this.client2Net,
+      this.client2Net
     )
 
     this.client1Net.tick(deltaSeconds)

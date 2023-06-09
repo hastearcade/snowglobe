@@ -1,3 +1,3 @@
 export interface Cloneable {
-  clone(): this
+  clone: () => this
 }

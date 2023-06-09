@@ -1,11 +1,9 @@
-import { remEuclid } from "./math"
-import { Opaque } from "./types"
+import { remEuclid } from './math'
+import { type Opaque } from './types'
 
-export const $timestamp = Symbol("timestamp")
-
-export type Timestamp = Opaque<number, "Timestamp">
-export type FloatTimestamp = Opaque<number, "FloatTimestamp">
-export type Timestamped<$Type = unknown> = $Type & { [$timestamp]: Timestamp }
+export type Timestamp = Opaque<number, 'Timestamp'>
+export type FloatTimestamp = Opaque<number, 'FloatTimestamp'>
+export type Timestamped<$Type = unknown> = $Type & { timestamp: Timestamp }
 
 export const MIN = -32768
 export const MAX = 32767
@@ -28,7 +26,7 @@ export function comparableRangeWithMidpoint(timestamp: Timestamp) {
 
   return {
     min: make(timestamp - maxDistanceFromMidpoint),
-    max: make(timestamp + maxDistanceFromMidpoint),
+    max: make(timestamp + maxDistanceFromMidpoint)
   }
 }
 
@@ -43,7 +41,7 @@ export function increment(timestamp: Timestamp): Timestamp {
 
 export function asSeconds(
   timestamp: Timestamp | FloatTimestamp,
-  timestampSeconds: number,
+  timestampSeconds: number
 ): number {
   return timestamp * timestampSeconds
 }
@@ -83,16 +81,16 @@ export function makeFromSecondsFloat(seconds: number, timestampSeconds: number) 
 }
 
 export function ceil(timestamp: FloatTimestamp) {
-  return make(Math.ceil(timestamp)) as Timestamp
+  return make(Math.ceil(timestamp))
 }
 
 export function floor(timestamp: FloatTimestamp) {
-  return make(Math.floor(timestamp)) as Timestamp
+  return make(Math.floor(timestamp))
 }
 
 export function subFloat(
   timestamp: Timestamp | FloatTimestamp,
-  rhs: Timestamp | FloatTimestamp,
+  rhs: Timestamp | FloatTimestamp
 ) {
   return makeFromUnwrappedFloat(timestamp - rhs)
 }
@@ -101,12 +99,12 @@ export function subFloat(
 
 export function set<$Type>(
   timestamped: $Type | Timestamped<$Type>,
-  timestamp: Timestamp,
+  timestamp: Timestamp
 ) {
-  ;(timestamped as Timestamped)[$timestamp] = timestamp
+  ;(timestamped as Timestamped).timestamp = timestamp
   return timestamped as Timestamped<$Type>
 }
 
 export function get(timestamped: Timestamped) {
-  return timestamped[$timestamp]
+  return timestamped.timestamp
 }

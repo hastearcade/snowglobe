@@ -1,9 +1,12 @@
 enum OldNewState {
   LeftOldRightNew,
-  LeftNewRightOld,
+  LeftNewRightOld
 }
 
-type OldNewResult<$Type> = { old: $Type; new: $Type }
+interface OldNewResult<$Type> {
+  old: $Type
+  new: $Type
+}
 
 export class OldNew<$Type> {
   private state = OldNewState.LeftNewRightOld
