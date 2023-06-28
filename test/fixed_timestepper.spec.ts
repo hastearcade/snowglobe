@@ -9,7 +9,7 @@ import * as Timestamp from '../lib/src/timestamp'
 import { makeTimestamps } from './timestamp.spec'
 
 const config: Config = {
-  lagCompensationLatency: 0.3,
+  serverTimeDelayLatency: 0.3,
   blendLatency: 0.2,
   timestepSeconds: 1 / 60,
   clockSyncNeededSampleCount: 8,

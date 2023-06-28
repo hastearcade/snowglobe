@@ -1,6 +1,6 @@
 import { type Command } from './command'
 import { TerminationCondition, TimeKeeper } from './fixed_timestepper'
-import { type Config, lagCompensationFrameCount } from './lib'
+import { type Config, serverTimeDelayFrameCount } from './lib'
 import {
   type ClockSyncMessage,
   CLOCK_SYNC_MESSAGE_TYPE_ID,
@@ -36,7 +36,7 @@ export class Server<
     )
     const initialTimestamp = Timestamp.sub(
       Timestamp.fromSeconds(secondsSinceStartup, config.timestepSeconds),
-      lagCompensationFrameCount(config)
+      serverTimeDelayFrameCount(config)
     )
 
     this.timekeepingSimulation.stepper.resetLastCompletedTimestamp(initialTimestamp)
@@ -53,14 +53,14 @@ export class Server<
   estimatedClientSimulatingTimestamp() {
     return Timestamp.add(
       this.simulatingTimestamp(),
-      lagCompensationFrameCount(this.config)
+      serverTimeDelayFrameCount(this.config)
     )
   }
 
   estimatedClientLastCompletedTimestamp() {
     return Timestamp.add(
       this.lastCompletedTimestamp(),
-      lagCompensationFrameCount(this.config)
+      serverTimeDelayFrameCount(this.config)
     )
   }
 

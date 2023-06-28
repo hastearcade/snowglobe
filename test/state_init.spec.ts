@@ -9,7 +9,7 @@ describe('state init', () => {
       const FRAMES_TO_LAG_BEHIND = 10
       // GIVEN a server and multiple clients in a perfect network.
       const mockClientServer = new MockClientServer({
-        lagCompensationLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
+        serverTimeDelayLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
         blendLatency: 0.2,
         timestepSeconds: TIMESTEP_SECONDS,
         clockSyncNeededSampleCount: 8,
@@ -70,7 +70,7 @@ describe('state init', () => {
       const FRAMES_TO_LAG_BEHIND = 10
       // GIVEN a server and multiple clients in a perfect network.
       const mockClientServer = new MockClientServer({
-        lagCompensationLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
+        serverTimeDelayLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
         blendLatency: 0.2,
         timestepSeconds: TIMESTEP_SECONDS,
         clockSyncNeededSampleCount: 8,

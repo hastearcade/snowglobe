@@ -1,5 +1,5 @@
 export interface Config {
-  lagCompensationLatency: number
+  serverTimeDelayLatency: number
   blendLatency: number
   timestepSeconds: number
   clockSyncNeededSampleCount: number
@@ -16,7 +16,7 @@ export interface Config {
 export function makeConfig(config: Partial<Config> = {}): Config {
   return Object.assign(
     {
-      lagCompensationLatency: 0.3,
+      serverTimeDelayLatency: 0.3,
       blendLatency: 0.2,
       timestepSeconds: 1.0 / 60.0,
       clockSyncNeededSampleCount: 8,
@@ -50,8 +50,8 @@ export function shapeInterpolationT(method: TweeningMethod, t: number) {
   }
 }
 
-export function lagCompensationFrameCount(config: Config) {
-  return Math.round(config.lagCompensationLatency / config.timestepSeconds)
+export function serverTimeDelayFrameCount(config: Config) {
+  return Math.round(config.serverTimeDelayLatency / config.timestepSeconds)
 }
 
 export function clockSyncSamplesToDiscardPerExtreme(config: Config) {

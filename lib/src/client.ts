@@ -10,7 +10,7 @@ import { type Stepper, TerminationCondition, TimeKeeper } from './fixed_timestep
 import {
   blendProgressPerFrame,
   type Config,
-  lagCompensationFrameCount,
+  serverTimeDelayFrameCount,
   shapeInterpolationT
 } from './lib'
 import { clamp } from './math'
@@ -208,7 +208,7 @@ export class ActiveClient<
 
     this.timekeepingSimulations.update(
       deltaSeconds,
-      timeSinceSync + this.timekeepingSimulations.config.lagCompensationLatency
+      timeSinceSync + this.timekeepingSimulations.config.serverTimeDelayLatency
     )
   }
 }
@@ -459,7 +459,7 @@ class ClientWorldSimulations<
       ) {
         this.lastQueuedSnapshotTimestamp = Timestamp.sub(
           this.lastCompletedTimestamp(),
-          lagCompensationFrameCount(this.config) * 2
+          serverTimeDelayFrameCount(this.config) * 2
         )
       }
     }

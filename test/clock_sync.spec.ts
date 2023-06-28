@@ -10,7 +10,7 @@ describe('clock sync', () => {
     for (const desyncSeconds of [0, 0.5, -0.5, -1, -100, -1000, -10000]) {
       // GIVEN a server and client in a perfect network.
       const mockClientServer = new MockClientServer({
-        lagCompensationLatency: TIMESTEP_SECONDS * 16,
+        serverTimeDelayLatency: TIMESTEP_SECONDS * 16,
         blendLatency: 0.2,
         timestepSeconds: TIMESTEP_SECONDS,
         clockSyncNeededSampleCount: 8,
@@ -54,7 +54,7 @@ describe('clock sync', () => {
     ]) {
       // GIVEN a server and client in a perfect network.
       const mockClientServer = new MockClientServer({
-        lagCompensationLatency: TIMESTEP_SECONDS * 16,
+        serverTimeDelayLatency: TIMESTEP_SECONDS * 16,
         blendLatency: 0.2,
         timestepSeconds: TIMESTEP_SECONDS,
         clockSyncNeededSampleCount: 8,

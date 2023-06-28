@@ -12,7 +12,7 @@ describe('determinism', () => {
       const FRAMES_TO_LAG_BEHIND = 12
       expect(fract(FRAMES_TO_LAG_BEHIND / framesPerUpdate)).toBe(0)
       const mockClientServer = new MockClientServer({
-        lagCompensationLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
+        serverTimeDelayLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
         blendLatency: 0.2,
         timestepSeconds: TIMESTEP_SECONDS,
         clockSyncNeededSampleCount: 8,
@@ -107,7 +107,7 @@ describe('determinism', () => {
       const FRAMES_TO_LAG_BEHIND = 12
       expect(fract(FRAMES_TO_LAG_BEHIND / framesPerUpdate)).toBe(0)
       const mockClientServer = new MockClientServer({
-        lagCompensationLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
+        serverTimeDelayLatency: FRAMES_TO_LAG_BEHIND * TIMESTEP_SECONDS,
         blendLatency: 0.2,
         timestepSeconds: TIMESTEP_SECONDS,
         clockSyncNeededSampleCount: 8,

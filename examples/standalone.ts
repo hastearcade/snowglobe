@@ -260,6 +260,8 @@ function main() {
   // factory.
   const makeWorld = () => new MyWorld()
 
+  client1Net.setDelay(0.05)
+  client2Net.setDelay(0.1)
   client1Net.connect()
   client2Net.connect()
 
@@ -271,9 +273,7 @@ function main() {
   // values to makeConfig. Overriding values is likely
   // needed in a production environment as not all
   // environments are created equal
-  const config = Snowglobe.makeConfig({
-    clockSyncNeededSampleCount: 32
-  })
+  const config = Snowglobe.makeConfig({})
 
   // interpolate and makeWorld need to be injected
   // into Client. These two functions drive the
@@ -349,9 +349,15 @@ function main() {
     }
 
     console.log(
-      serverDisplayState?.position,
-      client1DisplayState?.displayState().position,
-      client2DisplayState?.displayState().position
+      `time: ${server.lastCompletedTimestamp()}, pos: ${
+        serverDisplayState?.position ?? 'undefined'
+      }`,
+      `time: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, pos: ${
+        client1DisplayState?.displayState().position ?? 'undefined'
+      }`,
+      `time: ${client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, pos: ${
+        client2DisplayState?.displayState().position ?? 'undefined'
+      }`
     )
 
     // At the end of the game loop the developer needs
