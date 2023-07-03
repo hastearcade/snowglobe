@@ -175,6 +175,10 @@ export class ActiveClient<
     return this.timekeepingSimulations.stepper.displayState
   }
 
+  worldSimulations() {
+    return this.timekeepingSimulations.stepper.worldSimulations
+  }
+
   reconciliationStatus() {
     return this.timekeepingSimulations.stepper.reconciliationStatus
   }

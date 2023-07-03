@@ -34,6 +34,10 @@ export class Simulation<
     this.commandBuffer.updateTimestamp(Timestamp.add(this.lastCompletedTimestamp(), 1))
   }
 
+  getWorld() {
+    return this.world
+  }
+
   simulatingTimestamp() {
     return Timestamp.add(this.lastCompletedTimestamp(), 1)
   }
