@@ -53,7 +53,10 @@ export class Client<
 > {
   private _state: StageState = StageState.SyncingClock
   private readonly _stage: StageOwned<$Command, $Snapshot, $DisplayState>
-  private readonly _makeWorld: () => World<$Command, $Snapshot, $DisplayState>
+  private readonly _makeWorld: (
+    ident?: string
+  ) => World<$Command, $Snapshot, $DisplayState>
+
   private readonly _config: Config
   fromInterpolation: FromInterpolationFn<$DisplayState>
 
@@ -131,7 +134,7 @@ export class ActiveClient<
   >
 
   constructor(
-    makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
+    makeWorld: (ident?: string) => World<$Command, $Snapshot, $DisplayState>,
     secondsSinceStartup: number,
     config: Config,
     clockSyncer: ClockSyncer,
@@ -234,13 +237,16 @@ class ClientWorldSimulations<
   fromInterpolation: FromInterpolationFn<$DisplayState>
 
   constructor(
-    makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
+    makeWorld: (ident?: string) => World<$Command, $Snapshot, $DisplayState>,
     private readonly config: Config,
     initialTimestamp: Timestamp.Timestamp,
     fromInterpolation: FromInterpolationFn<$DisplayState>
   ) {
     const { old: oldWorldSimulation, new: newWorldSimulation } = (this.worldSimulations =
-      new OldNew(new Simulation(makeWorld()), new Simulation(makeWorld()))).get()
+      new OldNew(
+        new Simulation(makeWorld('old')),
+        new Simulation(makeWorld('new'))
+      )).get()
     oldWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     newWorldSimulation.resetLastCompletedTimestamp(initialTimestamp)
     this.blendOldNewInterpolationT = 1
@@ -331,7 +337,6 @@ class ClientWorldSimulations<
       } else if (oldDisplayState == null && newDisplayState != null) {
         stateToPublish = newDisplayState
       }
-
       this.states.swap()
       this.states.setNew(stateToPublish)
     }

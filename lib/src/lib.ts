@@ -17,7 +17,7 @@ export function makeConfig(config: Partial<Config> = {}): Config {
   return Object.assign(
     {
       serverTimeDelayLatency: 0.3,
-      blendLatency: 0.2,
+      blendLatency: 0.1,
       timestepSeconds: 1.0 / 60.0,
       clockSyncNeededSampleCount: 8,
       clockSyncRequestPeriod: 0.2,
