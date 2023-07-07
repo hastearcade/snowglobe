@@ -71,6 +71,7 @@ class MySnapshot implements Snowglobe.Snapshot {
   player1Pos: number[]
   player2Pos: number[]
   bullet1Origin: number[]
+  bullet1Position: number[]
   bullet1StartTime: number
   bullet1Ticks: number
   bullet1Velocity: number[]
@@ -78,6 +79,7 @@ class MySnapshot implements Snowglobe.Snapshot {
     player1Pos: number[],
     player2Pos: number[],
     bullet1Origin: number[],
+    bullet1Position: number[],
     bullet1Velocity: number[],
     bullet1StartTime: number,
     bullet1Ticks: number,
@@ -86,6 +88,7 @@ class MySnapshot implements Snowglobe.Snapshot {
     this.player1Pos = player1Pos
     this.player2Pos = player2Pos
     this.bullet1Origin = bullet1Origin
+    this.bullet1Position = bullet1Position
     this.bullet1Velocity = bullet1Velocity
     this.bullet1StartTime = bullet1StartTime
     this.bullet1Ticks = bullet1Ticks
@@ -96,6 +99,7 @@ class MySnapshot implements Snowglobe.Snapshot {
       this.player1Pos,
       this.player2Pos,
       this.bullet1Origin,
+      this.bullet1Position,
       this.bullet1Velocity,
       this.bullet1StartTime,
       this.bullet1Ticks,
@@ -140,12 +144,13 @@ class MyDisplayState implements Snowglobe.DisplayState {
 
 const snapShotPool = createObjectPool<MySnapshot>(
   (pool: ObjectPool<MySnapshot>) => {
-    return new MySnapshot([0, 0], [0, 0], [0, 0], [0, 0], 0, 0, pool)
+    return new MySnapshot([0, 0], [0, 0], [0, 0], [0, 0], [0, 0], 0, 0, pool)
   },
   (snapshot: MySnapshot) => {
     snapshot.player1Pos = [0, 0]
     snapshot.player2Pos = [0, 0]
     snapshot.bullet1Origin = [0, 0]
+    snapshot.bullet1Position = [0, 0]
     snapshot.bullet1Velocity = [0, 0]
     snapshot.bullet1StartTime = 0
     snapshot.bullet1Ticks = 0
@@ -222,6 +227,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   public player1Pos = [-200, -200]
   public player2Pos: number[] = [0, 0]
   public bullet1Origin: number[] = [-200, -200]
+  public bullet1Position: number[] = [-200, -200]
   public bullet1Velocity: number[] = [0, 0]
   public bullet1StartTime: number = 0
   public bullet1Ticks: number = 0
@@ -238,6 +244,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     newWorld.player1Pos = structuredClone(this.player1Pos)
     newWorld.player2Pos = structuredClone(this.player2Pos)
     newWorld.bullet1Origin = structuredClone(this.bullet1Origin)
+    newWorld.bullet1Position = structuredClone(this.bullet1Position)
     newWorld.bullet1Velocity = structuredClone(this.bullet1Velocity)
     newWorld.bullet1StartTime = this.bullet1StartTime
     newWorld.bullet1Ticks = this.bullet1Ticks
@@ -245,23 +252,24 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   step() {
-    if (this.bullet1StartTime > 0) {
-      const bullet1Position = computeBulletPosition(
-        this.bullet1Origin,
-        this.bullet1Velocity,
-        this.bullet1Ticks
+    console.log(`prev ${this.id ?? ''} = ${JSON.stringify(this.bullet1Position)}`)
+    this.bullet1Position = [
+      (this.bullet1Position[0] ?? 0) + (this.bullet1Velocity[0] ?? 0),
+      (this.bullet1Position[1] ?? 0) + (this.bullet1Velocity[1] ?? 0)
+    ]
+    console.log(`after ${this.id ?? ''} = ${JSON.stringify(this.bullet1Position)}`)
+
+    this.bullet1Ticks += 1
+
+    // check for intersection
+    if (
+      intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
+    ) {
+      console.log(
+        `a client (${this.id ?? ''}) interesction occurred at p: ${JSON.stringify(
+          this.player2Pos
+        )}, b: ${JSON.stringify(this.bullet1Position)}`
       )
-
-      this.bullet1Ticks += 1
-
-      // check for intersection
-      if (intersect(this.player2Pos, bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)) {
-        console.log(
-          `a client (${this.id ?? ''}) interesction occurred at p: ${JSON.stringify(
-            this.player2Pos
-          )}, b: ${JSON.stringify(bullet1Position)}`
-        )
-      }
     }
   }
 
@@ -301,6 +309,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     this.player1Pos = snapshot.player1Pos
     this.player2Pos = structuredClone(snapshot.player2Pos)
     this.bullet1Origin = snapshot.bullet1Origin
+    this.bullet1Position = structuredClone(snapshot.bullet1Position)
     this.bullet1Velocity = snapshot.bullet1Velocity
     this.bullet1StartTime = snapshot.bullet1StartTime
     this.bullet1Ticks = snapshot.bullet1Ticks
@@ -311,6 +320,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     snapshot.player1Pos = this.player1Pos
     snapshot.player2Pos = structuredClone(this.player2Pos)
     snapshot.bullet1Origin = this.bullet1Origin
+    snapshot.bullet1Position = this.bullet1Position
     snapshot.bullet1Velocity = this.bullet1Velocity
     snapshot.bullet1StartTime = this.bullet1StartTime
     snapshot.bullet1Ticks = this.bullet1Ticks
@@ -321,11 +331,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     const displayState = displayStatePool.retain()
     displayState.player1Pos = structuredClone(this.player1Pos)
     displayState.player2Pos = structuredClone(this.player2Pos)
-    displayState.bullet1Position = computeBulletPosition(
-      this.bullet1Origin,
-      this.bullet1Velocity,
-      this.bullet1Ticks
-    )
+    displayState.bullet1Position = structuredClone(this.bullet1Position)
     return displayState
   }
 }
@@ -333,6 +339,7 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   public player1Pos = [-200, -200]
   public player2Pos: number[] = [0, 0]
   public bullet1Origin: number[] = [-200, -200]
+  public bullet1Position: number[] = [-200, -200]
   public bullet1Velocity: number[] = [0, 0]
   public bullet1StartTime: number = 0
   public bullet1Ticks: number = 0
@@ -342,6 +349,7 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     newWorld.player1Pos = structuredClone(this.player1Pos)
     newWorld.player2Pos = structuredClone(this.player2Pos)
     newWorld.bullet1Origin = structuredClone(this.bullet1Origin)
+    newWorld.bullet1Position = structuredClone(this.bullet1Position)
     newWorld.bullet1Velocity = structuredClone(this.bullet1Velocity)
     newWorld.bullet1StartTime = this.bullet1StartTime
     newWorld.bullet1Ticks = this.bullet1Ticks
@@ -350,6 +358,11 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
 
   step() {
     if (this.bullet1StartTime > 0) {
+      this.bullet1Position = [
+        (this.bullet1Position[0] ?? 0) + (this.bullet1Velocity[0] ?? 0),
+        (this.bullet1Position[1] ?? 0) + (this.bullet1Velocity[1] ?? 0)
+      ]
+
       const bulletPos = computeBulletPosition(
         this.bullet1Origin,
         this.bullet1Velocity,
@@ -393,12 +406,7 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applySnapshot(snapshot: MySnapshot) {
-    this.player1Pos = snapshot.player1Pos
-    this.player2Pos = snapshot.player2Pos
-    this.bullet1Origin = snapshot.bullet1Origin
-    this.bullet1Velocity = snapshot.bullet1Velocity
-    this.bullet1StartTime = snapshot.bullet1StartTime
-    this.bullet1Ticks = snapshot.bullet1Ticks
+    /* not used ons server */
   }
 
   snapshot() {
@@ -406,6 +414,7 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     snapshot.player1Pos = this.player1Pos
     snapshot.player2Pos = this.player2Pos
     snapshot.bullet1Origin = this.bullet1Origin
+    snapshot.bullet1Position = this.bullet1Position
     snapshot.bullet1Velocity = this.bullet1Velocity
     snapshot.bullet1StartTime = this.bullet1StartTime
     snapshot.bullet1Ticks = this.bullet1Ticks
@@ -506,19 +515,13 @@ function main() {
         }, ticks: ${serverWorld?.bullet1Ticks}, start: ${serverWorld.bullet1StartTime}`,
         `\n\tt: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
           makeFloat2(worldDisplay1?.player2Pos) ?? 'undefined'
-        }, b1: ${
-          makeFloat2(
-            computeBulletPosition(
-              world1.bullet1Origin,
-              world1.bullet1Velocity,
-              world1.bullet1Ticks
-            )
-          ) ?? 'undefined'
-        } ticks: ${world1.bullet1Ticks}, start: ${world1.bullet1StartTime}`,
+        }, b1: ${makeFloat2(world1?.bullet1Position) ?? 'undefined'} ticks: ${
+          world1.bullet1Ticks
+        }, start: ${world1.bullet1StartTime}`,
         `\n\t\tt: ${
           client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
         }, p2: ${makeFloat2(worldDisplay2?.player2Pos) ?? 'undefined'}, b1: ${
-          makeFloat2(worldDisplay2?.bullet1Position) ?? 'undefined'
+          makeFloat2(world2?.bullet1Position) ?? 'undefined'
         } ticks: ${world2.bullet1Ticks}, start:${world2.bullet1StartTime}
         `
       )
