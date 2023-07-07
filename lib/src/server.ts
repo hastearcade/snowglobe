@@ -27,7 +27,6 @@ export class Server<
     World<$Command, $Snapshot, $DisplayState>
   >
 
-  private commandHistory: Array<Timestamp.Timestamped<$Command>>
   // this variable keeps track of commands that are received
   // in the same frame. we use this to determine the oldest
   // world state to go back in time for when performing lag compensation
@@ -43,7 +42,6 @@ export class Server<
     secondsSinceStartup: number
   ) {
     this.worldHistory = new Map()
-    this.commandHistory = []
     this.currentFrameCommandBuffer = []
 
     this.timekeepingSimulation = new TimeKeeper(
@@ -86,7 +84,6 @@ export class Server<
     commandSource: ConnectionHandle | undefined,
     net: NetworkResource<$Command>
   ) {
-    this.commandHistory.push(command)
     this.currentFrameCommandBuffer.push(command)
 
     for (const [handle, connection] of net.connections()) {
@@ -163,7 +160,9 @@ export class Server<
       }
 
       const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
-        this.commandHistory.sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
+        this.currentFrameCommandBuffer.sort((a, b) =>
+          Timestamp.cmp(a.timestamp, b.timestamp)
+        )
 
       // apply the command immediately and then fast forward
       this.timekeepingSimulation.stepper.rewind(oldWorld)
@@ -223,19 +222,6 @@ export class Server<
       this.timekeepingSimulation.stepper.simulatingTimestamp(),
       this.timekeepingSimulation.stepper.getWorld().clone()
     )
-
-    // delete old commands
-    this.commandHistory = this.commandHistory.filter(curr => {
-      return (
-        Timestamp.cmp(
-          curr.timestamp,
-          Timestamp.sub(
-            this.timekeepingSimulation.stepper.simulatingTimestamp(),
-            this.config.serverBufferFrameCount * 2
-          )
-        ) > 0
-      )
-    })
 
     // delete old worlds
     this.worldHistory.forEach((val, timestamp) => {
