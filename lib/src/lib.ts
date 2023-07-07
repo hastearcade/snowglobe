@@ -11,6 +11,7 @@ export interface Config {
   timestampSkipThresholdSeconds: number
   fastForwardMaxPerStep: number
   tweeningMethod: TweeningMethod
+  serverBufferFrameCount: number
 }
 
 export function makeConfig(config: Partial<Config> = {}): Config {
@@ -27,7 +28,8 @@ export function makeConfig(config: Partial<Config> = {}): Config {
       updateDeltaSecondsMax: 0.25,
       timestampSkipThresholdSeconds: 1.0,
       fastForwardMaxPerStep: 10,
-      tweeningMethod: TweeningMethod.Interpolated
+      tweeningMethod: TweeningMethod.Interpolated,
+      serverBufferFrameCount: 60
     },
     config
   )

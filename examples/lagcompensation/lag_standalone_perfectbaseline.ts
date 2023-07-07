@@ -32,10 +32,10 @@ const intersect = (
   )
 }
 
-const makeFloat2 = (bullet1Pos: number[] | undefined) => {
-  if (!bullet1Pos) return bullet1Pos
+const makeFloat2 = (bullet1Origin: number[] | undefined) => {
+  if (!bullet1Origin) return bullet1Origin
 
-  return bullet1Pos.map(b => b.toFixed(2))
+  return bullet1Origin.map(b => b.toFixed(2))
 }
 
 // This example is intended to be an integration test
@@ -60,20 +60,20 @@ class MyCommand implements Snowglobe.Command {
 class MySnapshot implements Snowglobe.Snapshot {
   player1Pos: number[]
   player2Pos: number[]
-  bullet1Pos: number[]
+  bullet1Origin: number[]
   bullet1Velocity: number[]
   player2Velocity: number[]
   constructor(
     player1Pos: number[],
     player2Pos: number[],
-    bullet1Pos: number[],
+    bullet1Origin: number[],
     bullet1Velocity: number[],
     playerVelocity: number[],
     private readonly pool: ObjectPool<MySnapshot>
   ) {
     this.player1Pos = player1Pos
     this.player2Pos = player2Pos
-    this.bullet1Pos = bullet1Pos
+    this.bullet1Origin = bullet1Origin
     this.bullet1Velocity = bullet1Velocity
     this.player2Velocity = playerVelocity
   }
@@ -82,7 +82,7 @@ class MySnapshot implements Snowglobe.Snapshot {
     return new MySnapshot(
       this.player1Pos,
       this.player2Pos,
-      this.bullet1Pos,
+      this.bullet1Origin,
       this.bullet1Velocity,
       this.player2Velocity,
       this.pool
@@ -97,20 +97,20 @@ class MySnapshot implements Snowglobe.Snapshot {
 class MyDisplayState implements Snowglobe.DisplayState {
   player1Pos: number[]
   player2Pos: number[]
-  bullet1Pos: number[]
+  bullet1Origin: number[]
   bullet1Velocity: number[]
   player2Velocity: number[]
   constructor(
     player1Pos: number[],
     player2Pos: number[],
-    bullet1Pos: number[],
+    bullet1Origin: number[],
     bullet1Velocity: number[],
     playerVelocity: number[],
     private readonly pool: ObjectPool<MyDisplayState>
   ) {
     this.player1Pos = player1Pos
     this.player2Pos = player2Pos
-    this.bullet1Pos = bullet1Pos
+    this.bullet1Origin = bullet1Origin
     this.bullet1Velocity = bullet1Velocity
     this.player2Velocity = playerVelocity
   }
@@ -119,7 +119,7 @@ class MyDisplayState implements Snowglobe.DisplayState {
     return new MyDisplayState(
       this.player1Pos,
       this.player2Pos,
-      this.bullet1Pos,
+      this.bullet1Origin,
       this.bullet1Velocity,
       this.player2Velocity,
       this.pool
@@ -138,7 +138,7 @@ const snapShotPool = createObjectPool<MySnapshot>(
   (snapshot: MySnapshot) => {
     snapshot.player1Pos = [0, 0]
     snapshot.player2Pos = [0, 0]
-    snapshot.bullet1Pos = [0, 0]
+    snapshot.bullet1Origin = [0, 0]
     snapshot.bullet1Velocity = [0, 0]
     snapshot.player2Velocity = [0, 0]
     return snapshot
@@ -153,7 +153,7 @@ const displayStatePool = createObjectPool<MyDisplayState>(
   (snapshot: MyDisplayState) => {
     snapshot.player1Pos = [0, 0]
     snapshot.player2Pos = [0, 0]
-    snapshot.bullet1Pos = [0, 0]
+    snapshot.bullet1Origin = [0, 0]
     snapshot.bullet1Velocity = [0, 0]
     snapshot.player2Velocity = [0, 0]
     return snapshot
@@ -191,8 +191,8 @@ function interpolate(
       (1 - t) * (state1.player2Pos[1] ?? 0) + t * (state2.player2Pos[1] ?? 0)
     ],
     [
-      (1 - t) * (state1.bullet1Pos[0] ?? 0) + t * (state2.bullet1Pos[0] ?? 0),
-      (1 - t) * (state1.bullet1Pos[1] ?? 0) + t * (state2.bullet1Pos[1] ?? 0)
+      (1 - t) * (state1.bullet1Origin[0] ?? 0) + t * (state2.bullet1Origin[0] ?? 0),
+      (1 - t) * (state1.bullet1Origin[1] ?? 0) + t * (state2.bullet1Origin[1] ?? 0)
     ],
     [
       (1 - t) * (state1.bullet1Velocity[0] ?? 0) + t * (state2.bullet1Velocity[0] ?? 0),
@@ -221,7 +221,7 @@ const BULLET_SIZE = 5
 class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   public player1Pos = [-200, -200]
   public player2Pos: number[] = [-100, 100]
-  public bullet1Pos: number[] = [-200, -200]
+  public bullet1Origin: number[] = [-200, -200]
   public bullet1Velocity: number[] = [0, 0]
   public player2Velocity: number[] = [0, 0]
 
@@ -230,17 +230,19 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
       (this.player2Pos[0] ?? 0) + (this.player2Velocity[0] ?? 0),
       (this.player2Pos[1] ?? 0) + (this.player2Velocity[1] ?? 0)
     ]
-    this.bullet1Pos = [
-      (this.bullet1Pos[0] ?? 0) + (this.bullet1Velocity[0] ?? 0),
-      (this.bullet1Pos[1] ?? 0) + (this.bullet1Velocity[1] ?? 0)
+    this.bullet1Origin = [
+      (this.bullet1Origin[0] ?? 0) + (this.bullet1Velocity[0] ?? 0),
+      (this.bullet1Origin[1] ?? 0) + (this.bullet1Velocity[1] ?? 0)
     ]
 
     // check for intersection
-    if (intersect(this.player2Pos, this.bullet1Pos, HALF_PLAYER_SIZE, BULLET_SIZE, 0)) {
+    if (
+      intersect(this.player2Pos, this.bullet1Origin, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
+    ) {
       console.log(
         `an interesction occurred at p: ${JSON.stringify(
           this.player2Pos
-        )}, b: ${JSON.stringify(this.bullet1Pos)}`
+        )}, b: ${JSON.stringify(this.bullet1Origin)}`
       )
     }
   }
@@ -266,7 +268,7 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   applySnapshot(snapshot: MySnapshot) {
     this.player1Pos = snapshot.player1Pos
     this.player2Pos = snapshot.player2Pos
-    this.bullet1Pos = snapshot.bullet1Pos
+    this.bullet1Origin = snapshot.bullet1Origin
     this.bullet1Velocity = snapshot.bullet1Velocity
     this.player2Velocity = snapshot.player2Velocity
   }
@@ -275,7 +277,7 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     const snapshot = snapShotPool.retain()
     snapshot.player1Pos = this.player1Pos
     snapshot.player2Pos = this.player2Pos
-    snapshot.bullet1Pos = this.bullet1Pos
+    snapshot.bullet1Origin = this.bullet1Origin
     snapshot.bullet1Velocity = this.bullet1Velocity
     snapshot.player2Velocity = this.player2Velocity
     return snapshot
@@ -285,7 +287,7 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     const displayState = displayStatePool.retain()
     displayState.player1Pos = this.player1Pos
     displayState.player2Pos = this.player2Pos
-    displayState.bullet1Pos = this.bullet1Pos
+    displayState.bullet1Origin = this.bullet1Origin
     displayState.bullet1Velocity = this.bullet1Velocity
     displayState.player2Velocity = this.player2Velocity
     return displayState
@@ -335,7 +337,7 @@ function main() {
       console.log(
         `t: ${server.lastCompletedTimestamp()}, p2: ${JSON.stringify(
           serverDisplayState?.player2Pos
-        )}, b: ${JSON.stringify(makeFloat2(serverDisplayState?.bullet1Pos))}`,
+        )}, b: ${JSON.stringify(makeFloat2(serverDisplayState?.bullet1Origin))}`,
         `t: ${
           client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
         }, p2: ${JSON.stringify(
@@ -352,7 +354,7 @@ function main() {
                 ?.worldSimulations()
                 .get()
                 .new.getWorld() as unknown as MyWorld
-            ).bullet1Pos
+            ).bullet1Origin
           )
         )}`,
         `t: ${
@@ -371,7 +373,7 @@ function main() {
                 ?.worldSimulations()
                 .get()
                 .new.getWorld() as unknown as MyWorld
-            ).bullet1Pos
+            ).bullet1Origin
           )
         )}`
       )

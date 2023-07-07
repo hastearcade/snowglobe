@@ -22,6 +22,19 @@ export class Server<
     Simulation<$Command, $Snapshot, $DisplayState>
   >
 
+  private readonly worldHistory: Map<
+    Timestamp.Timestamp,
+    World<$Command, $Snapshot, $DisplayState>
+  >
+
+  private commandHistory: Array<Timestamp.Timestamped<$Command>>
+  // this variable keeps track of commands that are received
+  // in the same frame. we use this to determine the oldest
+  // world state to go back in time for when performing lag compensation
+  // all commands are added to command history and thus are processed in
+  // the compensateForLag function
+  private currentFrameCommandBuffer: Array<Timestamp.Timestamped<$Command>>
+
   private secondsSinceLastSnapshot = 0
 
   constructor(
@@ -29,6 +42,10 @@ export class Server<
     private readonly config: Config,
     secondsSinceStartup: number
   ) {
+    this.worldHistory = new Map()
+    this.commandHistory = []
+    this.currentFrameCommandBuffer = []
+
     this.timekeepingSimulation = new TimeKeeper(
       new Simulation(world, InitializationType.PreInitialized),
       config,
@@ -69,7 +86,9 @@ export class Server<
     commandSource: ConnectionHandle | undefined,
     net: NetworkResource<$Command>
   ) {
-    this.timekeepingSimulation.stepper.scheduleCommand(command)
+    this.commandHistory.push(command)
+    this.currentFrameCommandBuffer.push(command)
+
     for (const [handle, connection] of net.connections()) {
       if (commandSource === handle) {
         continue
@@ -107,10 +126,56 @@ export class Server<
     return this.timekeepingSimulation.stepper.bufferedCommands()
   }
 
+  getWorld() {
+    return this.timekeepingSimulation.stepper.getWorld()
+  }
+
   displayState() {
     const displayState = this.timekeepingSimulation.stepper.displayState()
-    console.assert(displayState !== undefined)
+    console.assert(
+      displayState !== undefined,
+      'Your display state should not be undefined'
+    )
     return displayState
+  }
+
+  getHistory() {
+    return this.worldHistory
+  }
+
+  compensateForLag() {
+    const sortedBufferCommands: Array<Timestamp.Timestamped<$Command>> =
+      this.currentFrameCommandBuffer.sort((a, b) =>
+        Timestamp.cmp(a.timestamp, b.timestamp)
+      )
+
+    const oldestCommand = sortedBufferCommands[0]
+
+    if (!oldestCommand) return
+
+    let currentTimestamp = oldestCommand.timestamp
+    while (Timestamp.cmp(currentTimestamp, this.simulatingTimestamp()) <= 0) {
+      // get old world
+      const oldWorld = this.worldHistory.get(currentTimestamp)
+      if (!oldWorld) {
+        currentTimestamp = Timestamp.add(currentTimestamp, 1)
+        continue
+      }
+
+      const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
+        this.commandHistory.sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
+
+      // apply the command immediately and then fast forward
+      this.timekeepingSimulation.stepper.rewind(oldWorld)
+      this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
+      this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
+      this.worldHistory.set(
+        currentTimestamp,
+        this.timekeepingSimulation.stepper.getWorld().clone()
+      )
+      currentTimestamp = Timestamp.add(currentTimestamp, 1)
+    }
+    this.currentFrameCommandBuffer = []
   }
 
   update<$Net extends NetworkResource<$Command>>(
@@ -148,14 +213,74 @@ export class Server<
         )
       }
     }
+
+    this.compensateForLag()
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
+
+    // add the simulation world state to a history buffer
+    // this will be utilized to facilitate lag compensation
+    this.worldHistory.set(
+      this.timekeepingSimulation.stepper.simulatingTimestamp(),
+      this.timekeepingSimulation.stepper.getWorld().clone()
+    )
+
+    // delete old commands
+    this.commandHistory = this.commandHistory.filter(curr => {
+      return (
+        Timestamp.cmp(
+          curr.timestamp,
+          Timestamp.sub(
+            this.timekeepingSimulation.stepper.simulatingTimestamp(),
+            this.config.serverBufferFrameCount * 2
+          )
+        ) > 0
+      )
+    })
+
+    // delete old worlds
+    this.worldHistory.forEach((val, timestamp) => {
+      if (
+        Timestamp.cmp(
+          timestamp,
+          Timestamp.sub(
+            this.timekeepingSimulation.stepper.simulatingTimestamp(),
+            this.config.serverBufferFrameCount * 2
+          )
+        ) <= 0
+      ) {
+        this.worldHistory.delete(timestamp)
+      }
+    })
+
     this.secondsSinceLastSnapshot += positiveDeltaSeconds
     if (this.secondsSinceLastSnapshot > this.config.snapshotSendPeriod) {
       this.secondsSinceLastSnapshot = 0
-      net.broadcastMessage(
-        SNAPSHOT_MESSAGE_TYPE_ID,
-        this.timekeepingSimulation.stepper.lastCompletedSnapshot()
-      )
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for (const [_, connection] of net.connections()) {
+        const ping = connection.getPing()
+        const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
+        const snapshotTimestamp = Timestamp.sub(
+          this.lastCompletedTimestamp(),
+          pingTimestampDiff +
+            Math.round(this.config.serverTimeDelayLatency / this.config.timestepSeconds)
+        )
+
+        let snapshotToSend = this.worldHistory.get(snapshotTimestamp)?.snapshot()
+
+        if (!snapshotToSend) {
+          snapshotToSend = this.timekeepingSimulation.stepper.lastCompletedSnapshot()
+        } else {
+          snapshotToSend = Timestamp.set(snapshotToSend, snapshotTimestamp)
+        }
+
+        // console.log(
+        //   `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
+        //     this.worldHistory.get(snapshotTimestamp)
+        //   )} for ${snapshotTimestamp}`
+        // )
+        connection.send(SNAPSHOT_MESSAGE_TYPE_ID, snapshotToSend)
+      }
     }
   }
 }

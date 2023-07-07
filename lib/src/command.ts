@@ -63,7 +63,6 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
 
   insert(timestampedCommand: Timestamp.Timestamped<$Command>) {
     const incomingTimestamp = Timestamp.get(timestampedCommand)
-
     if (Timestamp.acceptableTimestampRange(this._timestamp, incomingTimestamp)) {
       const commandsExist = this.map.get(incomingTimestamp)
 

@@ -30,6 +30,10 @@ class DelayedQueue<$Type> implements DelayedChannel {
     this.delay = delay
   }
 
+  getDelay() {
+    return this.delay
+  }
+
   tick(deltaSeconds: number) {
     while ((this.incoming[this.incoming.length - 1]?.[1] ?? -1) >= this.delay) {
       this.outgoing.unshift(this.incoming.pop()![0])
@@ -79,6 +83,10 @@ class MockChannel<$Type> implements DelayedChannel {
 
   tick(deltaSeconds: number) {
     this.inbox.tick(deltaSeconds)
+  }
+
+  getDelay() {
+    return this.inbox.getDelay()
   }
 
   setDelay(delay: number) {
@@ -159,6 +167,10 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
     public isConnected: boolean
   ) {}
 
+  getPing() {
+    return (this.channels.get(CLOCK_SYNC_MESSAGE_TYPE_ID)?.getDelay() ?? 0) * 1000
+  }
+
   setDelay(delay: number) {
     for (const [, channel] of this.channels) {
       channel.setDelay(delay)
@@ -172,33 +184,33 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
   }
 
   recvCommand() {
-    console.assert(this.isConnected)
+    console.assert(this.isConnected, 'You are not connected to receive a command')
     return (
       this.channels.get(COMMAND_MESSAGE_TYPE_ID) as MockChannel<Timestamped<$Command>>
     ).recv()
   }
 
   recvClockSync() {
-    console.assert(this.isConnected)
+    console.assert(this.isConnected, 'You are not connected to receive a clock sync')
     return (
       this.channels.get(CLOCK_SYNC_MESSAGE_TYPE_ID) as MockChannel<ClockSyncMessage>
     ).recv()
   }
 
   recvSnapshot() {
-    console.assert(this.isConnected)
+    console.assert(this.isConnected, 'You are not connected to receive a snapshot')
     return (
       this.channels.get(SNAPSHOT_MESSAGE_TYPE_ID) as MockChannel<Timestamped<$Snapshot>>
     ).recv()
   }
 
   send<$Type>(typeId: TypeId<AvailableMessages>, message: $Type) {
-    console.assert(this.isConnected)
+    console.assert(this.isConnected, 'You are not connected to send a message')
     ;(this.channels.get(typeId) as MockChannel<$Type>).send(message)
   }
 
   flush(typeId: TypeId<AvailableMessages>) {
-    console.assert(this.isConnected)
+    console.assert(this.isConnected, 'You are not connected so can not flush')
   }
 }
 

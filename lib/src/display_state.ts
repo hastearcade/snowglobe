@@ -40,7 +40,10 @@ export function timestampedFromInterpolation<$DisplayState extends DisplayState>
   } else if (Math.abs(t - 1) < Number.EPSILON) {
     return Timestamp.set(state2.clone(), Timestamp.get(state2))
   } else {
-    console.assert(Timestamp.get(state1) === Timestamp.get(state2))
+    console.assert(
+      Timestamp.get(state1) === Timestamp.get(state2),
+      'The timestamps for interpolation do not match'
+    )
     return Timestamp.set(fromInterpolation(state1, state2, t), Timestamp.get(state1))
   }
 }

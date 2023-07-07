@@ -38,7 +38,10 @@ export class ClockSyncer {
         const offset = serverSecondsSinceStartup - correspondingClientTime
         latestServerSecondsOffset = offset
         const existingId = this._clientId ?? (this._clientId = clientId)
-        console.assert(existingId === clientId)
+        console.assert(
+          existingId === clientId,
+          'The clock sync client ids should be the same'
+        )
       }
     }
 
@@ -78,7 +81,8 @@ export class ClockSyncer {
 
     console.assert(
       this._serverSecondsOffsetSamples.length <=
-        clockSyncSamplesNeededToStore(this._config)
+        clockSyncSamplesNeededToStore(this._config),
+      'You offset samples are too high'
     )
 
     if (
