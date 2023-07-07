@@ -252,12 +252,10 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   step() {
-    console.log(`prev ${this.id ?? ''} = ${JSON.stringify(this.bullet1Position)}`)
     this.bullet1Position = [
       (this.bullet1Position[0] ?? 0) + (this.bullet1Velocity[0] ?? 0),
       (this.bullet1Position[1] ?? 0) + (this.bullet1Velocity[1] ?? 0)
     ]
-    console.log(`after ${this.id ?? ''} = ${JSON.stringify(this.bullet1Position)}`)
 
     this.bullet1Ticks += 1
 

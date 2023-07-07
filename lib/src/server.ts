@@ -267,11 +267,11 @@ export class Server<
           snapshotToSend = Timestamp.set(snapshotToSend, snapshotTimestamp)
         }
 
-        console.log(
-          `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
-            this.worldHistory.get(snapshotTimestamp)
-          )} for ${snapshotTimestamp}`
-        )
+        // console.log(
+        //   `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
+        //     this.worldHistory.get(snapshotTimestamp)
+        //   )} for ${snapshotTimestamp}`
+        // )
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, snapshotToSend)
       }
     }
