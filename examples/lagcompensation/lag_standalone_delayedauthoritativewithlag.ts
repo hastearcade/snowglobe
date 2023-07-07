@@ -279,6 +279,8 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
         break
       case 'fire':
         // eslint-disable-next-line no-case-declarations
+        console.log(`client ${this.id ?? ''} applying command ${JSON.stringify(command)}`)
+        // eslint-disable-next-line no-case-declarations
         const timestamp = (command as unknown as Snowglobe.Timestamped).timestamp
 
         if (timestamp > 0) {
@@ -504,16 +506,22 @@ function main() {
         }, b1: ${
           makeFloat2(serverDisplayState?.bullet1Position) ?? 'undefined'
         }, ticks: ${serverWorld?.bullet1Ticks}, start: ${serverWorld.bullet1StartTime}`,
-        `t: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
+        `\n\tt: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
           makeFloat2(worldDisplay1?.player2Pos) ?? 'undefined'
-        }, b1: ${makeFloat2(worldDisplay1?.bullet1Position) ?? 'undefined'} ticks: ${
-          world1.bullet1Ticks
-        }, start: ${world1.bullet1StartTime}`,
-        `t: ${client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
-          makeFloat2(worldDisplay2?.player2Pos) ?? 'undefined'
-        }, b1: ${makeFloat2(worldDisplay2?.bullet1Position) ?? 'undefined'} ticks: ${
-          world2.bullet1Ticks
-        }, start:${world2.bullet1StartTime}
+        }, b1: ${
+          makeFloat2(
+            computeBulletPosition(
+              world1.bullet1Origin,
+              world1.bullet1Velocity,
+              world1.bullet1Ticks
+            )
+          ) ?? 'undefined'
+        } ticks: ${world1.bullet1Ticks}, start: ${world1.bullet1StartTime}`,
+        `\n\t\tt: ${
+          client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
+        }, p2: ${makeFloat2(worldDisplay2?.player2Pos) ?? 'undefined'}, b1: ${
+          makeFloat2(worldDisplay2?.bullet1Position) ?? 'undefined'
+        } ticks: ${world2.bullet1Ticks}, start:${world2.bullet1StartTime}
         `
       )
       ticksSinceStartup++

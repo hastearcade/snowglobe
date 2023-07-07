@@ -6,7 +6,10 @@ export interface Command extends Cloneable, Disposable {}
 
 export class CommandBuffer<$Command extends Command> implements Cloneable {
   constructor(
-    private readonly map: Map<Timestamp.Timestamp, $Command[]> = new Map(),
+    private readonly map: Map<
+      Timestamp.Timestamp,
+      Array<Timestamp.Timestamped<$Command>>
+    > = new Map(),
     private _timestamp = Timestamp.make()
   ) {
     // The original crystalorb implementation used a more effecient datatype
@@ -95,7 +98,9 @@ export class CommandBuffer<$Command extends Command> implements Cloneable {
       new Map(
         Array.from(this.map.entries()).map(([timestamp, commands]) => [
           timestamp,
-          commands.map(command => command.clone())
+          commands.map(command =>
+            Timestamp.set<$Command>((command as $Command).clone(), timestamp)
+          )
         ])
       ),
       Timestamp.make(this._timestamp)
