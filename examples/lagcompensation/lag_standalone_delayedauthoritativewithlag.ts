@@ -279,8 +279,6 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
         break
       case 'fire':
         // eslint-disable-next-line no-case-declarations
-        console.log(`client ${this.id ?? ''} applying command ${JSON.stringify(command)}`)
-        // eslint-disable-next-line no-case-declarations
         const timestamp = (command as unknown as Snowglobe.Timestamped).timestamp
 
         if (timestamp > 0) {
