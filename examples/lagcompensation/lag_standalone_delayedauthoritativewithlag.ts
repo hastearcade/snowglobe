@@ -42,11 +42,11 @@ const computeBulletPosition = (origin: number[], trajectory: number[], steps: nu
   return finalPosition
 }
 
-// const makeFloat2 = (bullet1Origin: number[] | undefined) => {
-//   if (!bullet1Origin) return bullet1Origin
+const makeFloat2 = (bullet1Origin: number[] | undefined) => {
+  if (!bullet1Origin) return bullet1Origin
 
-//   return bullet1Origin.map(b => b.toFixed(2))
-// }
+  return JSON.stringify(bullet1Origin.map(b => b.toFixed(2)))
+}
 
 // This example is intended to be an integration test
 // that demonstrates the system when under lag
@@ -499,27 +499,21 @@ function main() {
       const worldDisplay1 = client1Stage.ready?.displayState()?.displayState()
       const worldDisplay2 = client2Stage.ready?.displayState()?.displayState()
       console.log(
-        `t: ${server.lastCompletedTimestamp()}, p2: ${JSON.stringify(
-          serverWorld?.player2Pos
-        )}, b1: ${JSON.stringify(
-          serverDisplayState?.bullet1Position
-        )}, ticks: ${JSON.stringify(serverWorld?.bullet1Ticks)}, start: ${JSON.stringify(
-          serverWorld.bullet1StartTime
-        )}`,
-        `t: ${
-          client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
-        }, p2: ${JSON.stringify(worldDisplay1?.player2Pos)}, b1: ${JSON.stringify(
-          worldDisplay1?.bullet1Position
-        )} ticks: ${JSON.stringify(world1.bullet1Ticks)}, start: ${JSON.stringify(
-          world1.bullet1StartTime
-        )}`,
-        `t: ${
-          client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
-        }, p2: ${JSON.stringify(worldDisplay2?.player2Pos)}, b1: ${JSON.stringify(
-          worldDisplay2?.bullet1Position
-        )}ticks: ${JSON.stringify(world2.bullet1Ticks)}, start: ${JSON.stringify(
-          world2.bullet1StartTime
-        )}
+        `t: ${server.lastCompletedTimestamp()}, p2: ${
+          makeFloat2(serverWorld?.player2Pos) ?? 'undefined'
+        }, b1: ${
+          makeFloat2(serverDisplayState?.bullet1Position) ?? 'undefined'
+        }, ticks: ${serverWorld?.bullet1Ticks}, start: ${serverWorld.bullet1StartTime}`,
+        `t: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
+          makeFloat2(worldDisplay1?.player2Pos) ?? 'undefined'
+        }, b1: ${makeFloat2(worldDisplay1?.bullet1Position) ?? 'undefined'} ticks: ${
+          world1.bullet1Ticks
+        }, start: ${world1.bullet1StartTime}`,
+        `t: ${client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
+          makeFloat2(worldDisplay2?.player2Pos) ?? 'undefined'
+        }, b1: ${makeFloat2(worldDisplay2?.bullet1Position) ?? 'undefined'} ticks: ${
+          world2.bullet1Ticks
+        }, start:${world2.bullet1StartTime}
         `
       )
       ticksSinceStartup++
