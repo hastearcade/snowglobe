@@ -172,7 +172,7 @@ export class Server<
 
     if (!oldestCommand) return
 
-    const currentTimestamp = oldestCommand.timestamp
+    const currentTimestamp = Timestamp.sub(oldestCommand.timestamp, 1)
     // get old world
     const oldWorld = this.worldHistory.get(currentTimestamp)
     if (!oldWorld) {
@@ -181,12 +181,30 @@ export class Server<
     }
 
     const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
-      this.commandHistory.sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
+      this.commandHistory
+        .filter(curr => Timestamp.cmp(curr.timestamp, currentTimestamp) >= 0)
+        .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
+    // console.log(
+    //   `world at ${this.timekeepingSimulation.stepper.simulatingTimestamp()} is ${JSON.stringify(
+    //     this.timekeepingSimulation.stepper.getWorld()
+    //   )}`
+    // )
+    // console.log(`oldworld at ${currentTimestamp} is ${JSON.stringify(oldWorld)}`)
+    // console.log(
+    //   `commands at ${this.timekeepingSimulation.stepper.simulatingTimestamp()} is ${JSON.stringify(
+    //     this.commandHistory
+    //   )}`
+    // )
     this.timekeepingSimulation.stepper.rewind(oldWorld)
     this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
     this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
+    // console.log(
+    //   `afer execution at ${this.timekeepingSimulation.stepper.simulatingTimestamp()} is ${JSON.stringify(
+    //     this.timekeepingSimulation.stepper.getWorld()
+    //   )}`
+    // )
     this.currentFrameCommandBuffer = []
   }
 
@@ -286,11 +304,11 @@ export class Server<
           snapshotToSend = Timestamp.set(snapshotToSend, snapshotTimestamp)
         }
 
-        console.log(
-          `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
-            this.worldHistory.get(snapshotTimestamp)
-          )} for ${snapshotTimestamp}`
-        )
+        // console.log(
+        //   `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
+        //     this.worldHistory.get(snapshotTimestamp)
+        //   )} for ${snapshotTimestamp}`
+        // )
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, snapshotToSend)
       }
     }
