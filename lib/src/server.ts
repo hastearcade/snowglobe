@@ -86,17 +86,36 @@ export class Server<
     commandSource: ConnectionHandle | undefined,
     net: NetworkResource<$Command>
   ) {
-    this.commandHistory.push(command)
-    this.currentFrameCommandBuffer.push(command)
+    this.commandHistory.push(Timestamp.set(command.clone(), command.timestamp))
+    this.currentFrameCommandBuffer.push(Timestamp.set(command.clone(), command.timestamp))
+
+    let result
 
     for (const [handle, connection] of net.connections()) {
       if (commandSource === handle) {
         continue
       }
-      const result = connection.send(
-        COMMAND_MESSAGE_TYPE_ID,
-        Timestamp.set(command.clone(), Timestamp.get(command))
-      )
+
+      if (this.config.lagCompensateCommands) {
+        const ping = connection.getPing()
+        const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
+        const bufferAdjustment = Math.round(
+          this.config.serverTimeDelayLatency / this.config.timestepSeconds
+        )
+        result = connection.send(
+          COMMAND_MESSAGE_TYPE_ID,
+          Timestamp.set(
+            command.clone(),
+            Timestamp.add(Timestamp.get(command), pingTimestampDiff + bufferAdjustment)
+          )
+        )
+      } else {
+        result = connection.send(
+          COMMAND_MESSAGE_TYPE_ID,
+          Timestamp.set(command.clone(), Timestamp.get(command))
+        )
+      }
+
       connection.flush(COMMAND_MESSAGE_TYPE_ID)
       if (result != null) {
         console.error(`Failed to relay command to ${handle}: ${JSON.stringify(result)}`)
@@ -267,11 +286,11 @@ export class Server<
           snapshotToSend = Timestamp.set(snapshotToSend, snapshotTimestamp)
         }
 
-        // console.log(
-        //   `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
-        //     this.worldHistory.get(snapshotTimestamp)
-        //   )} for ${snapshotTimestamp}`
-        // )
+        console.log(
+          `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
+            this.worldHistory.get(snapshotTimestamp)
+          )} for ${snapshotTimestamp}`
+        )
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, snapshotToSend)
       }
     }

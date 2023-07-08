@@ -446,7 +446,8 @@ function main() {
 
   const config = Snowglobe.makeConfig({
     serverTimeDelayLatency: TIMESTEP_SECONDS,
-    fastForwardMaxPerStep: Number.MAX_SAFE_INTEGER
+    fastForwardMaxPerStep: Number.MAX_SAFE_INTEGER,
+    lagCompensateCommands: true
   })
 
   const client1 = new Snowglobe.Client(makeWorldClient, config, interpolate)
