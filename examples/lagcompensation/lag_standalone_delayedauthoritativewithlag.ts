@@ -238,6 +238,13 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applyCommand(command: MyCommand) {
+    if (
+      (this.id === 'old2' || this.id === 'new2') &&
+      (command.kind === 'movebullet' || command.kind === 'fire')
+    ) {
+      console.log(`applying command: ${JSON.stringify(command)}`)
+    }
+
     switch (command.kind) {
       case 'moveright':
         this.player2Pos = [
@@ -262,6 +269,10 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applySnapshot(snapshot: MySnapshot) {
+    // if (this.id === 'old2' || this.id === 'new2') {
+    //   console.log(`recevied snapshot: ${JSON.stringify(snapshot)}`)
+    // }
+
     this.player1Pos = snapshot.player1Pos
     this.player2Pos = structuredClone(snapshot.player2Pos)
     this.bullet1Position = structuredClone(snapshot.bullet1Position)
@@ -396,13 +407,12 @@ function main() {
     const secondsSinceStartup = (currentTime - startupTime) / 1000
 
     const serverWorld = server.getWorld() as unknown as ServerWorld
-    const serverDisplayState = server.displayState()
-
     const client1Stage = client1.stage()
     const client2Stage = client2.stage()
 
     if (client2Stage.ready && client1Stage.ready) {
       if (ticksSinceStartup === TICKS_TO_FIRE) {
+        console.log('issuing fire command from the client')
         client1Stage.ready.issueCommand(new MyCommand('fire', commandPool), client1Net)
       }
 
@@ -448,9 +458,9 @@ function main() {
       const worldDisplay1 = client1Stage.ready?.displayState()?.displayState()
       const worldDisplay2 = client2Stage.ready?.displayState()?.displayState()
       console.log(
-        `t: ${server.lastCompletedTimestamp()}, p2: ${
+        `t: ${server.lastCompletedTimestamp() + 1}, p2: ${
           makeFloat2(serverWorld?.player2Pos) ?? 'undefined'
-        }, b1: ${makeFloat2(serverDisplayState?.bullet1Position) ?? 'undefined'}`,
+        }, b1: ${makeFloat2(serverWorld?.bullet1Position) ?? 'undefined'}`,
         `\n\tt: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
           makeFloat2(worldDisplay1?.player2Pos) ?? 'undefined'
         }, b1: ${makeFloat2(world1?.bullet1Position) ?? 'undefined'}`,

@@ -109,6 +109,12 @@ export class Server<
             Timestamp.add(Timestamp.get(command), pingTimestampDiff + bufferAdjustment)
           )
         )
+        console.log(
+          `sending command: ${JSON.stringify(command)} with timestamp ${Timestamp.add(
+            Timestamp.get(command),
+            pingTimestampDiff + bufferAdjustment
+          )}`
+        )
       } else {
         result = connection.send(
           COMMAND_MESSAGE_TYPE_ID,
@@ -172,7 +178,7 @@ export class Server<
 
     if (!oldestCommand) return
 
-    const currentTimestamp = Timestamp.sub(oldestCommand.timestamp, 1)
+    const currentTimestamp = oldestCommand.timestamp
     // get old world
     const oldWorld = this.worldHistory.get(currentTimestamp)
     if (!oldWorld) {
@@ -290,10 +296,12 @@ export class Server<
       for (const [_, connection] of net.connections()) {
         const ping = connection.getPing()
         const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
+        const timestampAdjustment =
+          pingTimestampDiff -
+          Math.round(this.config.serverTimeDelayLatency / this.config.timestepSeconds)
         const snapshotTimestamp = Timestamp.sub(
           this.lastCompletedTimestamp(),
-          pingTimestampDiff +
-            Math.round(this.config.serverTimeDelayLatency / this.config.timestepSeconds)
+          timestampAdjustment
         )
 
         let snapshotToSend = this.worldHistory.get(snapshotTimestamp)?.snapshot()
@@ -301,14 +309,23 @@ export class Server<
         if (!snapshotToSend) {
           snapshotToSend = this.timekeepingSimulation.stepper.lastCompletedSnapshot()
         } else {
-          snapshotToSend = Timestamp.set(snapshotToSend, snapshotTimestamp)
+          snapshotToSend = Timestamp.set(
+            snapshotToSend,
+            Timestamp.sub(
+              this.lastCompletedTimestamp(),
+              Math.round(this.config.serverTimeDelayLatency / this.config.timestepSeconds)
+            )
+          )
         }
 
-        // console.log(
-        //   `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
-        //     this.worldHistory.get(snapshotTimestamp)
-        //   )} for ${snapshotTimestamp}`
-        // )
+        console.log(
+          `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
+            this.worldHistory.get(snapshotTimestamp)
+          )} for ${Timestamp.sub(
+            snapshotTimestamp,
+            Math.round(this.config.serverTimeDelayLatency / this.config.timestepSeconds)
+          )} at ${this.lastCompletedTimestamp()}`
+        )
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, snapshotToSend)
       }
     }
