@@ -87,7 +87,6 @@ export class Simulation<
     completedSnapshot: Timestamp.Timestamped<$Snapshot>,
     rewoundCommandBuffer: CommandBuffer<$Command>
   ) {
-    console.log(`the completed snapshot is: ${JSON.stringify(completedSnapshot)}`)
     this.world.applySnapshot(completedSnapshot.clone())
     this.commandBuffer = rewoundCommandBuffer
     this.commandBuffer.updateTimestamp(Timestamp.get(completedSnapshot))

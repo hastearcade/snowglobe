@@ -86,7 +86,7 @@ export class Server<
     commandSource: ConnectionHandle | undefined,
     net: NetworkResource<$Command>
   ) {
-    this.commandHistory.push(Timestamp.set(command.clone(), command.timestamp))
+    this.commandHistory.push(Timestamp.set(command.clone(), this.simulatingTimestamp()))
     this.currentFrameCommandBuffer.push(Timestamp.set(command.clone(), command.timestamp))
 
     let result
@@ -109,12 +109,12 @@ export class Server<
             Timestamp.add(Timestamp.get(command), pingTimestampDiff + bufferAdjustment)
           )
         )
-        console.log(
-          `sending command: ${JSON.stringify(command)} with timestamp ${Timestamp.add(
-            Timestamp.get(command),
-            pingTimestampDiff + bufferAdjustment
-          )}`
-        )
+        // console.log(
+        //   `sending command: ${JSON.stringify(command)} with timestamp ${Timestamp.add(
+        //     Timestamp.get(command),
+        //     pingTimestampDiff + bufferAdjustment
+        //   )}`
+        // )
       } else {
         result = connection.send(
           COMMAND_MESSAGE_TYPE_ID,
@@ -168,7 +168,7 @@ export class Server<
     return this.worldHistory
   }
 
-  compensateForLag() {
+  compensateForLag(oldestPing: number) {
     const sortedBufferCommands: Array<Timestamp.Timestamped<$Command>> =
       this.currentFrameCommandBuffer.sort((a, b) =>
         Timestamp.cmp(a.timestamp, b.timestamp)
@@ -179,12 +179,20 @@ export class Server<
     if (!oldestCommand) return
 
     const currentTimestamp = oldestCommand.timestamp
+
     // get old world
     const oldWorld = this.worldHistory.get(currentTimestamp)
     if (!oldWorld) {
       this.currentFrameCommandBuffer = []
       return
     }
+
+    // TODO
+    // Currently we are filtering out the move right commands from the client
+    // but if we take the filter out, it fixes player2 movement on the server
+    // but messes up bullets. need to figure out why there is a discrepency
+    // since they are both command based feels like it should be the same
+    // so realistically it has more to do with the long delay of client2
 
     const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
       this.commandHistory
@@ -227,7 +235,14 @@ export class Server<
     }
     const newCommands: Array<[Timestamp.Timestamped<$Command>, ConnectionHandle]> = []
     const clockSyncs: Array<[ConnectionHandle, ClockSyncMessage]> = []
+    let oldestPing = 0
     for (const [handle, connection] of net.connections()) {
+      const ping = connection.getPing()
+      const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
+      if (pingTimestampDiff > oldestPing) {
+        oldestPing = pingTimestampDiff
+      }
+
       let command: Timestamp.Timestamped<$Command> | undefined
       let clockSyncMessage: ClockSyncMessage | undefined
       while ((command = connection.recvCommand()) != null) {
@@ -250,7 +265,7 @@ export class Server<
       }
     }
 
-    this.compensateForLag()
+    this.compensateForLag(oldestPing)
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
 
     // add the simulation world state to a history buffer
@@ -304,18 +319,14 @@ export class Server<
           timestampAdjustment
         )
 
-        let snapshotToSend = this.worldHistory.get(snapshotTimestamp)?.snapshot()
+        let snapshotToSend = this.worldHistory
+          .get(this.lastCompletedTimestamp())
+          ?.snapshot()
 
         if (!snapshotToSend) {
           snapshotToSend = this.timekeepingSimulation.stepper.lastCompletedSnapshot()
         } else {
-          snapshotToSend = Timestamp.set(
-            snapshotToSend,
-            Timestamp.sub(
-              this.lastCompletedTimestamp(),
-              Math.round(this.config.serverTimeDelayLatency / this.config.timestepSeconds)
-            )
-          )
+          snapshotToSend = Timestamp.set(snapshotToSend, snapshotTimestamp)
         }
 
         console.log(

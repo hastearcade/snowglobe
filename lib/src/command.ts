@@ -6,7 +6,7 @@ export interface Command extends Cloneable, Disposable {}
 
 export class CommandBuffer<$Command extends Command> implements Cloneable {
   constructor(
-    private readonly map: Map<
+    public readonly map: Map<
       Timestamp.Timestamp,
       Array<Timestamp.Timestamped<$Command>>
     > = new Map(),

@@ -225,11 +225,11 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     if (
       intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
     ) {
-      console.log(
-        `a client (${this.id ?? ''}) interesction occurred at p: ${JSON.stringify(
-          this.player2Pos
-        )}, b: ${JSON.stringify(this.bullet1Position)}`
-      )
+      // console.log(
+      //   `a client (${this.id ?? ''}) interesction occurred at p: ${JSON.stringify(
+      //     this.player2Pos
+      //   )}, b: ${JSON.stringify(this.bullet1Position)}`
+      // )
     }
   }
 
@@ -238,10 +238,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applyCommand(command: MyCommand) {
-    if (
-      (this.id === 'old2' || this.id === 'new2') &&
-      (command.kind === 'movebullet' || command.kind === 'fire')
-    ) {
+    if ((this.id === 'old2' || this.id === 'new2') && command.kind === 'moveright') {
       console.log(`applying command: ${JSON.stringify(command)}`)
     }
 
@@ -316,11 +313,11 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     if (
       intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
     ) {
-      console.log(
-        `a server intersesction occurred at p: ${JSON.stringify(
-          this.player2Pos
-        )}, b: ${JSON.stringify(this.bullet1Position)}`
-      )
+      // console.log(
+      //   `a server intersesction occurred at p: ${JSON.stringify(
+      //     this.player2Pos
+      //   )}, b: ${JSON.stringify(this.bullet1Position)}`
+      // )
     }
   }
 
@@ -331,6 +328,7 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   applyCommand(command: MyCommand) {
     switch (command.kind) {
       case 'moveright':
+        // console.log(`server move right, ${JSON.stringify(command)}`)
         this.player2Pos = [
           (this.player2Pos[0] ?? 0) + PLAYER_SPEED * TIMESTEP_SECONDS,
           this.player2Pos[1] ?? 0
@@ -412,11 +410,11 @@ function main() {
 
     if (client2Stage.ready && client1Stage.ready) {
       if (ticksSinceStartup === TICKS_TO_FIRE) {
-        console.log('issuing fire command from the client')
         client1Stage.ready.issueCommand(new MyCommand('fire', commandPool), client1Net)
       }
 
       if (ticksSinceStartup >= TICKS_TO_MOVE) {
+        // console.log('issuing moveright command from the client')
         client2Stage.ready.issueCommand(
           new MyCommand('moveright', commandPool),
           client2Net
@@ -455,18 +453,18 @@ function main() {
       //   )}`
       // )
 
-      const worldDisplay1 = client1Stage.ready?.displayState()?.displayState()
-      const worldDisplay2 = client2Stage.ready?.displayState()?.displayState()
+      // const worldDisplay1 = client1Stage.ready?.displayState()?.displayState()
+      // const worldDisplay2 = client2Stage.ready?.displayState()?.displayState()
       console.log(
         `t: ${server.lastCompletedTimestamp() + 1}, p2: ${
           makeFloat2(serverWorld?.player2Pos) ?? 'undefined'
         }, b1: ${makeFloat2(serverWorld?.bullet1Position) ?? 'undefined'}`,
         `\n\tt: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
-          makeFloat2(worldDisplay1?.player2Pos) ?? 'undefined'
+          makeFloat2(world1?.player2Pos) ?? 'undefined'
         }, b1: ${makeFloat2(world1?.bullet1Position) ?? 'undefined'}`,
         `\n\t\tt: ${
           client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
-        }, p2: ${makeFloat2(worldDisplay2?.player2Pos) ?? 'undefined'}, b1: ${
+        }, p2: ${makeFloat2(world2?.player2Pos) ?? 'undefined'}, b1: ${
           makeFloat2(world2?.bullet1Position) ?? 'undefined'
         }
         `
