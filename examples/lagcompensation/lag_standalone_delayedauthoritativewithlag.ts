@@ -4,33 +4,33 @@ import { makeMockNetwork } from '../../test/mock_network'
 import { createHighResolutionLoop } from '../demo/src/utilities/game_loop'
 import { type ObjectPool, createObjectPool } from '../demo/src/utilities/object_pool'
 
-const intersect = (
-  first: number[],
-  second: number[],
-  firstSize: number,
-  secondSize: number,
-  tolerance: number = 0
-) => {
-  const a = {
-    minX: (first[0] ?? 0) - firstSize,
-    maxX: (first[0] ?? 0) + firstSize,
-    minY: (first[1] ?? 0) - firstSize,
-    maxY: (first[1] ?? 0) + firstSize
-  }
-  const b = {
-    minX: (second[0] ?? 0) - secondSize,
-    maxX: (second[0] ?? 0) + secondSize,
-    minY: (second[1] ?? 0) - secondSize,
-    maxY: (second[1] ?? 0) + secondSize
-  }
+// const intersect = (
+//   first: number[],
+//   second: number[],
+//   firstSize: number,
+//   secondSize: number,
+//   tolerance: number = 0
+// ) => {
+//   const a = {
+//     minX: (first[0] ?? 0) - firstSize,
+//     maxX: (first[0] ?? 0) + firstSize,
+//     minY: (first[1] ?? 0) - firstSize,
+//     maxY: (first[1] ?? 0) + firstSize
+//   }
+//   const b = {
+//     minX: (second[0] ?? 0) - secondSize,
+//     maxX: (second[0] ?? 0) + secondSize,
+//     minY: (second[1] ?? 0) - secondSize,
+//     maxY: (second[1] ?? 0) + secondSize
+//   }
 
-  return (
-    a.minX - tolerance <= b.maxX &&
-    a.maxX + tolerance >= b.minX &&
-    a.minY - tolerance <= b.maxY &&
-    a.maxY + tolerance >= b.minY
-  )
-}
+//   return (
+//     a.minX - tolerance <= b.maxX &&
+//     a.maxX + tolerance >= b.minX &&
+//     a.minY - tolerance <= b.maxY &&
+//     a.maxY + tolerance >= b.minY
+//   )
+// }
 
 const makeFloat2 = (bullet1Origin: number[] | undefined) => {
   if (!bullet1Origin) return bullet1Origin
@@ -43,13 +43,19 @@ const makeFloat2 = (bullet1Origin: number[] | undefined) => {
 type PossibleCommands = 'moveright' | 'fire' | 'movebullet'
 class MyCommand implements Snowglobe.Command {
   kind: PossibleCommands
+  owner: string | number | undefined
 
-  constructor(kind: PossibleCommands, private readonly pool: ObjectPool<MyCommand>) {
+  constructor(
+    kind: PossibleCommands,
+    owner: string | number | undefined,
+    private readonly pool: ObjectPool<MyCommand>
+  ) {
     this.kind = kind
+    this.owner = owner
   }
 
   clone() {
-    return new MyCommand(this.kind, this.pool) as this
+    return new MyCommand(this.kind, this.owner, this.pool) as this
   }
 
   dispose() {
@@ -58,31 +64,27 @@ class MyCommand implements Snowglobe.Command {
 }
 
 class MySnapshot implements Snowglobe.Snapshot {
-  player1Pos: number[]
-  player2Pos: number[]
-  bullet1Position: number[]
-  bullet1Velocity: number[]
+  players: Player[]
+  bullets: Bullet[]
   constructor(
-    player1Pos: number[],
-    player2Pos: number[],
-    bullet1Position: number[],
-    bullet1Velocity: number[],
+    players: Player[],
+    bullets: Bullet[],
     private readonly pool: ObjectPool<MySnapshot>
   ) {
-    this.player1Pos = player1Pos
-    this.player2Pos = player2Pos
-    this.bullet1Position = bullet1Position
-    this.bullet1Velocity = bullet1Velocity
+    this.players = players.map(p => {
+      return {
+        ...p
+      }
+    })
+    this.bullets = bullets.map(p => {
+      return {
+        ...p
+      }
+    })
   }
 
   clone() {
-    return new MySnapshot(
-      this.player1Pos,
-      this.player2Pos,
-      this.bullet1Position,
-      this.bullet1Velocity,
-      this.pool
-    ) as this
+    return new MySnapshot(this.players, this.bullets, this.pool) as this
   }
 
   dispose() {
@@ -91,28 +93,28 @@ class MySnapshot implements Snowglobe.Snapshot {
 }
 
 class MyDisplayState implements Snowglobe.DisplayState {
-  player1Pos: number[]
-  player2Pos: number[]
-  bullet1Position: number[]
+  players: Player[]
+  bullets: Bullet[]
 
   constructor(
-    player1Pos: number[],
-    player2Pos: number[],
-    bullet1Position: number[],
+    players: Player[],
+    bullets: Bullet[],
     private readonly pool: ObjectPool<MyDisplayState>
   ) {
-    this.player1Pos = player1Pos
-    this.player2Pos = player2Pos
-    this.bullet1Position = bullet1Position
+    this.players = players.map(p => {
+      return {
+        ...p
+      }
+    })
+    this.bullets = bullets.map(p => {
+      return {
+        ...p
+      }
+    })
   }
 
   clone() {
-    return new MyDisplayState(
-      this.player1Pos,
-      this.player2Pos,
-      this.bullet1Position,
-      this.pool
-    ) as this
+    return new MyDisplayState(this.players, this.bullets, this.pool) as this
   }
 
   dispose() {
@@ -122,13 +124,11 @@ class MyDisplayState implements Snowglobe.DisplayState {
 
 const snapShotPool = createObjectPool<MySnapshot>(
   (pool: ObjectPool<MySnapshot>) => {
-    return new MySnapshot([0, 0], [0, 0], [0, 0], [0, 0], pool)
+    return new MySnapshot([], [], pool)
   },
   (snapshot: MySnapshot) => {
-    snapshot.player1Pos = [0, 0]
-    snapshot.player2Pos = [0, 0]
-    snapshot.bullet1Position = [0, 0]
-    snapshot.bullet1Velocity = [0, 0]
+    snapshot.players = []
+    snapshot.bullets = []
     return snapshot
   },
   1000
@@ -136,20 +136,19 @@ const snapShotPool = createObjectPool<MySnapshot>(
 
 const displayStatePool = createObjectPool<MyDisplayState>(
   (pool: ObjectPool<MyDisplayState>) => {
-    return new MyDisplayState([0, 0], [0, 0], [0, 0], pool)
+    return new MyDisplayState([], [], pool)
   },
-  (snapshot: MyDisplayState) => {
-    snapshot.player1Pos = [0, 0]
-    snapshot.player2Pos = [0, 0]
-    snapshot.bullet1Position = [0, 0]
-    return snapshot
+  (displayState: MyDisplayState) => {
+    displayState.players = []
+    displayState.bullets = []
+    return displayState
   },
   1000
 )
 
 const commandPool = createObjectPool<MyCommand>(
   (pool: ObjectPool<MyCommand>) => {
-    return new MyCommand('moveright', pool)
+    return new MyCommand('moveright', undefined, pool)
   },
   (snapshot: MyCommand) => {
     snapshot.kind = 'moveright'
@@ -167,21 +166,31 @@ function interpolate(
   state2: MyDisplayState,
   t: number
 ): MyDisplayState {
-  return new MyDisplayState(
-    [
-      (1 - t) * (state1.player1Pos[0] ?? 0) + t * (state2.player1Pos[0] ?? 0),
-      (1 - t) * (state1.player1Pos[1] ?? 0) + t * (state2.player1Pos[1] ?? 0)
-    ],
-    [
-      (1 - t) * (state1.player2Pos[0] ?? 0) + t * (state2.player2Pos[0] ?? 0),
-      (1 - t) * (state1.player2Pos[1] ?? 0) + t * (state2.player2Pos[1] ?? 0)
-    ],
-    [
-      (1 - t) * (state1.bullet1Position[0] ?? 0) + t * (state2.bullet1Position[0] ?? 0),
-      (1 - t) * (state1.bullet1Position[1] ?? 0) + t * (state2.bullet1Position[1] ?? 0)
-    ],
-    displayStatePool
-  )
+  const newDisplayState = displayStatePool.retain()
+  newDisplayState.bullets = state2.bullets.map((b, idx) => {
+    return {
+      position: [
+        (1 - t) * (state1.bullets[idx]?.position[0] ?? 0) + t * (b.position[0] ?? 0),
+        (1 - t) * (state1.bullets[idx]?.position[1] ?? 0) + t * (b.position[1] ?? 0)
+      ],
+      velocity: [
+        (1 - t) * (state1.bullets[idx]?.velocity[0] ?? 0) + t * (b.velocity[0] ?? 0),
+        (1 - t) * (state1.bullets[idx]?.velocity[1] ?? 0) + t * (b.velocity[1] ?? 0)
+      ],
+      owner: b.owner
+    }
+  })
+  newDisplayState.players = state2.players.map((p, idx) => {
+    return {
+      position: [
+        (1 - t) * (state1.players[idx]?.position[0] ?? 0) + t * (p.position[0] ?? 0),
+        (1 - t) * (state1.players[idx]?.position[1] ?? 0) + t * (p.position[1] ?? 0)
+      ],
+      owner: p.owner
+    }
+  })
+
+  return newDisplayState
 }
 
 // constants used by the game loop
@@ -189,23 +198,32 @@ const TIMESTEP_SECONDS = 1 / 60
 const TIMESTEP_MS = TIMESTEP_SECONDS * 1000
 const PLAYER_SPEED = 360
 const BULLET_SPEED = 900
-const TICKS_TO_MOVE = 65
-const TICKS_TO_FIRE = TICKS_TO_MOVE + 4
+const TICKS_TO_MOVE = 420
+const TICKS_TO_FIRE = 424
 const GUN_ANGLE = Math.PI / 4
-const PLAYER_SIZE: number = 30
-const HALF_PLAYER_SIZE: number = PLAYER_SIZE / 2
-const BULLET_SIZE = 5
+// const PLAYER_SIZE: number = 30
+// const HALF_PLAYER_SIZE: number = PLAYER_SIZE / 2
+// const BULLET_SIZE = 5
 
 let currentIdentity = 0
 
+interface Player extends Snowglobe.OwnedEntity {
+  position: number[]
+}
+
+interface Bullet extends Snowglobe.OwnedEntity {
+  position: number[]
+  velocity: number[]
+}
+
 class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
-  public player1Pos = [-200, -200]
-  public player2Pos: number[] = [0, 0]
-  public bullet1Position: number[] = [-200, -200]
-  public bullet1Velocity: number[] = [0, 0]
+  public players: Player[]
+  public bullets: Bullet[]
   public id?: string
 
   constructor(ident?: string) {
+    this.players = []
+    this.bullets = []
     if (ident === 'old') currentIdentity++
 
     this.id = `${ident ?? ''}${currentIdentity}`
@@ -213,24 +231,22 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
 
   clone() {
     const newWorld = new ClientWorld(this.id)
-    newWorld.player1Pos = structuredClone(this.player1Pos)
-    newWorld.player2Pos = structuredClone(this.player2Pos)
-    newWorld.bullet1Position = structuredClone(this.bullet1Position)
-    newWorld.bullet1Velocity = structuredClone(this.bullet1Velocity)
+    newWorld.players = structuredClone(this.players)
+    newWorld.bullets = structuredClone(this.bullets)
     return newWorld as this
   }
 
   step() {
     // check for intersection
-    if (
-      intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
-    ) {
-      // console.log(
-      //   `a client (${this.id ?? ''}) interesction occurred at p: ${JSON.stringify(
-      //     this.player2Pos
-      //   )}, b: ${JSON.stringify(this.bullet1Position)}`
-      // )
-    }
+    // if (
+    //   intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
+    // ) {
+    //   // console.log(
+    //   //   `a client (${this.id ?? ''}) interesction occurred at p: ${JSON.stringify(
+    //   //     this.player2Pos
+    //   //   )}, b: ${JSON.stringify(this.bullet1Position)}`
+    //   // )
+    // }
   }
 
   commandIsValid(command: MyCommand, clientId: number) {
@@ -238,29 +254,46 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applyCommand(command: MyCommand) {
-    if ((this.id === 'old2' || this.id === 'new2') && command.kind === 'moveright') {
-      console.log(`applying command: ${JSON.stringify(command)}`)
-    }
+    // if ((this.id === 'old2' || this.id === 'new2') && command.kind === 'moveright') {
+    //   console.log(`applying command: ${JSON.stringify(command)}`)
+    // }
 
     switch (command.kind) {
       case 'moveright':
-        this.player2Pos = [
-          (this.player2Pos[0] ?? 0) + PLAYER_SPEED * TIMESTEP_SECONDS,
-          this.player2Pos[1] ?? 0
-        ]
+        if (this.players.length === 0) {
+          this.players.push({
+            position: [-200, -200]
+          } as Player)
+          this.players.push({
+            position: [0, 0]
+          } as Player)
+        }
+
+        // eslint-disable-next-line no-case-declarations
+        const p = this.players[1]
+        if (p) {
+          p.position[0] =
+            (this.players[1]?.position[0] ?? 0) + PLAYER_SPEED * TIMESTEP_SECONDS
+        }
         break
       case 'movebullet':
-        this.bullet1Position = [
-          (this.bullet1Position[0] ?? 0) + (this.bullet1Velocity[0] ?? 0),
-          (this.bullet1Position[1] ?? 0) + (this.bullet1Velocity[1] ?? 0)
-        ]
+        // eslint-disable-next-line no-case-declarations
+        const b = this.bullets[0]
+        if (b) {
+          b.position[0] =
+            (this.bullets[0]?.position[0] ?? 0) + (this.bullets[0]?.velocity[0] ?? 0)
+          b.position[1] =
+            (this.bullets[0]?.position[1] ?? 0) + (this.bullets[0]?.velocity[1] ?? 0)
+        }
         break
       case 'fire':
-        this.bullet1Velocity = [
-          BULLET_SPEED * TIMESTEP_SECONDS * Math.cos(GUN_ANGLE),
-          BULLET_SPEED * TIMESTEP_SECONDS * Math.sin(GUN_ANGLE)
-        ]
-        // console.log(`client fire ${this.id ?? ''}, ${JSON.stringify(command)}`)
+        this.bullets.push({
+          position: [-200, -200],
+          velocity: [
+            BULLET_SPEED * TIMESTEP_SECONDS * Math.cos(GUN_ANGLE),
+            BULLET_SPEED * TIMESTEP_SECONDS * Math.sin(GUN_ANGLE)
+          ]
+        } as Bullet)
         break
     }
   }
@@ -270,55 +303,51 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     //   console.log(`recevied snapshot: ${JSON.stringify(snapshot)}`)
     // }
 
-    this.player1Pos = snapshot.player1Pos
-    this.player2Pos = structuredClone(snapshot.player2Pos)
-    this.bullet1Position = structuredClone(snapshot.bullet1Position)
-    this.bullet1Velocity = snapshot.bullet1Velocity
+    this.players = structuredClone(snapshot.players)
+    this.bullets = structuredClone(snapshot.bullets)
   }
 
   snapshot() {
     const snapshot = snapShotPool.retain()
-    snapshot.player1Pos = this.player1Pos
-    snapshot.player2Pos = structuredClone(this.player2Pos)
-    snapshot.bullet1Position = this.bullet1Position
-    snapshot.bullet1Velocity = this.bullet1Velocity
+    snapshot.players = structuredClone(this.players)
+    snapshot.bullets = structuredClone(this.bullets)
     return snapshot
   }
 
   displayState() {
     const displayState = displayStatePool.retain()
-    displayState.player1Pos = structuredClone(this.player1Pos)
-    displayState.player2Pos = structuredClone(this.player2Pos)
-    displayState.bullet1Position = structuredClone(this.bullet1Position)
+    displayState.players = structuredClone(this.players)
+    displayState.bullets = structuredClone(this.bullets)
     return displayState
   }
 }
 class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
-  public player1Pos = [-200, -200]
-  public player2Pos: number[] = [0, 0]
-  public bullet1Position: number[] = [-200, -200]
-  public bullet1Velocity: number[] = [0, 0]
+  public players: Player[]
+  public bullets: Bullet[]
+
+  constructor() {
+    this.bullets = []
+    this.players = []
+  }
 
   clone() {
     const newWorld = new ServerWorld()
-    newWorld.player1Pos = structuredClone(this.player1Pos)
-    newWorld.player2Pos = structuredClone(this.player2Pos)
-    newWorld.bullet1Position = structuredClone(this.bullet1Position)
-    newWorld.bullet1Velocity = structuredClone(this.bullet1Velocity)
+    newWorld.players = structuredClone(this.players)
+    newWorld.bullets = structuredClone(this.bullets)
     return newWorld as this
   }
 
   step() {
     // check for intersection
-    if (
-      intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
-    ) {
-      // console.log(
-      //   `a server intersesction occurred at p: ${JSON.stringify(
-      //     this.player2Pos
-      //   )}, b: ${JSON.stringify(this.bullet1Position)}`
-      // )
-    }
+    // if (
+    //   intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
+    // ) {
+    //   // console.log(
+    //   //   `a server intersesction occurred at p: ${JSON.stringify(
+    //   //     this.player2Pos
+    //   //   )}, b: ${JSON.stringify(this.bullet1Position)}`
+    //   // )
+    // }
   }
 
   commandIsValid(command: MyCommand, clientId: number) {
@@ -326,49 +355,65 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applyCommand(command: MyCommand) {
+    // console.log(`applying command ${JSON.stringify(command)}`)
     switch (command.kind) {
       case 'moveright':
-        // console.log(`server move right, ${JSON.stringify(command)}`)
-        this.player2Pos = [
-          (this.player2Pos[0] ?? 0) + PLAYER_SPEED * TIMESTEP_SECONDS,
-          this.player2Pos[1] ?? 0
-        ]
+        if (this.players.length === 0) {
+          this.players.push({
+            position: [-200, -200],
+            owner: 'player1'
+          } as Player)
+          this.players.push({
+            position: [0, 0],
+            owner: command.owner
+          } as Player)
+        }
+        // eslint-disable-next-line no-case-declarations
+        const p = this.players[1]
+        if (p) {
+          p.position[0] =
+            (this.players[1]?.position[0] ?? 0) + PLAYER_SPEED * TIMESTEP_SECONDS
+        }
         break
       case 'movebullet':
-        this.bullet1Position = [
-          (this.bullet1Position[0] ?? 0) + (this.bullet1Velocity[0] ?? 0),
-          (this.bullet1Position[1] ?? 0) + (this.bullet1Velocity[1] ?? 0)
-        ]
-        // console.log(`server bullet move, ${JSON.stringify(command)}`)
+        // eslint-disable-next-line no-case-declarations
+        const b = this.bullets[0]
+        if (b) {
+          b.position[0] =
+            (this.bullets[0]?.position[0] ?? 0) + (this.bullets[0]?.velocity[0] ?? 0)
+          b.position[1] =
+            (this.bullets[0]?.position[1] ?? 0) + (this.bullets[0]?.velocity[1] ?? 0)
+        }
         break
       case 'fire':
-        this.bullet1Velocity = [
-          BULLET_SPEED * TIMESTEP_SECONDS * Math.cos(GUN_ANGLE),
-          BULLET_SPEED * TIMESTEP_SECONDS * Math.sin(GUN_ANGLE)
-        ]
-        // console.log(`server fire, ${JSON.stringify(command)}`)
+        this.bullets.push({
+          position: [-200, -200],
+          velocity: [
+            BULLET_SPEED * TIMESTEP_SECONDS * Math.cos(GUN_ANGLE),
+            BULLET_SPEED * TIMESTEP_SECONDS * Math.sin(GUN_ANGLE)
+          ],
+          owner: command.owner
+        } as Bullet)
         break
     }
   }
 
   applySnapshot(snapshot: MySnapshot) {
-    /* not used ons server */
+    this.players = structuredClone(snapshot.players)
+    this.bullets = structuredClone(snapshot.bullets)
   }
 
   snapshot() {
     const snapshot = snapShotPool.retain()
-    snapshot.player1Pos = this.player1Pos
-    snapshot.player2Pos = this.player2Pos
-    snapshot.bullet1Position = this.bullet1Position
-    snapshot.bullet1Velocity = this.bullet1Velocity
+    snapshot.players = structuredClone(this.players)
+    snapshot.bullets = structuredClone(this.bullets)
     return snapshot
   }
 
   displayState() {
     const displayState = displayStatePool.retain()
-    displayState.player1Pos = this.player1Pos
-    displayState.player2Pos = this.player2Pos
-    displayState.bullet1Position = this.bullet1Position
+    displayState.players = structuredClone(this.players)
+    displayState.bullets = structuredClone(this.bullets)
     return displayState
   }
 }
@@ -397,7 +442,6 @@ function main() {
 
   const startupTime = performance.now()
   let previousTime = performance.now()
-  let ticksSinceStartup = 0
 
   const loop = createHighResolutionLoop(() => {
     const currentTime = performance.now()
@@ -408,15 +452,26 @@ function main() {
     const client1Stage = client1.stage()
     const client2Stage = client2.stage()
 
+    client1.update(deltaSeconds, secondsSinceStartup, client1Net)
+    client2.update(deltaSeconds, secondsSinceStartup, client2Net)
+    server.update(deltaSeconds, secondsSinceStartup, serverNet)
+
+    client1Net.tick(deltaSeconds)
+    client2Net.tick(deltaSeconds)
+    serverNet.tick(deltaSeconds)
+
     if (client2Stage.ready && client1Stage.ready) {
-      if (ticksSinceStartup === TICKS_TO_FIRE) {
-        client1Stage.ready.issueCommand(new MyCommand('fire', commandPool), client1Net)
+      if ((client1.stage().ready?.lastCompletedTimestamp() ?? 0) === TICKS_TO_FIRE) {
+        client1Stage.ready.issueCommand(
+          new MyCommand('fire', undefined, commandPool),
+          client1Net
+        )
       }
 
-      if (ticksSinceStartup >= TICKS_TO_MOVE) {
-        // console.log('issuing moveright command from the client')
+      if ((client2.stage().ready?.lastCompletedTimestamp() ?? 0) >= TICKS_TO_MOVE) {
+        console.log('issuing moveright command from the client')
         client2Stage.ready.issueCommand(
-          new MyCommand('moveright', commandPool),
+          new MyCommand('moveright', undefined, commandPool),
           client2Net
         )
       }
@@ -432,9 +487,9 @@ function main() {
 
       // on the client if the bullet has a velocity, then keep issuing move commands
       // if ((world1.bullet1Velocity[0] ?? 0) > 0) {
-      if (ticksSinceStartup > TICKS_TO_FIRE) {
+      if ((client1.stage().ready?.lastCompletedTimestamp() ?? 0) > TICKS_TO_FIRE) {
         client1Stage.ready.issueCommand(
-          new MyCommand('movebullet', commandPool),
+          new MyCommand('movebullet', undefined, commandPool),
           client1Net
         )
       }
@@ -457,30 +512,21 @@ function main() {
       // const worldDisplay2 = client2Stage.ready?.displayState()?.displayState()
       console.log(
         `t: ${server.lastCompletedTimestamp() + 1}, p2: ${
-          makeFloat2(serverWorld?.player2Pos) ?? 'undefined'
-        }, b1: ${makeFloat2(serverWorld?.bullet1Position) ?? 'undefined'}`,
+          makeFloat2(serverWorld?.players[1]?.position) ?? 'undefined'
+        }, b1: ${makeFloat2(serverWorld?.bullets[0]?.position) ?? 'undefined'}`,
         `\n\tt: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
-          makeFloat2(world1?.player2Pos) ?? 'undefined'
-        }, b1: ${makeFloat2(world1?.bullet1Position) ?? 'undefined'}`,
+          makeFloat2(world1?.players[1]?.position) ?? 'undefined'
+        }, b1: ${makeFloat2(world1?.bullets[0]?.position) ?? 'undefined'}`,
         `\n\t\tt: ${
           client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
-        }, p2: ${makeFloat2(world2?.player2Pos) ?? 'undefined'}, b1: ${
-          makeFloat2(world2?.bullet1Position) ?? 'undefined'
+        }, p2: ${makeFloat2(world2?.players[1]?.position) ?? 'undefined'}, b1: ${
+          makeFloat2(world2?.bullets[0]?.position) ?? 'undefined'
         }
         `
       )
-      ticksSinceStartup++
     } else {
       // console.log('syncing clocks')
     }
-
-    client1.update(deltaSeconds, secondsSinceStartup, client1Net)
-    client2.update(deltaSeconds, secondsSinceStartup, client2Net)
-    server.update(deltaSeconds, secondsSinceStartup, serverNet)
-
-    client1Net.tick(deltaSeconds)
-    client2Net.tick(deltaSeconds)
-    serverNet.tick(deltaSeconds)
 
     previousTime = currentTime
   }, TIMESTEP_MS)

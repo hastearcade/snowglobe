@@ -1,8 +1,9 @@
 import { type Cloneable } from './cloneable'
 import { type Disposable } from './disposable'
 import * as Timestamp from './timestamp'
+import { type OwnedEntity } from './types'
 
-export interface Command extends Cloneable, Disposable {}
+export interface Command extends Cloneable, Disposable, OwnedEntity {}
 
 export class CommandBuffer<$Command extends Command> implements Cloneable {
   constructor(

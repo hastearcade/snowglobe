@@ -168,7 +168,7 @@ export class Server<
     return this.worldHistory
   }
 
-  compensateForLag(oldestPing: number) {
+  compensateForLag() {
     const sortedBufferCommands: Array<Timestamp.Timestamped<$Command>> =
       this.currentFrameCommandBuffer.sort((a, b) =>
         Timestamp.cmp(a.timestamp, b.timestamp)
@@ -186,13 +186,6 @@ export class Server<
       this.currentFrameCommandBuffer = []
       return
     }
-
-    // TODO
-    // Currently we are filtering out the move right commands from the client
-    // but if we take the filter out, it fixes player2 movement on the server
-    // but messes up bullets. need to figure out why there is a discrepency
-    // since they are both command based feels like it should be the same
-    // so realistically it has more to do with the long delay of client2
 
     const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
       this.commandHistory
@@ -235,17 +228,11 @@ export class Server<
     }
     const newCommands: Array<[Timestamp.Timestamped<$Command>, ConnectionHandle]> = []
     const clockSyncs: Array<[ConnectionHandle, ClockSyncMessage]> = []
-    let oldestPing = 0
     for (const [handle, connection] of net.connections()) {
-      const ping = connection.getPing()
-      const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
-      if (pingTimestampDiff > oldestPing) {
-        oldestPing = pingTimestampDiff
-      }
-
       let command: Timestamp.Timestamped<$Command> | undefined
       let clockSyncMessage: ClockSyncMessage | undefined
       while ((command = connection.recvCommand()) != null) {
+        command.owner = handle
         newCommands.push([command, handle])
       }
       while ((clockSyncMessage = connection.recvClockSync()) != null) {
@@ -265,7 +252,7 @@ export class Server<
       }
     }
 
-    this.compensateForLag(oldestPing)
+    this.compensateForLag()
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
 
     // add the simulation world state to a history buffer
@@ -288,16 +275,19 @@ export class Server<
       )
     })
 
+    const bufferTime = Math.round(
+      this.config.serverTimeDelayLatency / this.config.timestepSeconds
+    )
     // delete old worlds
     this.worldHistory.forEach((val, timestamp) => {
       if (
         Timestamp.cmp(
           timestamp,
           Timestamp.sub(
-            this.timekeepingSimulation.stepper.simulatingTimestamp(),
-            this.config.serverBufferFrameCount * 2
+            this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
+            this.config.serverBufferFrameCount * 2 + bufferTime
           )
-        ) <= 0
+        ) < 0
       ) {
         this.worldHistory.delete(timestamp)
       }
@@ -307,38 +297,166 @@ export class Server<
     if (this.secondsSinceLastSnapshot > this.config.snapshotSendPeriod) {
       this.secondsSinceLastSnapshot = 0
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for (const [_, connection] of net.connections()) {
-        const ping = connection.getPing()
-        const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
-        const timestampAdjustment =
-          pingTimestampDiff -
-          Math.round(this.config.serverTimeDelayLatency / this.config.timestepSeconds)
-        const snapshotTimestamp = Timestamp.sub(
-          this.lastCompletedTimestamp(),
-          timestampAdjustment
-        )
+      /*
+      When sending a snapshot, the snapshot data needs to take the receiving players perspective
+      into account. This means that for each property in the world state we need to define
+      who owns the data. This will allow us to parse out data owned by the receiving player
+      and data not owned by the receiving player. Once that data is parsed we will need
+      to merge them together to make the final snapshot.
 
-        let snapshotToSend = this.worldHistory
-          .get(this.lastCompletedTimestamp())
+      - Snapshot timestamp for each client, needs to be current timestamp - half rtt - buffer
+      - Datasnapshot time for the owner current time - buffer
+      - Datasnapshot time for the non owner current time - full rtt - buffer
+      */
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for (const [handle, connection] of net.connections()) {
+        const ping = connection.getPing()
+        const currentTimeStamp = this.lastCompletedTimestamp()
+        const bufferTime = Math.round(
+          this.config.serverTimeDelayLatency / this.config.timestepSeconds
+        )
+        const halfRTT = Math.round(ping / 1000 / this.config.timestepSeconds)
+        const snapshotTimestamp = Timestamp.sub(currentTimeStamp, halfRTT + bufferTime)
+
+        const nonOwnerSnapshot = this.worldHistory
+          .get(Timestamp.sub(currentTimeStamp, halfRTT * 2 + bufferTime))
           ?.snapshot()
 
-        if (!snapshotToSend) {
-          snapshotToSend = this.timekeepingSimulation.stepper.lastCompletedSnapshot()
-        } else {
-          snapshotToSend = Timestamp.set(snapshotToSend, snapshotTimestamp)
+        const ownerSnapshot = this.worldHistory
+          .get(Timestamp.sub(this.lastCompletedTimestamp(), bufferTime))
+          ?.snapshot()
+
+        if (!nonOwnerSnapshot || !ownerSnapshot) {
+          // should never really get here
+          console.warn(
+            `You have generated an invalid snapshot. For shame. The current timestamp is ${currentTimeStamp}. Nonowner is ${JSON.stringify(
+              nonOwnerSnapshot
+            )}, Owner is ${JSON.stringify(ownerSnapshot)}`
+          )
+          continue
         }
 
-        console.log(
-          `sending ${JSON.stringify(snapshotToSend)}, ${JSON.stringify(
-            this.worldHistory.get(snapshotTimestamp)
-          )} for ${Timestamp.sub(
-            snapshotTimestamp,
-            Math.round(this.config.serverTimeDelayLatency / this.config.timestepSeconds)
-          )} at ${this.lastCompletedTimestamp()}`
+        const mergedWorldData = this.mergeSnapshot(
+          handle,
+          ownerSnapshot,
+          nonOwnerSnapshot
         )
-        connection.send(SNAPSHOT_MESSAGE_TYPE_ID, snapshotToSend)
+
+        // merged snapshot is not actually a true snapshot, its just data so apply it to some random world and have it
+        // genereate the actual snapshot object
+        const fakeWorld = this.worldHistory.get(
+          Timestamp.sub(this.lastCompletedTimestamp(), bufferTime)
+        )
+        if (!fakeWorld) {
+          continue
+        }
+
+        const clonedFakeWorld = fakeWorld.clone()
+        clonedFakeWorld.applySnapshot(mergedWorldData)
+        const finalSnapshot = Timestamp.set(clonedFakeWorld.snapshot(), snapshotTimestamp)
+
+        console.log(
+          `sending ${JSON.stringify(
+            finalSnapshot
+          )} for ${snapshotTimestamp} at ${currentTimeStamp}`
+        )
+        connection.send(SNAPSHOT_MESSAGE_TYPE_ID, finalSnapshot)
       }
     }
   }
+
+  mergeSnapshot(
+    handle: number,
+    ownerSnapshot: $Snapshot,
+    nonOwnerSnapshot: $Snapshot
+  ): any {
+    // console.log(`owner snapshot is ${JSON.stringify(ownerSnapshot)}`)
+    // console.log(`nonowner snapshot is ${JSON.stringify(nonOwnerSnapshot)}`)
+    const ownerData = Object.entries(ownerSnapshot)
+      .map(([key, value]) => {
+        if (
+          value instanceof Array &&
+          value.length > 0 &&
+          // eslint-disable-next-line no-prototype-builtins
+          value[0].hasOwnProperty('owner')
+        ) {
+          return { key, value: value.filter(o => o.owner === handle) }
+          // eslint-disable-next-line no-prototype-builtins
+        } else if (value?.hasOwnProperty('owner')) {
+          if (value.owner === handle) {
+            return { key, value }
+          }
+        }
+
+        return { key: '', value: '' }
+      })
+      .filter(o => o.key !== '')
+
+    const nonOwnerData = Object.entries(nonOwnerSnapshot)
+      .map(([key, value]) => {
+        if (
+          value instanceof Array &&
+          value.length > 0 &&
+          // eslint-disable-next-line no-prototype-builtins
+          value[0].hasOwnProperty('owner')
+        ) {
+          return { key, value: value.filter(o => o.owner !== handle) }
+          // eslint-disable-next-line no-prototype-builtins
+        } else if (value instanceof Array && value.length === 0) {
+          return { key, value: [] }
+          // eslint-disable-next-line no-prototype-builtins
+        } else if (value?.hasOwnProperty('owner')) {
+          if (value.owner !== handle) {
+            return { key, value }
+          }
+        }
+
+        return { key: '', value: '' }
+      })
+      .filter(o => o.key !== '')
+    // console.log(`owner data  is ${JSON.stringify(ownerData)}\n`)
+    // console.log(`nonowner data  is ${JSON.stringify(nonOwnerData)}\n`)
+
+    // everybody merge
+    const finalSnapshot: Record<string, any> = {}
+    nonOwnerData.forEach(k => {
+      finalSnapshot[k.key] = k.value
+    })
+    mergeDeep(finalSnapshot, [ownerData, nonOwnerData])
+    // console.log(`final snapshot after merge is ${JSON.stringify(finalSnapshot)}`)
+    return finalSnapshot
+  }
+}
+
+/**
+ * Simple object check.
+ * @param item
+ * @returns {boolean}
+ */
+function isObject(item: any) {
+  return item && typeof item === 'object' && !Array.isArray(item)
+}
+
+/**
+ * Deep merge two objects.
+ * @param target
+ * @param ...sources
+ */
+function mergeDeep(target: any, ...sources: any[]) {
+  if (!sources.length) return target
+  const source = sources.shift()
+
+  if (isObject(target) && isObject(source)) {
+    for (const key in source) {
+      if (isObject(source[key])) {
+        if (!target[key]) Object.assign(target, { [key]: {} })
+        mergeDeep(target[key], source[key])
+      } else {
+        Object.assign(target, { [key]: source[key] })
+      }
+    }
+  }
+
+  return mergeDeep(target, ...sources)
 }
