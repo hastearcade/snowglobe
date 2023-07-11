@@ -223,6 +223,13 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
 
   constructor(ident?: string) {
     this.players = []
+    this.players.push({
+      position: [-200, -200]
+    } as Player)
+    this.players.push({
+      position: [0, 0]
+    } as Player)
+
     this.bullets = []
     if (ident === 'old') currentIdentity++
 
@@ -260,14 +267,13 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
 
     switch (command.kind) {
       case 'moveright':
-        if (this.players.length === 0) {
-          this.players.push({
-            position: [-200, -200]
-          } as Player)
-          this.players.push({
-            position: [0, 0]
-          } as Player)
-        }
+        // if ((this.id === 'old1' || this.id === 'new1') && command.kind === 'moveright') {
+        //   console.log(
+        //     `applying command for: ${this.id}: ${JSON.stringify(
+        //       command
+        //     )} for players: ${JSON.stringify(this.players)}`
+        //   )
+        // }
 
         // eslint-disable-next-line no-case-declarations
         const p = this.players[1]
@@ -275,6 +281,14 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
           p.position[0] =
             (this.players[1]?.position[0] ?? 0) + PLAYER_SPEED * TIMESTEP_SECONDS
         }
+
+        // if ((this.id === 'old1' || this.id === 'new1') && command.kind === 'moveright') {
+        //   console.log(
+        //     `after applying command for: ${this.id}: ${JSON.stringify(
+        //       command
+        //     )} for players: ${JSON.stringify(this.players)}`
+        //   )
+        // }
         break
       case 'movebullet':
         // eslint-disable-next-line no-case-declarations
@@ -328,6 +342,14 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   constructor() {
     this.bullets = []
     this.players = []
+    this.players.push({
+      position: [-200, -200],
+      owner: 0
+    } as Player)
+    this.players.push({
+      position: [0, 0],
+      owner: 1
+    } as Player)
   }
 
   clone() {
@@ -358,16 +380,6 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     // console.log(`applying command ${JSON.stringify(command)}`)
     switch (command.kind) {
       case 'moveright':
-        if (this.players.length === 0) {
-          this.players.push({
-            position: [-200, -200],
-            owner: 'player1'
-          } as Player)
-          this.players.push({
-            position: [0, 0],
-            owner: command.owner
-          } as Player)
-        }
         // eslint-disable-next-line no-case-declarations
         const p = this.players[1]
         if (p) {
@@ -427,7 +439,7 @@ function main() {
   client1Net.connect()
   client2Net.connect()
 
-  client1Net.setDelay(0.01)
+  client1Net.setDelay(0.1666667)
   client2Net.setDelay(1)
 
   const config = Snowglobe.makeConfig({
@@ -469,7 +481,7 @@ function main() {
       }
 
       if ((client2.stage().ready?.lastCompletedTimestamp() ?? 0) >= TICKS_TO_MOVE) {
-        console.log('issuing moveright command from the client')
+        // console.log('issuing moveright command from the client')
         client2Stage.ready.issueCommand(
           new MyCommand('moveright', undefined, commandPool),
           client2Net

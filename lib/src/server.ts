@@ -97,6 +97,7 @@ export class Server<
       }
 
       if (this.config.lagCompensateCommands) {
+        const timeSinceIssue = this.lastCompletedTimestamp() - command.timestamp
         const ping = connection.getPing()
         const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
         const bufferAdjustment = Math.round(
@@ -106,7 +107,10 @@ export class Server<
           COMMAND_MESSAGE_TYPE_ID,
           Timestamp.set(
             command.clone(),
-            Timestamp.add(Timestamp.get(command), pingTimestampDiff + bufferAdjustment)
+            Timestamp.add(
+              Timestamp.get(command),
+              pingTimestampDiff + bufferAdjustment + timeSinceIssue
+            )
           )
         )
         // console.log(
@@ -356,11 +360,6 @@ export class Server<
         clonedFakeWorld.applySnapshot(mergedWorldData)
         const finalSnapshot = Timestamp.set(clonedFakeWorld.snapshot(), snapshotTimestamp)
 
-        console.log(
-          `sending ${JSON.stringify(
-            finalSnapshot
-          )} for ${snapshotTimestamp} at ${currentTimeStamp}`
-        )
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, finalSnapshot)
       }
     }
@@ -371,8 +370,6 @@ export class Server<
     ownerSnapshot: $Snapshot,
     nonOwnerSnapshot: $Snapshot
   ): any {
-    // console.log(`owner snapshot is ${JSON.stringify(ownerSnapshot)}`)
-    // console.log(`nonowner snapshot is ${JSON.stringify(nonOwnerSnapshot)}`)
     const ownerData = Object.entries(ownerSnapshot)
       .map(([key, value]) => {
         if (
@@ -415,16 +412,19 @@ export class Server<
         return { key: '', value: '' }
       })
       .filter(o => o.key !== '')
-    // console.log(`owner data  is ${JSON.stringify(ownerData)}\n`)
-    // console.log(`nonowner data  is ${JSON.stringify(nonOwnerData)}\n`)
 
     // everybody merge
-    const finalSnapshot: Record<string, any> = {}
+    const nonOwnerUnwoundData: Record<string, any> = {}
     nonOwnerData.forEach(k => {
-      finalSnapshot[k.key] = k.value
+      nonOwnerUnwoundData[k.key] = k.value
     })
-    mergeDeep(finalSnapshot, [ownerData, nonOwnerData])
-    // console.log(`final snapshot after merge is ${JSON.stringify(finalSnapshot)}`)
+    const ownerUnwoundData: Record<string, any> = {}
+    ownerData.forEach(k => {
+      ownerUnwoundData[k.key] = k.value
+    })
+
+    const finalSnapshot = {}
+    mergeDeep(finalSnapshot, nonOwnerUnwoundData, ownerUnwoundData)
     return finalSnapshot
   }
 }
@@ -436,6 +436,10 @@ export class Server<
  */
 function isObject(item: any) {
   return item && typeof item === 'object' && !Array.isArray(item)
+}
+
+function isArray(item: any) {
+  return item && Array.isArray(item)
 }
 
 /**
@@ -453,7 +457,25 @@ function mergeDeep(target: any, ...sources: any[]) {
         if (!target[key]) Object.assign(target, { [key]: {} })
         mergeDeep(target[key], source[key])
       } else {
-        Object.assign(target, { [key]: source[key] })
+        if (isArray(target[key]) && isArray(source[key])) {
+          Object.assign(
+            target[key],
+            target[key].concat(source[key]).sort((a: any, b: any) => {
+              if (a.owner < b.owner) {
+                return -1
+              } else if (a.owner === b.owner) {
+                return 0
+              } else {
+                return 1
+              }
+            })
+          )
+        } else if (!isArray(target[key]) && isArray(source[key])) {
+          if (!target[key]) Object.assign(target, { [key]: [] })
+          Object.assign(target[key], [].concat(source[key]))
+        } else {
+          Object.assign(target, { [key]: source[key] })
+        }
       }
     }
   }
