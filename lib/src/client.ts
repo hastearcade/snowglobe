@@ -289,11 +289,6 @@ class ClientWorldSimulations<
     const loadSnapshot = (snapshot: Timestamp.Timestamped<$Snapshot>) => {
       const worldSimulation = this.worldSimulations.get()
       const commands = this.baseCommandBuffer.drainUpTo(Timestamp.get(snapshot))
-      // console.log(
-      //   `after ${Timestamp.get(snapshot)} we are starting with: ${JSON.stringify(
-      //     JSON.stringify(snapshot)
-      //   )}`
-      // )
 
       worldSimulation.new.applyCompletedSnapshot(snapshot, this.baseCommandBuffer.clone())
       commands.forEach(c => {

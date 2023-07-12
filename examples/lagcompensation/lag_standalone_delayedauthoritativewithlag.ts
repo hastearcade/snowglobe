@@ -264,20 +264,8 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applyCommand(command: MyCommand) {
-    // if ((this.id === 'old2' || this.id === 'new2') && command.kind === 'moveright') {
-    //   console.log(`applying command: ${JSON.stringify(command)}`)
-    // }
-
     switch (command.kind) {
       case 'moveright':
-        // if ((this.id === 'old1' || this.id === 'new1') && command.kind === 'moveright') {
-        //   console.log(
-        //     `applying command for: ${this.id}: ${JSON.stringify(
-        //       command
-        //     )} for players: ${JSON.stringify(this.players)}`
-        //   )
-        // }
-
         // eslint-disable-next-line no-case-declarations
         const p = this.players[1]
         if (p) {
@@ -285,13 +273,6 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
             (this.players[1]?.position[0] ?? 0) + PLAYER_SPEED * TIMESTEP_SECONDS
         }
 
-        // if ((this.id === 'old1' || this.id === 'new1') && command.kind === 'moveright') {
-        //   console.log(
-        //     `after applying command for: ${this.id}: ${JSON.stringify(
-        //       command
-        //     )} for players: ${JSON.stringify(this.players)}`
-        //   )
-        // }
         break
       case 'movebullet':
         // eslint-disable-next-line no-case-declarations
@@ -316,10 +297,6 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applySnapshot(snapshot: MySnapshot) {
-    // if (this.id === 'old2' || this.id === 'new2') {
-    //   console.log(`recevied snapshot: ${JSON.stringify(snapshot)}`)
-    // }
-
     this.players = structuredClone(snapshot.players)
     this.bullets = structuredClone(snapshot.bullets)
   }
@@ -383,7 +360,6 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applyCommand(command: MyCommand) {
-    // console.log(`applying command ${JSON.stringify(command)}`)
     switch (command.kind) {
       case 'moveright':
         // eslint-disable-next-line no-case-declarations
@@ -487,7 +463,6 @@ function main() {
       }
 
       if ((client2.stage().ready?.lastCompletedTimestamp() ?? 0) >= TICKS_TO_MOVE) {
-        // console.log('issuing moveright command from the client')
         client2Stage.ready.issueCommand(
           new MyCommand('moveright', undefined, commandPool),
           client2Net
@@ -512,22 +487,8 @@ function main() {
         )
       }
 
-      // console.log(
-      //   `t (server): ${server.lastCompletedTimestamp()}, p2 new: ${JSON.stringify(
-      //     serverDisplayState?.player2Pos
-      //   )} `,
-      //   `t (${world1.id ?? ''}): ${
-      //     client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
-      //   }, p2: ${JSON.stringify(world1.player2Pos)}`,
-      //   `t (${world2.id ?? ''}): ${
-      //     client2.stage().ready?.lastCompletedTimestamp() ?? 'undefined'
-      //   }, p2 new: ${JSON.stringify(world2.player2Pos)}, p2 old: ${JSON.stringify(
-      //     world2old.player2Pos
-      //   )}`
-      // )
-
-      // const worldDisplay1 = client1Stage.ready?.displayState()?.displayState()
-      // const worldDisplay2 = client2Stage.ready?.displayState()?.displayState()
+      // for this standalone we are using world position instead of display position
+      // this helps facilitate validation of the data against a predefined Excel model
       console.log(
         `t: ${server.lastCompletedTimestamp() + 1}, p2: ${
           makeFloat2(serverWorld?.players[1]?.position) ?? 'undefined'
@@ -542,8 +503,6 @@ function main() {
         }
         `
       )
-    } else {
-      // console.log('syncing clocks')
     }
 
     previousTime = currentTime

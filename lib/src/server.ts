@@ -113,12 +113,6 @@ export class Server<
             )
           )
         )
-        // console.log(
-        //   `sending command: ${JSON.stringify(command)} with timestamp ${Timestamp.add(
-        //     Timestamp.get(command),
-        //     pingTimestampDiff + bufferAdjustment
-        //   )}`
-        // )
       } else {
         result = connection.send(
           COMMAND_MESSAGE_TYPE_ID,
@@ -197,25 +191,9 @@ export class Server<
         .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
-    // console.log(
-    //   `world at ${this.timekeepingSimulation.stepper.simulatingTimestamp()} is ${JSON.stringify(
-    //     this.timekeepingSimulation.stepper.getWorld()
-    //   )}`
-    // )
-    // console.log(`oldworld at ${currentTimestamp} is ${JSON.stringify(oldWorld)}`)
-    // console.log(
-    //   `commands at ${this.timekeepingSimulation.stepper.simulatingTimestamp()} is ${JSON.stringify(
-    //     this.commandHistory
-    //   )}`
-    // )
     this.timekeepingSimulation.stepper.rewind(oldWorld)
     this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
     this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
-    // console.log(
-    //   `afer execution at ${this.timekeepingSimulation.stepper.simulatingTimestamp()} is ${JSON.stringify(
-    //     this.timekeepingSimulation.stepper.getWorld()
-    //   )}`
-    // )
     this.currentFrameCommandBuffer = []
   }
 
