@@ -3,6 +3,7 @@ import { performance } from 'perf_hooks'
 import { makeMockNetwork } from '../../test/mock_network'
 import { createHighResolutionLoop } from '../demo/src/utilities/game_loop'
 import { type ObjectPool, createObjectPool } from '../demo/src/utilities/object_pool'
+import { type OwnerIdentity } from '../../lib/src/types'
 
 const intersect = (
   first: number[],
@@ -43,11 +44,11 @@ const makeFloat2 = (bullet1Origin: number[] | undefined) => {
 type PossibleCommands = 'moveright' | 'fire' | 'movebullet'
 class MyCommand implements Snowglobe.Command {
   kind: PossibleCommands
-  owner: string | number | undefined
+  owner: OwnerIdentity
 
   constructor(
     kind: PossibleCommands,
-    owner: string | number | undefined,
+    owner: OwnerIdentity,
     private readonly pool: ObjectPool<MyCommand>
   ) {
     this.kind = kind
@@ -93,12 +94,12 @@ class MySnapshot implements Snowglobe.Snapshot {
 }
 
 class MyDisplayState implements Snowglobe.DisplayState {
-  players: Player[]
-  bullets: Bullet[]
+  players: DisplayStatePlayer[]
+  bullets: DisplayStateBullet[]
 
   constructor(
-    players: Player[],
-    bullets: Bullet[],
+    players: DisplayStatePlayer[],
+    bullets: DisplayStateBullet[],
     private readonly pool: ObjectPool<MyDisplayState>
   ) {
     this.players = players.map(p => {
@@ -176,8 +177,7 @@ function interpolate(
       velocity: [
         (1 - t) * (state1.bullets[idx]?.velocity[0] ?? 0) + t * (b.velocity[0] ?? 0),
         (1 - t) * (state1.bullets[idx]?.velocity[1] ?? 0) + t * (b.velocity[1] ?? 0)
-      ],
-      owner: b.owner
+      ]
     }
   })
   newDisplayState.players = state2.players.map((p, idx) => {
@@ -185,8 +185,7 @@ function interpolate(
       position: [
         (1 - t) * (state1.players[idx]?.position[0] ?? 0) + t * (p.position[0] ?? 0),
         (1 - t) * (state1.players[idx]?.position[1] ?? 0) + t * (p.position[1] ?? 0)
-      ],
-      owner: p.owner
+      ]
     }
   })
 
@@ -214,6 +213,15 @@ interface Player extends Snowglobe.OwnedEntity {
 interface Bullet extends Snowglobe.OwnedEntity {
   position: number[]
   velocity: number[]
+}
+
+interface DisplayStateBullet {
+  position: number[]
+  velocity: number[]
+}
+
+interface DisplayStatePlayer {
+  position: number[]
 }
 
 class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {

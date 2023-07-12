@@ -156,6 +156,13 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   private velocity = 0
   private cachedMomentum: number | undefined
 
+  clone() {
+    const newWorld = new MyWorld()
+    newWorld.position = this.position
+    newWorld.velocity = this.velocity
+    return newWorld as this
+  }
+
   // Step is run on every tick of the game or simuation
   // This code should perform any integration with
   // your physics library of choice to update the state

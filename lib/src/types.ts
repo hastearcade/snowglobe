@@ -5,8 +5,10 @@ export declare class OpaqueTag<$Tag> {
 }
 export type Opaque<$Type, $Tag> = $Type & OpaqueTag<$Tag>
 
+export type OwnerIdentity = string | number | undefined
+
 export interface OwnedEntity {
-  owner: string | number | undefined
+  owner?: OwnerIdentity
 }
 
 export type TypeId<$Type> = Opaque<number, $Type>
