@@ -13,5 +13,5 @@ export type { Connection, ConnectionHandle, NetworkResource } from './network_re
 export { Server } from './server'
 export { get as getTimestamp, set as setTimestamp } from './timestamp'
 export type { Timestamped, Timestamp } from './timestamp'
-export type { TypeId, OwnedEntity } from './types'
+export type { TypeId, OwnedEntity, OwnerIdentity } from './types'
 export type { DisplayState, Snapshot, World } from './world'
