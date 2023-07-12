@@ -260,8 +260,6 @@ function main() {
   // factory.
   const makeWorld = () => new MyWorld()
 
-  client1Net.setDelay(0.05)
-  client2Net.setDelay(0.1)
   client1Net.connect()
   client2Net.connect()
 

@@ -11,7 +11,7 @@ export interface Config {
   timestampSkipThresholdSeconds: number
   fastForwardMaxPerStep: number
   tweeningMethod: TweeningMethod
-  serverBufferFrameCount: number
+  serverCommandHistoryFrameBufferSize: number
   lagCompensateCommands: boolean
 }
 
@@ -30,7 +30,7 @@ export function makeConfig(config: Partial<Config> = {}): Config {
       timestampSkipThresholdSeconds: 1.0,
       fastForwardMaxPerStep: 10,
       tweeningMethod: TweeningMethod.Interpolated,
-      serverBufferFrameCount: 60,
+      serverCommandHistoryFrameBufferSize: 60,
       lagCompensateCommands: false // this variable is used to delay commands for "other" players in the system so they see everything in the past
     },
     config

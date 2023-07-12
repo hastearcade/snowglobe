@@ -251,7 +251,7 @@ export class Server<
           curr.timestamp,
           Timestamp.sub(
             this.timekeepingSimulation.stepper.simulatingTimestamp(),
-            this.config.serverBufferFrameCount * 2
+            this.config.serverCommandHistoryFrameBufferSize * 2
           )
         ) > 0
       )
@@ -267,7 +267,7 @@ export class Server<
           timestamp,
           Timestamp.sub(
             this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
-            this.config.serverBufferFrameCount * 2 + bufferTime
+            this.config.serverCommandHistoryFrameBufferSize * 2 + bufferTime
           )
         ) < 0
       ) {
