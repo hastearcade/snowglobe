@@ -12,6 +12,12 @@ import * as Timestamp from './timestamp'
 import { type Snapshot, type World } from './world'
 import { type DisplayState } from './display_state'
 import { InitializationType, Simulation } from './simulation'
+import { type OwnedEntity } from './types'
+
+interface KeyValue {
+  key: string
+  value: any
+}
 
 export class Server<
   $Command extends Command,
@@ -348,48 +354,47 @@ export class Server<
     ownerSnapshot: $Snapshot,
     nonOwnerSnapshot: $Snapshot
   ): any {
-    const ownerData = Object.entries(ownerSnapshot)
-      .map(([key, value]) => {
-        if (
-          value instanceof Array &&
-          value.length > 0 &&
-          // eslint-disable-next-line no-prototype-builtins
-          value[0].hasOwnProperty('owner')
-        ) {
-          return { key, value: value.filter(o => o.owner === handle) }
-          // eslint-disable-next-line no-prototype-builtins
-        } else if (value?.hasOwnProperty('owner')) {
-          if (value.owner === handle) {
-            return { key, value }
-          }
+    const ownerData: KeyValue[] = []
+
+    // eslint-disable-next-line no-unreachable-loop
+    for (const key in ownerSnapshot) {
+      const value = ownerSnapshot[key]
+      if (
+        value instanceof Array &&
+        value.length > 0 &&
+        // eslint-disable-next-line no-prototype-builtins
+        value[0].hasOwnProperty('owner')
+      ) {
+        ownerData.push({ key, value: value.filter(o => o.owner === handle) })
+        // eslint-disable-next-line no-prototype-builtins
+      } else if (value?.hasOwnProperty('owner')) {
+        if ((value as OwnedEntity).owner === handle) {
+          ownerData.push({ key, value })
         }
+      }
+    }
 
-        return { key: '', value: '' }
-      })
-      .filter(o => o.key !== '')
-
-    const nonOwnerData = Object.entries(nonOwnerSnapshot)
-      .map(([key, value]) => {
-        if (
-          value instanceof Array &&
-          value.length > 0 &&
-          // eslint-disable-next-line no-prototype-builtins
-          value[0].hasOwnProperty('owner')
-        ) {
-          return { key, value: value.filter(o => o.owner !== handle) }
-          // eslint-disable-next-line no-prototype-builtins
-        } else if (value instanceof Array && value.length === 0) {
-          return { key, value: [] }
-          // eslint-disable-next-line no-prototype-builtins
-        } else if (value?.hasOwnProperty('owner')) {
-          if (value.owner !== handle) {
-            return { key, value }
-          }
+    const nonOwnerData: KeyValue[] = []
+    // eslint-disable-next-line no-unreachable-loop
+    for (const key in nonOwnerSnapshot) {
+      const value = nonOwnerSnapshot[key]
+      if (
+        value instanceof Array &&
+        value.length > 0 &&
+        // eslint-disable-next-line no-prototype-builtins
+        value[0].hasOwnProperty('owner')
+      ) {
+        nonOwnerData.push({ key, value: value.filter(o => o.owner !== handle) })
+        // eslint-disable-next-line no-prototype-builtins
+      } else if (value instanceof Array && value.length === 0) {
+        nonOwnerData.push({ key, value: [] })
+        // eslint-disable-next-line no-prototype-builtins
+      } else if (value?.hasOwnProperty('owner')) {
+        if ((value as OwnedEntity).owner !== handle) {
+          return { key, value }
         }
-
-        return { key: '', value: '' }
-      })
-      .filter(o => o.key !== '')
+      }
+    }
 
     // everybody merge
     const nonOwnerUnwoundData: Record<string, any> = {}
