@@ -235,7 +235,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
       position: [-200, -200]
     } as Player)
     this.players.push({
-      position: [-100, 100]
+      position: [0, 100]
     } as Player)
 
     this.bullets = []
@@ -335,7 +335,7 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
       owner: 0
     } as Player)
     this.players.push({
-      position: [-100, 100],
+      position: [0, 100],
       owner: 1
     } as Player)
   }
