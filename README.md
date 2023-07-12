@@ -35,9 +35,9 @@ Below is a (non-comprehensive) sample of the ported CrystalOrb API. This example
 See the Code Architecture section below for a more detailed description of the Snowglobe types and integration points.
 
 ```ts
-import * as Snowglobe from "snowglobe"
+import * as Snowglobe from 'snowglobe'
 
-type MyCommand = Snowglobe.Command & { kind: "jump" }
+type MyCommand = Snowglobe.Command & { kind: 'jump' }
 
 type MySnapshot = Snowglobe.Snapshot & {
   position: number
@@ -53,7 +53,7 @@ function interpolate(state1: MyDisplayState, state2: MyDisplayState, t: number) 
   return {
     // simple lerp function
     position: (1 - t) * state1.position + t * state2.position,
-    velocity: (1 - t) * state1.velocity + t * state2.velocity,
+    velocity: (1 - t) * state1.velocity + t * state2.velocity
   }
 }
 
@@ -104,14 +104,24 @@ The game loop for `standalone.ts` has more code to facilitate the mock network n
 ```typescript
 client1Stage.ready.issueCommand(
   {
-    kind: "accelerate",
+    kind: 'accelerate',
     clone() {
       return { ...this }
-    },
+    }
   },
-  client1Net,
+  client1Net
 )
 ```
 
 3. Retrieve display state: `client2DisplayState = client2Stage.ready.displayState()`
 4. Update Client/Server: `client1.update(deltaSeconds, secondsSinceStartup, client1Net)`
+
+# TODO
+
+1. Make lag compensation optional
+2. Improve ownership management of entities and make it easier on the consumer of the library
+3. Document each setting in makeconfig so consumers know what impact it has
+4. Refactor Timestamps back to use Symbols, but make sure they work over real network/there is documentation
+5. Move geckos network into snowglobe as a plugin
+6. Update README with new lag compensation changes
+7. Fix build process to work with next/auto deploy with semantic versioning
