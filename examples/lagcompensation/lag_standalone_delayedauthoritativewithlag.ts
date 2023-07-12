@@ -4,33 +4,33 @@ import { makeMockNetwork } from '../../test/mock_network'
 import { createHighResolutionLoop } from '../demo/src/utilities/game_loop'
 import { type ObjectPool, createObjectPool } from '../demo/src/utilities/object_pool'
 
-// const intersect = (
-//   first: number[],
-//   second: number[],
-//   firstSize: number,
-//   secondSize: number,
-//   tolerance: number = 0
-// ) => {
-//   const a = {
-//     minX: (first[0] ?? 0) - firstSize,
-//     maxX: (first[0] ?? 0) + firstSize,
-//     minY: (first[1] ?? 0) - firstSize,
-//     maxY: (first[1] ?? 0) + firstSize
-//   }
-//   const b = {
-//     minX: (second[0] ?? 0) - secondSize,
-//     maxX: (second[0] ?? 0) + secondSize,
-//     minY: (second[1] ?? 0) - secondSize,
-//     maxY: (second[1] ?? 0) + secondSize
-//   }
+const intersect = (
+  first: number[],
+  second: number[],
+  firstSize: number,
+  secondSize: number,
+  tolerance: number = 0
+) => {
+  const a = {
+    minX: (first[0] ?? 0) - firstSize,
+    maxX: (first[0] ?? 0) + firstSize,
+    minY: (first[1] ?? 0) - firstSize,
+    maxY: (first[1] ?? 0) + firstSize
+  }
+  const b = {
+    minX: (second[0] ?? 0) - secondSize,
+    maxX: (second[0] ?? 0) + secondSize,
+    minY: (second[1] ?? 0) - secondSize,
+    maxY: (second[1] ?? 0) + secondSize
+  }
 
-//   return (
-//     a.minX - tolerance <= b.maxX &&
-//     a.maxX + tolerance >= b.minX &&
-//     a.minY - tolerance <= b.maxY &&
-//     a.maxY + tolerance >= b.minY
-//   )
-// }
+  return (
+    a.minX - tolerance <= b.maxX &&
+    a.maxX + tolerance >= b.minX &&
+    a.minY - tolerance <= b.maxY &&
+    a.maxY + tolerance >= b.minY
+  )
+}
 
 const makeFloat2 = (bullet1Origin: number[] | undefined) => {
   if (!bullet1Origin) return bullet1Origin
@@ -201,9 +201,9 @@ const BULLET_SPEED = 900
 const TICKS_TO_MOVE = 420
 const TICKS_TO_FIRE = 424
 const GUN_ANGLE = Math.PI / 4
-// const PLAYER_SIZE: number = 30
-// const HALF_PLAYER_SIZE: number = PLAYER_SIZE / 2
-// const BULLET_SIZE = 5
+const PLAYER_SIZE: number = 30
+const HALF_PLAYER_SIZE: number = PLAYER_SIZE / 2
+const BULLET_SIZE = 5
 
 let currentIdentity = 0
 
@@ -227,7 +227,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
       position: [-200, -200]
     } as Player)
     this.players.push({
-      position: [0, 0]
+      position: [-100, 100]
     } as Player)
 
     this.bullets = []
@@ -245,15 +245,18 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
 
   step() {
     // check for intersection
-    // if (
-    //   intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
-    // ) {
-    //   // console.log(
-    //   //   `a client (${this.id ?? ''}) interesction occurred at p: ${JSON.stringify(
-    //   //     this.player2Pos
-    //   //   )}, b: ${JSON.stringify(this.bullet1Position)}`
-    //   // )
-    // }
+    const player2Position = this.players[1]?.position
+    const bulletPos = this.bullets[0]?.position
+    if (!player2Position) return
+    if (!bulletPos) return
+
+    if (intersect(player2Position, bulletPos, HALF_PLAYER_SIZE, BULLET_SIZE, 0)) {
+      console.log(
+        `a client (${this.id ?? ''}) interesction occurred at p: ${JSON.stringify(
+          player2Position
+        )}, b: ${JSON.stringify(bulletPos)}`
+      )
+    }
   }
 
   commandIsValid(command: MyCommand, clientId: number) {
@@ -347,7 +350,7 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
       owner: 0
     } as Player)
     this.players.push({
-      position: [0, 0],
+      position: [-100, 100],
       owner: 1
     } as Player)
   }
@@ -361,15 +364,18 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
 
   step() {
     // check for intersection
-    // if (
-    //   intersect(this.player2Pos, this.bullet1Position, HALF_PLAYER_SIZE, BULLET_SIZE, 0)
-    // ) {
-    //   // console.log(
-    //   //   `a server intersesction occurred at p: ${JSON.stringify(
-    //   //     this.player2Pos
-    //   //   )}, b: ${JSON.stringify(this.bullet1Position)}`
-    //   // )
-    // }
+    const player2Position = this.players[1]?.position
+    const bulletPos = this.bullets[0]?.position
+    if (!player2Position) return
+    if (!bulletPos) return
+
+    if (intersect(player2Position, bulletPos, HALF_PLAYER_SIZE, BULLET_SIZE, 0)) {
+      console.log(
+        `a server interesction occurred at p: ${JSON.stringify(
+          player2Position
+        )}, b: ${JSON.stringify(bulletPos)}`
+      )
+    }
   }
 
   commandIsValid(command: MyCommand, clientId: number) {
