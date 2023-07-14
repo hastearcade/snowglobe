@@ -183,26 +183,14 @@ export class Server<
 
     if (!oldestCommand) return
 
-    const currentTimestamp = oldestCommand.timestamp
+    const bufferTime = Math.round(
+      this.config.serverTimeDelayLatency / this.config.timestepSeconds
+    )
+    const currentTimestamp = Timestamp.sub(oldestCommand.timestamp, bufferTime)
 
     // get old world
     const oldWorld = this.worldHistory.get(currentTimestamp)
-    if (!oldWorld && currentTimestamp > this.simulatingTimestamp()) {
-      // if the commands have 0 latency. i.e. locally
-      // keep the commands in the queue until the server catches up
-      // in the next if it will be for old worlds that just don't exists
-      // so it drops the commands
-      return
-    }
-
     if (!oldWorld) {
-      // console.log(
-      //   `old world is ${JSON.stringify(
-      //     oldWorld
-      //   )} at ${currentTimestamp}, ${JSON.stringify(
-      //     Array.from(this.worldHistory)
-      //   )}, ${this.timekeepingSimulation.stepper.simulatingTimestamp()}`
-      // )
       this.currentFrameCommandBuffer = []
       return
     }
@@ -213,7 +201,6 @@ export class Server<
         .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
-    // console.log(`applying ${JSON.stringify(filteredSortedCommands)} ${currentTimestamp}`)
     this.timekeepingSimulation.stepper.rewind(oldWorld)
     this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
     this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
