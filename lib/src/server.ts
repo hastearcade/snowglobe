@@ -385,7 +385,9 @@ export class Server<
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, finalSnapshot)
 
         // clean up
-        clonedSnapshot.dispose()
+        connection.onSendCompleted<$Snapshot>(SNAPSHOT_MESSAGE_TYPE_ID, sentSnapshot => {
+          ;(sentSnapshot as $Snapshot).dispose()
+        })
         ownerSnapshot.dispose()
         nonOwnerSnapshot.dispose()
       }

@@ -11,6 +11,10 @@ export interface Connection<$Command extends Command, $Snapshot extends Snapshot
   recvClockSync: () => ClockSyncMessage | undefined
   recvSnapshot: () => Timestamped<$Snapshot> | undefined
   send: <$Type>(typeId: TypeId<AvailableMessages>, message: $Type) => $Type | void
+  onSendCompleted: <$Type>(
+    typeId: TypeId<AvailableMessages>,
+    handler: (completedMessage: AvailableMessages) => void
+  ) => $Type | void
   flush: (typeId: TypeId<AvailableMessages>) => void
   // should be in ms
   getPing: () => number

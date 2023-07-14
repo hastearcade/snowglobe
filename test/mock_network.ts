@@ -162,10 +162,17 @@ export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
 class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
   implements DelayedChannel, Connection<$Command, $Snapshot>
 {
+  private readonly sendHandlers: Map<
+    TypeId<unknown>,
+    (completedMessage: AvailableMessages) => void
+  >
+
   constructor(
     public channels: Map<TypeId<unknown>, MockChannel<unknown>>,
     public isConnected: boolean
-  ) {}
+  ) {
+    this.sendHandlers = new Map()
+  }
 
   getPing() {
     return (this.channels.get(CLOCK_SYNC_MESSAGE_TYPE_ID)?.getDelay() ?? 0) * 1000
@@ -207,6 +214,20 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
   send<$Type>(typeId: TypeId<AvailableMessages>, message: $Type) {
     console.assert(this.isConnected, 'You are not connected to send a message')
     ;(this.channels.get(typeId) as MockChannel<$Type>).send(message)
+    const handler = this.sendHandlers.get(typeId)
+    if (handler) {
+      setTimeout(() => {
+        handler(message as unknown as AvailableMessages)
+      }, this.getPing() + 1000) // the snowglobe library is disposing of these snapshots
+    }
+  }
+
+  onSendCompleted(
+    typeId: TypeId<AvailableMessages>,
+    handler: (completedMessage: AvailableMessages) => void
+  ) {
+    console.assert(this.isConnected, 'You are not connected to send a message')
+    this.sendHandlers.set(typeId, handler)
   }
 
   flush(typeId: TypeId<AvailableMessages>) {
