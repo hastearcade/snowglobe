@@ -6,7 +6,7 @@
     "Keith La Force <keith@hastearcade.com>"
   ],
   "license": "Apache-2.0",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "A TypeScript port of CrystalOrb, a high-level Rust game networking library",
   "keywords": [
     "netcode",
@@ -31,7 +31,7 @@
     "build": "./build.sh",
     "build:cjs": "esbuild --bundle --target=node12.22 --outdir=lib/dist/cjs --format=cjs lib/dist/esm/index.js",
     "example:standalone": "node --loader ts-node/esm --experimental-specifier-resolution=node examples/standalone.ts",
-    "example:standalonelag": "node --loader ts-node/esm --experimental-specifier-resolution=node examples/lagcompensation/lag_standalone_delayedauthoritativewithlag.ts",
+    "example:standalonelag": "node --loader ts-node/esm --experimental-specifier-resolution=node examples/standalonelag.ts",
     "example:demo": "cd ./examples/demo && vite --host",
     "debug:example": "node --inspect-brk --loader ts-node/esm --experimental-specifier-resolution=node examples/standalone.ts",
     "prepublishOnly": "npm run pretty && npm run lint && npm run build",

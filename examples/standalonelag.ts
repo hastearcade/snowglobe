@@ -1,9 +1,9 @@
-import * as Snowglobe from '../../lib/src/index'
+import * as Snowglobe from '../lib/src/index'
 import { performance } from 'perf_hooks'
-import { makeMockNetwork } from '../../test/mock_network'
-import { createHighResolutionLoop } from '../demo/src/utilities/game_loop'
-import { type ObjectPool, createObjectPool } from '../demo/src/utilities/object_pool'
-import { type OwnerIdentity } from '../../lib/src/types'
+import { makeMockNetwork } from '../test/mock_network'
+import { createHighResolutionLoop } from './demo/src/utilities/game_loop'
+import { type ObjectPool, createObjectPool } from './demo/src/utilities/object_pool'
+import { type OwnerIdentity } from '../lib/src/types'
 
 const intersect = (
   first: number[],
@@ -251,6 +251,8 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     return newWorld as this
   }
 
+  dispose() {}
+
   step() {
     // check for intersection
     const player2Position = this.players[1]?.position
@@ -346,6 +348,8 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     newWorld.bullets = structuredClone(this.bullets)
     return newWorld as this
   }
+
+  dispose() {}
 
   step() {
     // check for intersection

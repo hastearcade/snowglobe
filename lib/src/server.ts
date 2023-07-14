@@ -109,6 +109,7 @@ export class Server<
         const bufferAdjustment = Math.round(
           this.config.serverTimeDelayLatency / this.config.timestepSeconds
         )
+
         result = connection.send(
           COMMAND_MESSAGE_TYPE_ID,
           Timestamp.set(
@@ -186,7 +187,22 @@ export class Server<
 
     // get old world
     const oldWorld = this.worldHistory.get(currentTimestamp)
+    if (!oldWorld && currentTimestamp > this.simulatingTimestamp()) {
+      // if the commands have 0 latency. i.e. locally
+      // keep the commands in the queue until the server catches up
+      // in the next if it will be for old worlds that just don't exists
+      // so it drops the commands
+      return
+    }
+
     if (!oldWorld) {
+      // console.log(
+      //   `old world is ${JSON.stringify(
+      //     oldWorld
+      //   )} at ${currentTimestamp}, ${JSON.stringify(
+      //     Array.from(this.worldHistory)
+      //   )}, ${this.timekeepingSimulation.stepper.simulatingTimestamp()}`
+      // )
       this.currentFrameCommandBuffer = []
       return
     }
@@ -197,6 +213,7 @@ export class Server<
         .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
+    // console.log(`applying ${JSON.stringify(filteredSortedCommands)} ${currentTimestamp}`)
     this.timekeepingSimulation.stepper.rewind(oldWorld)
     this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
     this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
@@ -214,6 +231,7 @@ export class Server<
         'Attempted to update client with a negative delta seconds. Clamping it to zero.'
       )
     }
+
     const newCommands: Array<[Timestamp.Timestamped<$Command>, ConnectionHandle]> = []
     const clockSyncs: Array<[ConnectionHandle, ClockSyncMessage]> = []
     for (const [handle, connection] of net.connections()) {
@@ -245,11 +263,11 @@ export class Server<
 
     // add the simulation world state to a history buffer
     // this will be utilized to facilitate lag compensation
+    // console.log(`simulating ${this.timekeepingSimulation.stepper.simulatingTimestamp()}`)
     this.worldHistory.set(
       this.timekeepingSimulation.stepper.simulatingTimestamp(),
       this.timekeepingSimulation.stepper.getWorld().clone()
     )
-
     // delete old commands
     this.commandHistory = this.commandHistory.filter(curr => {
       return (
@@ -277,7 +295,9 @@ export class Server<
           )
         ) < 0
       ) {
+        const world = this.worldHistory.get(timestamp)
         this.worldHistory.delete(timestamp)
+        world?.dispose()
       }
     })
 
@@ -307,24 +327,41 @@ export class Server<
         const halfRTT = Math.round(ping / 1000 / this.config.timestepSeconds)
         const snapshotTimestamp = Timestamp.sub(currentTimeStamp, halfRTT + bufferTime)
 
+        const nonOwnerHistoryTimestamp = Timestamp.sub(
+          currentTimeStamp,
+          halfRTT * 2 + bufferTime
+        )
+        const ownerHistoryTimestamp = Timestamp.sub(currentTimeStamp, bufferTime)
+
         const nonOwnerSnapshot = this.worldHistory
-          .get(Timestamp.sub(currentTimeStamp, halfRTT * 2 + bufferTime))
+          .get(nonOwnerHistoryTimestamp)
           ?.snapshot()
 
-        const ownerSnapshot = this.worldHistory
-          .get(Timestamp.sub(this.lastCompletedTimestamp(), bufferTime))
-          ?.snapshot()
+        const ownerSnapshot = this.worldHistory.get(ownerHistoryTimestamp)?.snapshot()
 
         if (!nonOwnerSnapshot || !ownerSnapshot) {
+          // console.log(
+          //   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          //   `the full history timestamps are ${Array.from(this.worldHistory).map(
+          //     h => h[0]
+          //   )}`
+          // )
           // should never really get here
           console.warn(
             `You have generated an invalid snapshot. For shame. The current timestamp is ${currentTimeStamp}. Nonowner is ${JSON.stringify(
               nonOwnerSnapshot
-            )}, Owner is ${JSON.stringify(ownerSnapshot)}`
+            )}-${nonOwnerHistoryTimestamp}, Owner is ${JSON.stringify(
+              ownerSnapshot
+            )}-${ownerHistoryTimestamp}`
           )
           continue
         }
 
+        // console.log(
+        //   `attempting to merge ${JSON.stringify(ownerSnapshot)} with ${JSON.stringify(
+        //     nonOwnerSnapshot
+        //   )}`
+        // )
         const mergedWorldData = this.mergeSnapshot(
           handle,
           ownerSnapshot,
@@ -342,9 +379,15 @@ export class Server<
 
         const clonedFakeWorld = fakeWorld.clone()
         clonedFakeWorld.applySnapshot(mergedWorldData)
-        const finalSnapshot = Timestamp.set(clonedFakeWorld.snapshot(), snapshotTimestamp)
+        const clonedSnapshot = clonedFakeWorld.snapshot()
+        const finalSnapshot = Timestamp.set(clonedSnapshot, snapshotTimestamp)
 
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, finalSnapshot)
+
+        // clean up
+        clonedSnapshot.dispose()
+        ownerSnapshot.dispose()
+        nonOwnerSnapshot.dispose()
       }
     }
   }

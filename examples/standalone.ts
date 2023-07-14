@@ -163,6 +163,8 @@ class MyWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     return newWorld as this
   }
 
+  dispose() {}
+
   // Step is run on every tick of the game or simuation
   // This code should perform any integration with
   // your physics library of choice to update the state

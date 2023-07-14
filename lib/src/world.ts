@@ -17,7 +17,8 @@ export type World<
   applySnapshot: (snapshot: $Snapshot) => void
   snapshot: () => $Snapshot
   displayState: () => $DisplayState
-} & Cloneable
+} & Cloneable &
+  Disposable
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type SnapshotOf<$World> = $World extends World<infer _, infer $Snapshot>

@@ -166,7 +166,6 @@ export class ActiveClient<
   issueCommand(command: $Command, net: NetworkResource<$Command, $Snapshot>) {
     const timestampCommand = Timestamp.set(command, this.simulatingTimestamp())
     this.timekeepingSimulations.stepper.receiveCommand(timestampCommand)
-
     net.broadcastMessage(COMMAND_MESSAGE_TYPE_ID, timestampCommand)
   }
 
