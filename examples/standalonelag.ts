@@ -454,13 +454,14 @@ function main() {
     const deltaSeconds = (currentTime - previousTime) / 1000
     const secondsSinceStartup = (currentTime - startupTime) / 1000
 
-    const serverWorld = server.getWorld() as unknown as ServerWorld
     const client1Stage = client1.stage()
     const client2Stage = client2.stage()
 
     client1.update(deltaSeconds, secondsSinceStartup, client1Net)
     client2.update(deltaSeconds, secondsSinceStartup, client2Net)
     server.update(deltaSeconds, secondsSinceStartup, serverNet)
+
+    const serverWorld = server.getWorld() as unknown as ServerWorld
 
     client1Net.tick(deltaSeconds)
     client2Net.tick(deltaSeconds)
