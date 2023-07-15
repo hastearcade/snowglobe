@@ -99,13 +99,17 @@ export class Server<
       }
     }
 
-    const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
-    // console.log(`adding ping: ${ping}, diff: ${pingTimestampDiff}`)
+    const bufferAdjustment = Math.round(
+      this.config.serverTimeDelayLatency / this.config.timestepSeconds
+    )
+    const pingTimestampDiff = Math.ceil(ping / 1000 / this.config.timestepSeconds)
+    console.log(`adding ping: ${ping}, diff: ${pingTimestampDiff}`)
     const historyCommand = Timestamp.set(
       command.clone(),
-      Timestamp.add(command.timestamp, pingTimestampDiff)
+      Timestamp.add(command.timestamp, pingTimestampDiff - bufferAdjustment)
     )
 
+    console.log(`pushing ${historyCommand.timestamp}, command: ${command.timestamp}`)
     // console.log(
     //   `pushing ${JSON.stringify(historyCommand)}, client is ${command.timestamp}`
     // )
@@ -208,7 +212,6 @@ export class Server<
     // get old world
     const oldWorld = this.worldHistory.get(currentTimestamp)
     if (!oldWorld) {
-      this.currentFrameCommandBuffer = []
       return
     }
 
@@ -224,6 +227,11 @@ export class Server<
         .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
+    console.log(
+      `old world is ${currentTimestamp}, commands${JSON.stringify(
+        filteredSortedCommands.map(t => t.timestamp)
+      )}`
+    )
     this.timekeepingSimulation.stepper.rewind(oldWorld)
     this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
     this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
@@ -268,12 +276,37 @@ export class Server<
       }
     }
 
-    this.compensateForLag()
-    this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
-
     // add the simulation world state to a history buffer
     // this will be utilized to facilitate lag compensation
     // console.log(`simulating ${this.timekeepingSimulation.stepper.simulatingTimestamp()}`)
+    if (
+      !this.worldHistory.has(this.timekeepingSimulation.stepper.lastCompletedTimestamp())
+    ) {
+      // we have missed a command/world due to accumulation so pay it forward from a previous frame
+      const lastFrame = this.worldHistory.get(
+        Timestamp.sub(this.timekeepingSimulation.stepper.lastCompletedTimestamp(), 1)
+      )
+      console.log(
+        `--------------you missed a frame ${this.timekeepingSimulation.stepper.lastCompletedTimestamp()}, lastFrame ${JSON.stringify(
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          JSON.stringify(lastFrame ? lastFrame.players : 'noframe')
+        )}`
+      )
+      if (lastFrame) {
+        console.log(
+          `setting overrride ${this.timekeepingSimulation.stepper.lastCompletedTimestamp()}`
+        )
+        this.worldHistory.set(
+          this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
+          lastFrame.clone()
+        )
+      }
+    }
+
+    this.compensateForLag()
+    this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
+
     this.worldHistory.set(
       this.timekeepingSimulation.stepper.simulatingTimestamp(),
       this.timekeepingSimulation.stepper.getWorld().clone()
