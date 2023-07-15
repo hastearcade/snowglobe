@@ -92,7 +92,24 @@ export class Server<
     commandSource: ConnectionHandle | undefined,
     net: NetworkResource<$Command>
   ) {
-    this.commandHistory.push(Timestamp.set(command.clone(), this.simulatingTimestamp()))
+    let ping = 0
+    for (const [handle, connection] of net.connections()) {
+      if (handle === commandSource) {
+        ping = connection.getPing()
+      }
+    }
+
+    const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
+    // console.log(`adding ping: ${ping}, diff: ${pingTimestampDiff}`)
+    const historyCommand = Timestamp.set(
+      command.clone(),
+      Timestamp.add(command.timestamp, pingTimestampDiff)
+    )
+
+    // console.log(
+    //   `pushing ${JSON.stringify(historyCommand)}, client is ${command.timestamp}`
+    // )
+    this.commandHistory.push(historyCommand)
     this.currentFrameCommandBuffer.push(Timestamp.set(command.clone(), command.timestamp))
 
     let result
@@ -194,6 +211,12 @@ export class Server<
       this.currentFrameCommandBuffer = []
       return
     }
+
+    // console.log(
+    //   `found old world at ${currentTimestamp} for command ${JSON.stringify(
+    //     oldestCommand
+    //   )}, old world position is ${JSON.stringify(oldWorld)}`
+    // )
 
     const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
       this.commandHistory
@@ -311,7 +334,8 @@ export class Server<
         const bufferTime = Math.round(
           this.config.serverTimeDelayLatency / this.config.timestepSeconds
         )
-        const halfRTT = Math.round(ping / 1000 / this.config.timestepSeconds)
+
+        const halfRTT = Math.ceil(ping / 1000 / this.config.timestepSeconds)
         const snapshotTimestamp = Timestamp.sub(currentTimeStamp, halfRTT + bufferTime)
 
         const nonOwnerHistoryTimestamp = Timestamp.sub(
@@ -319,6 +343,10 @@ export class Server<
           halfRTT * 2 + bufferTime
         )
         const ownerHistoryTimestamp = Timestamp.sub(currentTimeStamp, bufferTime)
+
+        // console.log(
+        //   `sending snapshot for ${snapshotTimestamp}. ping: ${ping}, with rtt of ${halfRTT}. Current is ${currentTimeStamp}, buff: ${bufferTime}`
+        // )
 
         const nonOwnerSnapshot = this.worldHistory
           .get(nonOwnerHistoryTimestamp)

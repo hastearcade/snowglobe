@@ -87,7 +87,9 @@ export class Simulation<
     completedSnapshot: Timestamp.Timestamped<$Snapshot>,
     rewoundCommandBuffer: CommandBuffer<$Command>
   ) {
-    this.world.applySnapshot(completedSnapshot.clone())
+    this.world.applySnapshot(
+      Timestamp.set(completedSnapshot.clone(), completedSnapshot.timestamp)
+    )
     this.commandBuffer = rewoundCommandBuffer
     this.commandBuffer.updateTimestamp(Timestamp.get(completedSnapshot))
     this.hasInitialized = true
