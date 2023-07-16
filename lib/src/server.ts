@@ -233,7 +233,7 @@ export class Server<
 
     const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
       this.commandHistory
-        .filter(curr => Timestamp.cmp(curr.timestamp, currentTimestamp) > 0)
+        .filter(curr => Timestamp.cmp(curr.timestamp, currentTimestamp) >= 0)
         .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
