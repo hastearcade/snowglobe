@@ -99,11 +99,14 @@ export class Server<
       }
     }
 
+    if (ping < 0) {
+      console.error(`The ping is less than 0. probably should look into that: ${ping}`)
+    }
+
     const bufferAdjustment = Math.round(
       this.config.serverTimeDelayLatency / this.config.timestepSeconds
     )
     const pingTimestampDiff = Math.ceil(ping / 1000 / this.config.timestepSeconds)
-    console.log(`adding ping: ${ping}, diff: ${pingTimestampDiff}`)
     const historyCommand = Timestamp.set(
       command.clone(),
       Timestamp.add(command.timestamp, pingTimestampDiff - bufferAdjustment)
