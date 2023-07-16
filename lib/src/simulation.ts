@@ -55,9 +55,7 @@ export class Simulation<
 
   step(endingTimestamp: Timestamp.Timestamp = this.simulatingTimestamp()) {
     const commands = this.commandBuffer.drainUpTo(endingTimestamp)
-    // console.log(`applying commands up to ${endingTimestamp}`)
     for (const command of commands) {
-      // console.log(`old school apply ${command.timestamp}`)
       this.world.applyCommand(command)
     }
     this.world.step()

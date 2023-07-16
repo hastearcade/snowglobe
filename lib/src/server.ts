@@ -99,8 +99,10 @@ export class Server<
       }
     }
 
-    if (ping < 0) {
-      console.error(`The ping is less than 0. probably should look into that: ${ping}`)
+    if (ping <= 0) {
+      console.error(
+        `The ping is less than or equal to 0. probably should look into that: ${ping}`
+      )
     }
 
     const bufferAdjustment = Math.round(
@@ -348,7 +350,7 @@ export class Server<
         )
 
         const halfRTT = Math.ceil(ping / 1000 / this.config.timestepSeconds)
-        const snapshotTimestamp = Timestamp.sub(currentTimeStamp, halfRTT + bufferTime)
+        const snapshotTimestamp = Timestamp.sub(currentTimeStamp, halfRTT)
 
         const nonOwnerHistoryTimestamp = Timestamp.sub(
           currentTimeStamp,
