@@ -210,9 +210,21 @@ export class Server<
     const currentTimestamp = Timestamp.sub(oldestCommand.timestamp, bufferTime)
 
     // get old world
-    const oldWorld = this.worldHistory.get(currentTimestamp)
+    let oldWorld = this.worldHistory.get(currentTimestamp)
     if (!oldWorld) {
-      return
+      console.warn(
+        `You are searching for ${currentTimestamp} and came up wanting. We fixed it.`
+      )
+      let i = 1
+      while (!oldWorld) {
+        oldWorld = this.worldHistory.get(Timestamp.sub(currentTimestamp, i))
+        if (oldWorld) {
+          this.worldHistory.set(currentTimestamp, oldWorld.clone())
+        }
+        i++
+      }
+      oldWorld = this.worldHistory.get(currentTimestamp)
+      if (!oldWorld) throw new Error('Something went terribly wrong.')
     }
 
     // console.log(
@@ -227,11 +239,11 @@ export class Server<
         .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
-    console.log(
-      `old world is ${currentTimestamp}, commands${JSON.stringify(
-        filteredSortedCommands.map(t => t.timestamp)
-      )}`
-    )
+    // console.log(
+    //   `old world is ${currentTimestamp}, commands${JSON.stringify(
+    //     filteredSortedCommands.map(t => t.timestamp)
+    //   )}`
+    // )
     this.timekeepingSimulation.stepper.rewind(oldWorld)
     this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
     this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
@@ -275,7 +287,6 @@ export class Server<
         )
       }
     }
-
     // add the simulation world state to a history buffer
     // this will be utilized to facilitate lag compensation
     // console.log(`simulating ${this.timekeepingSimulation.stepper.simulatingTimestamp()}`)
@@ -286,17 +297,10 @@ export class Server<
       const lastFrame = this.worldHistory.get(
         Timestamp.sub(this.timekeepingSimulation.stepper.lastCompletedTimestamp(), 1)
       )
-      console.log(
-        `--------------you missed a frame ${this.timekeepingSimulation.stepper.lastCompletedTimestamp()}, lastFrame ${JSON.stringify(
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          JSON.stringify(lastFrame ? lastFrame.players : 'noframe')
-        )}`
+      console.warn(
+        `You missed a frame ${this.timekeepingSimulation.stepper.lastCompletedTimestamp()} so we fixed it for you.`
       )
       if (lastFrame) {
-        console.log(
-          `setting overrride ${this.timekeepingSimulation.stepper.lastCompletedTimestamp()}`
-        )
         this.worldHistory.set(
           this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
           lastFrame.clone()
@@ -340,6 +344,7 @@ export class Server<
       ) {
         const world = this.worldHistory.get(timestamp)
         this.worldHistory.delete(timestamp)
+        console.log(`calling dipose on ${timestamp}`)
         world?.dispose()
       }
     })
@@ -436,8 +441,11 @@ export class Server<
         connection.onSendCompleted<$Snapshot>(SNAPSHOT_MESSAGE_TYPE_ID, sentSnapshot => {
           ;(sentSnapshot as $Snapshot).dispose()
         })
+
+        // clean up, clean up, everybody get your friends.
         ownerSnapshot.dispose()
         nonOwnerSnapshot.dispose()
+        clonedFakeWorld.dispose()
       }
     }
   }

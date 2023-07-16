@@ -33,7 +33,7 @@ export class Simulation<
     this.commandBuffer.drainAll()
     for (const c of commands) {
       this.commandBuffer.insert(c)
-      console.log(`inserting timestamp ${c.timestamp}`)
+      // console.log(`inserting timestamp ${c.timestamp}`)
     }
   }
 
@@ -44,7 +44,7 @@ export class Simulation<
     while (Timestamp.cmp(currentTimestamp, endingTimestamp) <= 0) {
       const commands = this.commandBuffer.drainUpTo(endingTimestamp)
       for (const command of commands) {
-        console.log(`fast forward ${JSON.stringify(command.timestamp)}`)
+        // console.log(`fast forward ${JSON.stringify(command.timestamp)}`)
         this.world.applyCommand(command)
       }
       this.world.step()
@@ -56,7 +56,7 @@ export class Simulation<
     const commands = this.commandBuffer.drainUpTo(endingTimestamp)
     // console.log(`applying commands up to ${endingTimestamp}`)
     for (const command of commands) {
-      console.log(`old school apply ${command.timestamp}`)
+      // console.log(`old school apply ${command.timestamp}`)
       this.world.applyCommand(command)
     }
     this.world.step()
