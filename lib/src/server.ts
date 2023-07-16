@@ -449,7 +449,9 @@ export class Server<
       }
     }
 
-    console.log(`updating took: ${Date.now() - startTime}`)
+    if (Date.now() - startTime > 5) {
+      console.log(`updating took too long: ${Date.now() - startTime}`)
+    }
   }
 
   mergeSnapshot(

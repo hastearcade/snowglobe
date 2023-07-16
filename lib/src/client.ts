@@ -121,7 +121,10 @@ export class Client<
         this._stage.ready!.update(deltaSeconds, secondsSinceStartup, net)
         break
     }
-    console.log(`updating took: ${Date.now() - startTime}`)
+
+    if (Date.now() - startTime > 5) {
+      console.log(`updating took too long: ${Date.now() - startTime}`)
+    }
   }
 }
 
