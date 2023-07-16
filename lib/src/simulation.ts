@@ -54,12 +54,17 @@ export class Simulation<
   }
 
   step(endingTimestamp: Timestamp.Timestamp = this.simulatingTimestamp()) {
+    const startTime = Date.now()
     const commands = this.commandBuffer.drainUpTo(endingTimestamp)
     for (const command of commands) {
       this.world.applyCommand(command)
     }
     this.world.step()
     this.commandBuffer.updateTimestamp(Timestamp.add(this.lastCompletedTimestamp(), 1))
+    const endTime = Date.now()
+    if (endTime - startTime > 10) {
+      console.log(`simulation step took ${endTime - startTime}`)
+    }
   }
 
   getWorld() {

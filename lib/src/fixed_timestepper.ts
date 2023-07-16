@@ -67,13 +67,34 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
   }
 
   update(deltaSeconds: number, serverSecondsSinceStartup: number) {
+    const startTime = Date.now()
+
+    const compensateStart = Date.now()
     const compensatedDeltaSeconds = this.deltaSecondsCompensateForDrift(
       deltaSeconds,
       serverSecondsSinceStartup
     )
+    const compensateEnd = Date.now()
+
+    const stepStart = Date.now()
     this.advanceStepper(compensatedDeltaSeconds)
+    const stepEnd = Date.now()
+
+    const skipStart = Date.now()
     this.timeskipIfNeeded(serverSecondsSinceStartup)
+    const skipEnd = Date.now()
+
+    const postStart = Date.now()
     this.stepper.postUpdate(this.timestepOvershootSeconds)
+    const postEnd = Date.now()
+
+    if (Date.now() - startTime > 10) {
+      console.log(`updating timekeeper took too long: ${Date.now() - startTime}`)
+      console.log(`updating drift took too long: ${compensateEnd - compensateStart}`)
+      console.log(`updating step took too long: ${stepEnd - stepStart}`)
+      console.log(`updating timeskip took too long: ${skipEnd - skipStart}`)
+      console.log(`updating postUpdate took too long: ${postEnd - postStart}`)
+    }
   }
 
   currentLogicalTimestamp() {

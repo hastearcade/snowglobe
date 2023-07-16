@@ -259,6 +259,7 @@ export class Server<
       )
     }
 
+    const commandsStart = Date.now()
     const newCommands: Array<[Timestamp.Timestamped<$Command>, ConnectionHandle]> = []
     const clockSyncs: Array<[ConnectionHandle, ClockSyncMessage]> = []
     for (const [handle, connection] of net.connections()) {
@@ -284,15 +285,37 @@ export class Server<
         )
       }
     }
+    const commandsEnd = Date.now()
 
+    const compensateForLagStart = Date.now()
     this.compensateForLag()
+    const compensateEnd = Date.now()
+
+    const timeKeepingUpdateStart = Date.now()
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
+    const timeKeepingUpdateEnd = Date.now()
 
     this.worldHistory.set(
       this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
       this.timekeepingSimulation.stepper.getWorld().clone()
     )
     // delete old commands
+    const commandHistoryStart = Date.now()
+    const deadCommands = this.commandHistory.filter(curr => {
+      return (
+        Timestamp.cmp(
+          curr.timestamp,
+          Timestamp.sub(
+            this.timekeepingSimulation.stepper.simulatingTimestamp(),
+            this.config.serverCommandHistoryFrameBufferSize * 2
+          )
+        ) <= 0
+      )
+    })
+    deadCommands.forEach(c => {
+      c.dispose()
+    })
+
     this.commandHistory = this.commandHistory.filter(curr => {
       return (
         Timestamp.cmp(
@@ -304,11 +327,14 @@ export class Server<
         ) > 0
       )
     })
+    const commandHistoryEnd = Date.now()
 
     const bufferTime = Math.round(
       this.config.serverTimeDelayLatency / this.config.timestepSeconds
     )
     // delete old worlds
+    const worldManagementStart = Date.now()
+    let count = 0
     this.worldHistory.forEach((val, timestamp) => {
       if (
         Timestamp.cmp(
@@ -321,10 +347,13 @@ export class Server<
       ) {
         const world = this.worldHistory.get(timestamp)
         world?.dispose()
+        count++
         this.worldHistory.delete(timestamp)
       }
     })
+    const worldManagementEnd = Date.now()
 
+    const snapShotStart = Date.now()
     this.secondsSinceLastSnapshot += positiveDeltaSeconds
     if (this.secondsSinceLastSnapshot > this.config.snapshotSendPeriod) {
       this.secondsSinceLastSnapshot = 0
@@ -408,7 +437,7 @@ export class Server<
 
         const clonedFakeWorld = fakeWorld.clone()
         clonedFakeWorld.applySnapshot(mergedWorldData)
-        const clonedSnapshot = clonedFakeWorld.snapshot()
+        const clonedSnapshot = clonedFakeWorld.snapshot().clone()
         const finalSnapshot = Timestamp.set(clonedSnapshot, snapshotTimestamp)
 
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, finalSnapshot)
@@ -424,9 +453,20 @@ export class Server<
         clonedFakeWorld.dispose()
       }
     }
+    const snapShotEnd = Date.now()
 
     if (Date.now() - startTime > 10) {
       console.log(`updating took too long: ${Date.now() - startTime}`)
+      console.log(
+        `world mgt/allocation took: ${
+          worldManagementEnd - worldManagementStart
+        }, count is ${count}`
+      )
+      console.log(`command/allocation took: ${commandHistoryEnd - commandHistoryStart}`)
+      console.log(`messages took: ${commandsEnd - commandsStart}`)
+      console.log(`compensate took: ${compensateEnd - compensateForLagStart}`)
+      console.log(`timekeeping took: ${timeKeepingUpdateEnd - timeKeepingUpdateStart}`)
+      console.log(`snapshot took: ${snapShotEnd - snapShotStart}`)
     }
   }
 
