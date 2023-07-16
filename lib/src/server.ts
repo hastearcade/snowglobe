@@ -109,7 +109,7 @@ export class Server<
       Timestamp.add(command.timestamp, pingTimestampDiff - bufferAdjustment)
     )
 
-    console.log(`pushing ${historyCommand.timestamp}, command: ${command.timestamp}`)
+    // console.log(`pushing ${historyCommand.timestamp}, command: ${command.timestamp}`)
     // console.log(
     //   `pushing ${JSON.stringify(historyCommand)}, client is ${command.timestamp}`
     // )
@@ -255,6 +255,7 @@ export class Server<
     secondsSinceStartup: number,
     net: $Net
   ) {
+    const startTime = Date.now()
     const positiveDeltaSeconds = Math.max(deltaSeconds, 0)
     if (deltaSeconds !== positiveDeltaSeconds) {
       console.warn(
@@ -343,9 +344,8 @@ export class Server<
         ) < 0
       ) {
         const world = this.worldHistory.get(timestamp)
-        this.worldHistory.delete(timestamp)
-        console.log(`calling dipose on ${timestamp}`)
         world?.dispose()
+        this.worldHistory.delete(timestamp)
       }
     })
 
@@ -448,6 +448,8 @@ export class Server<
         clonedFakeWorld.dispose()
       }
     }
+
+    console.log(`updating took: ${Date.now() - startTime}`)
   }
 
   mergeSnapshot(

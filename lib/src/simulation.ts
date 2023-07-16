@@ -26,6 +26,7 @@ export class Simulation<
   }
 
   rewind(oldWorld: World<$Command, $Snapshot, $DisplayState>) {
+    this.world.dispose() // destroy the old world
     this.world = oldWorld.clone()
   }
 
