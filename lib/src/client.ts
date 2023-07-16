@@ -88,6 +88,7 @@ export class Client<
     secondsSinceStartup: number,
     net: NetworkResource<$Command, $Snapshot>
   ) {
+    const startTime = Date.now()
     if (deltaSeconds < 0) {
       console.warn(
         'Attempt to update a client with negative delta seconds. The delta is being clamped to 0.'
@@ -120,6 +121,7 @@ export class Client<
         this._stage.ready!.update(deltaSeconds, secondsSinceStartup, net)
         break
     }
+    console.log(`updating took: ${Date.now() - startTime}`)
   }
 }
 
