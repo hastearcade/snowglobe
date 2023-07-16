@@ -225,22 +225,18 @@ export class Server<
       if (!oldWorld) throw new Error('Something went terribly wrong.')
     }
 
-    // console.log(
-    //   `found old world at ${currentTimestamp} for command ${JSON.stringify(
-    //     oldestCommand
-    //   )}, old world position is ${JSON.stringify(oldWorld)}`
-    // )
-
     const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
       this.commandHistory
-        .filter(curr => Timestamp.cmp(curr.timestamp, currentTimestamp) >= 0)
+        .filter(curr => Timestamp.cmp(curr.timestamp, currentTimestamp) > 0)
         .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
     // console.log(
-    //   `old world is ${currentTimestamp}, commands${JSON.stringify(
-    //     filteredSortedCommands.map(t => t.timestamp)
-    //   )}`
+    //   `old world is ${currentTimestamp}, position is ${JSON.stringify(
+    //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //     // @ts-ignore
+    //     oldWorld.players
+    //   )} commands${JSON.stringify(filteredSortedCommands.map(t => t.timestamp))}`
     // )
     this.timekeepingSimulation.stepper.rewind(oldWorld)
     this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
