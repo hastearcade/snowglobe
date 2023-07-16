@@ -274,6 +274,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applyCommand(command: MyCommand) {
+    console.log(`applying client ${JSON.stringify(command)}`)
     switch (command.kind) {
       case 'moveright':
         // eslint-disable-next-line no-case-declarations
@@ -372,6 +373,7 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applyCommand(command: MyCommand) {
+    console.log(`applying server ${JSON.stringify(command)}`)
     switch (command.kind) {
       case 'moveright':
         // eslint-disable-next-line no-case-declarations
