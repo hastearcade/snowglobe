@@ -1,3 +1,4 @@
+import { AnalyticType, Analytics } from './analytics'
 import { ClockSyncer } from './clock_sync'
 import { type Command, CommandBuffer } from './command'
 import {
@@ -63,7 +64,8 @@ export class Client<
   constructor(
     makeWorld: () => World<$Command, $Snapshot, $DisplayState>,
     config: Config,
-    fromInterpolation: FromInterpolationFn<$DisplayState>
+    fromInterpolation: FromInterpolationFn<$DisplayState>,
+    private readonly id?: string
   ) {
     this._makeWorld = makeWorld
     this._config = config
@@ -105,7 +107,8 @@ export class Client<
             secondsSinceStartup,
             this._config,
             this._stage.clockSyncer,
-            this.fromInterpolation
+            this.fromInterpolation,
+            this.id
           )
           this._state = StageState.SyncingInitialState
         }
@@ -119,6 +122,7 @@ export class Client<
         break
       case StageState.Ready:
         this._stage.ready!.update(deltaSeconds, secondsSinceStartup, net)
+
         break
     }
 
@@ -138,13 +142,17 @@ export class ActiveClient<
     ClientWorldSimulations<$Command, $Snapshot, $DisplayState>
   >
 
+  public readonly analytics: Analytics
+
   constructor(
     makeWorld: (ident?: string) => World<$Command, $Snapshot, $DisplayState>,
     secondsSinceStartup: number,
     config: Config,
     clockSyncer: ClockSyncer,
-    fromInterpolation: FromInterpolationFn<$DisplayState>
+    fromInterpolation: FromInterpolationFn<$DisplayState>,
+    id?: string
   ) {
+    this.analytics = new Analytics(id ?? 'blerg')
     const serverTime = clockSyncer.serverSecondsSinceStartup(secondsSinceStartup)
     console.assert(
       serverTime !== undefined,
@@ -172,6 +180,11 @@ export class ActiveClient<
     const timestampCommand = Timestamp.set(command, this.simulatingTimestamp())
     this.timekeepingSimulations.stepper.receiveCommand(timestampCommand)
     net.broadcastMessage(COMMAND_MESSAGE_TYPE_ID, timestampCommand)
+    this.analytics.store(
+      this.simulatingTimestamp(),
+      AnalyticType.issuecommand,
+      JSON.stringify(timestampCommand)
+    )
   }
 
   bufferedCommands() {
@@ -201,10 +214,12 @@ export class ActiveClient<
   ) {
     this.clockSyncer.update(deltaSeconds, secondsSinceStartup, net)
 
+    const recvCommand: Command[] = []
     for (const [, connection] of net.connections()) {
       let command: Option<Timestamp.Timestamped<$Command>>
       while ((command = connection.recvCommand()) != null) {
         this.timekeepingSimulations.stepper.receiveCommand(command)
+        recvCommand.push(command)
       }
       let snapshot: Option<Timestamp.Timestamped<$Snapshot>>
       while ((snapshot = connection.recvSnapshot()) != null) {
@@ -217,9 +232,32 @@ export class ActiveClient<
       throw Error('Clock should be synced')
     }
 
+    this.analytics.store(
+      this.simulatingTimestamp(),
+      AnalyticType.recvcommand,
+      JSON.stringify(recvCommand)
+    )
+
+    this.analytics.store(
+      this.simulatingTimestamp(),
+      AnalyticType.snapshotapplied,
+      JSON.stringify(this.timekeepingSimulations.stepper.queuedSnapshot)
+    )
+
     this.timekeepingSimulations.update(
       deltaSeconds,
       timeSinceSync + this.timekeepingSimulations.config.serverTimeDelayLatency
+    )
+    this.analytics.store(
+      this.lastCompletedTimestamp(),
+      AnalyticType.currentworld,
+      JSON.stringify(
+        this.worldSimulations()
+          .get()
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          .new.getWorld().players
+      )
     )
   }
 }

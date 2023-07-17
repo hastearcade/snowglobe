@@ -13,6 +13,7 @@ import { type Snapshot, type World } from './world'
 import { type DisplayState } from './display_state'
 import { InitializationType, Simulation } from './simulation'
 import { type OwnedEntity } from './types'
+import { AnalyticType, Analytics } from './analytics'
 
 interface KeyValue {
   key: string
@@ -33,6 +34,8 @@ export class Server<
     World<$Command, $Snapshot, $DisplayState>
   >
 
+  public readonly analytics = new Analytics('server')
+
   // this variable keeps track of commands that are received
   // in the same frame. we use this to determine the oldest
   // world state to go back in time for when performing lag compensation
@@ -42,6 +45,8 @@ export class Server<
 
   private secondsSinceLastSnapshot = 0
 
+  private readonly bufferTime: number
+
   constructor(
     private readonly world: World<$Command, $Snapshot, $DisplayState>,
     private readonly config: Config,
@@ -49,6 +54,9 @@ export class Server<
   ) {
     this.worldHistory = new Map()
     this.currentFrameCommandBuffer = []
+    this.bufferTime = Math.round(
+      this.config.serverTimeDelayLatency / this.config.timestepSeconds
+    )
 
     this.timekeepingSimulation = new TimeKeeper(
       new Simulation(world, InitializationType.PreInitialized),
@@ -116,9 +124,6 @@ export class Server<
         const timeSinceIssue = this.lastCompletedTimestamp() - command.timestamp
         const ping = connection.getPing()
         const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
-        const bufferAdjustment = Math.round(
-          this.config.serverTimeDelayLatency / this.config.timestepSeconds
-        )
 
         result = connection.send(
           COMMAND_MESSAGE_TYPE_ID,
@@ -126,7 +131,7 @@ export class Server<
             command.clone(),
             Timestamp.add(
               Timestamp.get(command),
-              pingTimestampDiff + bufferAdjustment + timeSinceIssue
+              pingTimestampDiff + this.bufferTime + timeSinceIssue
             )
           )
         )
@@ -187,15 +192,28 @@ export class Server<
     // loop over each command and then apply it to each world
     // including the current world
     // if it is in the future, then you need to create worlds
-    if (this.worldHistory.size < this.config.serverCommandHistoryFrameBufferSize) return
+    if (
+      this.worldHistory.size <
+      this.config.serverCommandHistoryFrameBufferSize * 2 + this.bufferTime // multiply by two to handle full ftt
+    ) {
+      return
+    }
 
     for (const commandToApply of this.currentFrameCommandBuffer) {
+      this.analytics.store(
+        this.simulatingTimestamp(),
+        AnalyticType.recvcommand,
+        JSON.stringify(this.currentFrameCommandBuffer)
+      )
       if (commandToApply.timestamp <= this.simulatingTimestamp()) {
         // its a command in the past
         for (let i = commandToApply.timestamp; i <= this.lastCompletedTimestamp(); i++) {
+          console.log(`running timestamp ${i} for ${JSON.stringify(commandToApply)}`)
           const oldWorld = this.worldHistory.get(i)
           if (oldWorld) {
             oldWorld.applyCommand(commandToApply)
+          } else {
+            console.log('**********You should not be here**************')
           }
         }
 
@@ -229,7 +247,7 @@ export class Server<
         }
       }
 
-      commandToApply.dispose() // these were clones when added to the current frame command buffer
+      // commandToApply.dispose() // these were clones when added to the current frame command buffer
     }
 
     this.currentFrameCommandBuffer = []
@@ -344,14 +362,20 @@ export class Server<
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
     const timeKeepingUpdateEnd = Date.now()
 
+    console.log(`setting ${this.timekeepingSimulation.stepper.lastCompletedTimestamp()}`)
     this.worldHistory.set(
       this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
       this.timekeepingSimulation.stepper.getWorld().clone()
     )
 
-    const bufferTime = Math.round(
-      this.config.serverTimeDelayLatency / this.config.timestepSeconds
+    this.analytics.store(
+      this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
+      AnalyticType.currentworld,
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      JSON.stringify(this.timekeepingSimulation.stepper.getWorld().players)
     )
+
     // delete old worlds
     const worldManagementStart = Date.now()
     let count = 0
@@ -361,7 +385,7 @@ export class Server<
           timestamp,
           Timestamp.sub(
             this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
-            this.config.serverCommandHistoryFrameBufferSize + bufferTime
+            this.config.serverCommandHistoryFrameBufferSize * 2 + this.bufferTime
           )
         ) < 0
       ) {
@@ -372,6 +396,17 @@ export class Server<
       }
     })
     const worldManagementEnd = Date.now()
+    this.analytics.store(
+      this.lastCompletedTimestamp(),
+      AnalyticType.worldhistory,
+      JSON.stringify(
+        Array.from(this.worldHistory).map(h => {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          return { timestamp: h[0], players: h[1].players }
+        })
+      )
+    )
 
     const snapShotStart = Date.now()
     this.secondsSinceLastSnapshot += positiveDeltaSeconds
@@ -390,22 +425,24 @@ export class Server<
       - Datasnapshot time for the non owner current time - full rtt - buffer
       */
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line
+      const snapshots: Array<{ handle: string | number; snapshot: $Snapshot }> = []
+
       for (const [handle, connection] of net.connections()) {
         const ping = connection.getPing()
         const currentTimeStamp = this.lastCompletedTimestamp()
-        const bufferTime = Math.round(
-          this.config.serverTimeDelayLatency / this.config.timestepSeconds
-        )
 
         const halfRTT = Math.ceil(ping / 1000 / this.config.timestepSeconds)
-        const snapshotTimestamp = Timestamp.sub(currentTimeStamp, halfRTT)
+        const snapshotTimestamp = Timestamp.sub(
+          currentTimeStamp,
+          halfRTT - this.bufferTime
+        )
 
         const nonOwnerHistoryTimestamp = Timestamp.sub(
           currentTimeStamp,
-          halfRTT * 2 + bufferTime
+          halfRTT * 2 - this.bufferTime
         )
-        const ownerHistoryTimestamp = Timestamp.sub(currentTimeStamp, bufferTime)
+        const ownerHistoryTimestamp = Timestamp.sub(currentTimeStamp, this.bufferTime)
 
         // console.log(
         //   `sending snapshot for ${snapshotTimestamp}. ping: ${ping}, with rtt of ${halfRTT}. Current is ${currentTimeStamp}, buff: ${bufferTime}`
@@ -454,7 +491,7 @@ export class Server<
         // merged snapshot is not actually a true snapshot, its just data so apply it to some random world and have it
         // genereate the actual snapshot object
         const fakeWorld = this.worldHistory.get(
-          Timestamp.sub(this.lastCompletedTimestamp(), bufferTime)
+          Timestamp.sub(this.lastCompletedTimestamp(), this.bufferTime)
         )
         if (!fakeWorld) {
           continue
@@ -464,7 +501,10 @@ export class Server<
         clonedFakeWorld.applySnapshot(mergedWorldData)
         const clonedSnapshot = clonedFakeWorld.snapshot().clone()
         const finalSnapshot = Timestamp.set(clonedSnapshot, snapshotTimestamp)
-        // console.log(`the final snapshot: ${JSON.stringify(finalSnapshot)}`)
+        snapshots.push({
+          handle,
+          snapshot: finalSnapshot
+        })
 
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, finalSnapshot)
 
@@ -478,6 +518,12 @@ export class Server<
         nonOwnerSnapshot.dispose()
         clonedFakeWorld.dispose()
       }
+
+      this.analytics.store(
+        this.lastCompletedTimestamp(),
+        AnalyticType.snapshotgenerated,
+        JSON.stringify(snapshots)
+      )
     }
     const snapShotEnd = Date.now()
 

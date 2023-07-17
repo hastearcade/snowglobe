@@ -6,3 +6,4 @@ tsconfig.tsbuildinfo
 *.heapsnapshot
 *.cpuprofile
 .DS_Store
+*.csv

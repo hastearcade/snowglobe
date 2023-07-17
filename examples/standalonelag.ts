@@ -444,8 +444,8 @@ function main() {
     lagCompensateCommands: true
   })
 
-  const client1 = new Snowglobe.Client(makeWorldClient, config, interpolate)
-  const client2 = new Snowglobe.Client(makeWorldClient, config, interpolate)
+  const client1 = new Snowglobe.Client(makeWorldClient, config, interpolate, 'client1')
+  const client2 = new Snowglobe.Client(makeWorldClient, config, interpolate, 'client2')
   const server = new Snowglobe.Server(makeWorldServer(), config, 0)
 
   const startupTime = performance.now()
@@ -505,7 +505,7 @@ function main() {
       // for this standalone we are using world position instead of display position
       // this helps facilitate validation of the data against a predefined Excel model
       console.log(
-        `t: ${server.lastCompletedTimestamp() + 1}, p2: ${
+        `t: ${server.lastCompletedTimestamp()}, p2: ${
           makeFloat2(serverWorld?.players[1]?.position) ?? 'undefined'
         }, b1: ${makeFloat2(serverWorld?.bullets[0]?.position) ?? 'undefined'}`,
         `\n\tt: ${client1.stage().ready?.lastCompletedTimestamp() ?? 'undefined'}, p2: ${
@@ -520,6 +520,36 @@ function main() {
       )
     }
 
+    if (server.lastCompletedTimestamp() > 600) {
+      loop.stop()
+      console.log('The simulation has finished\n')
+      server.analytics
+        .flush()
+        .then(() => {
+          console.log('The server data is done')
+        })
+        .catch(() => {
+          console.log('Error writting server data')
+        })
+      client1
+        .stage()
+        .ready!.analytics.flush()
+        .then(() => {
+          console.log('The client1 data is done')
+        })
+        .catch(() => {
+          console.log('Error writting client1 data')
+        })
+      client2
+        .stage()
+        .ready!.analytics.flush()
+        .then(() => {
+          console.log('The client2 data is done')
+        })
+        .catch(() => {
+          console.log('Error writting client2 data')
+        })
+    }
     previousTime = currentTime
   }, TIMESTEP_MS)
 
