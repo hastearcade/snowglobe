@@ -114,7 +114,7 @@ export class Server<
       Timestamp.add(command.timestamp, pingTimestampDiff - bufferAdjustment)
     )
 
-    console.log(`pushing ${historyCommand.timestamp}, command: ${command.timestamp}`)
+    // console.log(`pushing ${historyCommand.timestamp}, command: ${command.timestamp}`)
 
     this.commandHistory.push(historyCommand)
     this.currentFrameCommandBuffer.push(Timestamp.set(command.clone(), command.timestamp))
@@ -198,10 +198,10 @@ export class Server<
   }
 
   compensateForLag() {
-    // const sortedBufferCommands: Array<Timestamp.Timestamped<$Command>> =
-    //   this.currentFrameCommandBuffer.sort((a, b) =>
-    //     Timestamp.cmp(a.timestamp, b.timestamp)
-    //   )
+    const sortedBufferCommands: Array<Timestamp.Timestamped<$Command>> =
+      this.currentFrameCommandBuffer.sort((a, b) =>
+        Timestamp.cmp(a.timestamp, b.timestamp)
+      )
 
     /**
      * Need to choose the oldest timestamp -
@@ -209,20 +209,21 @@ export class Server<
      * 2. if there are commands from the future (low ping) or the past (high ping)
      * then choose the oldest timestamp and start working from there
      */
-    // const oldestTimestamp = sortedBufferCommands?.[0]
-    //   ? Timestamp.cmp(sortedBufferCommands[0].timestamp, this.lastCompletedTimestamp()) <
-    //     0
-    //     ? sortedBufferCommands[0].timestamp
-    //     : this.lastCompletedTimestamp()
-    //   : this.lastCompletedTimestamp()
+    const oldestTimestamp = sortedBufferCommands?.[0]
+      ? Timestamp.cmp(sortedBufferCommands[0].timestamp, this.lastCompletedTimestamp()) <
+        0
+        ? sortedBufferCommands[0].timestamp
+        : this.lastCompletedTimestamp()
+      : this.lastCompletedTimestamp()
 
     // this fixes an issue at startup and an infinite loop
     if (this.worldHistory.size < 120) return
 
-    // const bufferTime = Math.round(
-    //   this.config.serverTimeDelayLatency / this.config.timestepSeconds
-    // )
-    const currentTimestamp = Timestamp.sub(this.lastCompletedTimestamp(), 120) // go back to the buffer time and add one to get the frame right before buffer
+    const bufferTime = Math.round(
+      this.config.serverTimeDelayLatency / this.config.timestepSeconds
+    )
+
+    const currentTimestamp = Timestamp.sub(oldestTimestamp, bufferTime + 1) // go back to the buffer time and add one to get the frame right before buffer
 
     // get old world
     let oldWorld = this.worldHistory.get(currentTimestamp)
@@ -245,23 +246,23 @@ export class Server<
         .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
 
     // apply the command immediately and then fast forward
-    console.log(
-      `old world is ${currentTimestamp}, position is ${JSON.stringify(
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        oldWorld.players
-      )} commands${JSON.stringify(filteredSortedCommands.map(t => t.timestamp))}`
-    )
+    // console.log(
+    //   `old world is ${currentTimestamp}, position is ${JSON.stringify(
+    //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //     // @ts-ignore
+    //     oldWorld.players
+    //   )} commands${JSON.stringify(filteredSortedCommands.map(t => t.timestamp))}`
+    // )
     this.timekeepingSimulation.stepper.rewind(oldWorld)
     this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
     this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
-    console.log(
-      `old world after fast forward position is ${JSON.stringify(
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        this.timekeepingSimulation.stepper.getWorld().players
-      )}`
-    )
+    // console.log(
+    //   `old world after fast forward position is ${JSON.stringify(
+    //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //     // @ts-ignore
+    //     this.timekeepingSimulation.stepper.getWorld().players
+    //   )}`
+    // )
     this.currentFrameCommandBuffer = []
   }
 
@@ -406,20 +407,20 @@ export class Server<
         )
         const ownerHistoryTimestamp = Timestamp.sub(currentTimeStamp, bufferTime)
 
-        console.log(
-          `sending snapshot for ${snapshotTimestamp}. ping: ${ping}, with rtt of ${halfRTT}. Current is ${currentTimeStamp}, buff: ${bufferTime}`
-        )
+        // console.log(
+        //   `sending snapshot for ${snapshotTimestamp}. ping: ${ping}, with rtt of ${halfRTT}. Current is ${currentTimeStamp}, buff: ${bufferTime}`
+        // )
 
         const nonOwnerSnapshot = this.worldHistory
           .get(nonOwnerHistoryTimestamp)
           ?.snapshot()
 
         const ownerSnapshot = this.worldHistory.get(ownerHistoryTimestamp)?.snapshot()
-        console.log(
-          `owner snapshot is: ${JSON.stringify(
-            ownerSnapshot
-          )} for timestamp: ${ownerHistoryTimestamp}`
-        )
+        // console.log(
+        //   `owner snapshot is: ${JSON.stringify(
+        //     ownerSnapshot
+        //   )} for timestamp: ${ownerHistoryTimestamp}`
+        // )
 
         if (!nonOwnerSnapshot || !ownerSnapshot) {
           // console.log(
@@ -463,7 +464,7 @@ export class Server<
         clonedFakeWorld.applySnapshot(mergedWorldData)
         const clonedSnapshot = clonedFakeWorld.snapshot().clone()
         const finalSnapshot = Timestamp.set(clonedSnapshot, snapshotTimestamp)
-        console.log(`the final snapshot: ${JSON.stringify(finalSnapshot)}`)
+        // console.log(`the final snapshot: ${JSON.stringify(finalSnapshot)}`)
 
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, finalSnapshot)
 
