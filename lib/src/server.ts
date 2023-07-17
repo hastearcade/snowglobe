@@ -33,7 +33,6 @@ export class Server<
     World<$Command, $Snapshot, $DisplayState>
   >
 
-  private commandHistory: Array<Timestamp.Timestamped<$Command>>
   // this variable keeps track of commands that are received
   // in the same frame. we use this to determine the oldest
   // world state to go back in time for when performing lag compensation
@@ -49,7 +48,6 @@ export class Server<
     secondsSinceStartup: number
   ) {
     this.worldHistory = new Map()
-    this.commandHistory = []
     this.currentFrameCommandBuffer = []
 
     this.timekeepingSimulation = new TimeKeeper(
@@ -105,18 +103,6 @@ export class Server<
       )
     }
 
-    const bufferAdjustment = Math.round(
-      this.config.serverTimeDelayLatency / this.config.timestepSeconds
-    )
-    const pingTimestampDiff = Math.ceil(ping / 1000 / this.config.timestepSeconds)
-    const historyCommand = Timestamp.set(
-      command.clone(),
-      Timestamp.add(command.timestamp, pingTimestampDiff - bufferAdjustment)
-    )
-
-    // console.log(`pushing ${historyCommand.timestamp}, command: ${command.timestamp}`)
-
-    this.commandHistory.push(historyCommand)
     this.currentFrameCommandBuffer.push(Timestamp.set(command.clone(), command.timestamp))
 
     let result
@@ -198,72 +184,115 @@ export class Server<
   }
 
   compensateForLag() {
-    const sortedBufferCommands: Array<Timestamp.Timestamped<$Command>> =
-      this.currentFrameCommandBuffer.sort((a, b) =>
-        Timestamp.cmp(a.timestamp, b.timestamp)
-      )
+    // loop over each command and then apply it to each world
+    // including the current world
+    // if it is in the future, then you need to create worlds
+    if (this.worldHistory.size < this.config.serverCommandHistoryFrameBufferSize) return
 
-    /**
-     * Need to choose the oldest timestamp -
-     * 1. if there are no commands, just use now
-     * 2. if there are commands from the future (low ping) or the past (high ping)
-     * then choose the oldest timestamp and start working from there
-     */
-    const oldestTimestamp = sortedBufferCommands?.[0]
-      ? Timestamp.cmp(sortedBufferCommands[0].timestamp, this.lastCompletedTimestamp()) <
-        0
-        ? sortedBufferCommands[0].timestamp
-        : this.lastCompletedTimestamp()
-      : this.lastCompletedTimestamp()
-
-    // this fixes an issue at startup and an infinite loop
-    if (this.worldHistory.size < 120) return
-
-    const bufferTime = Math.round(
-      this.config.serverTimeDelayLatency / this.config.timestepSeconds
-    )
-
-    const currentTimestamp = Timestamp.sub(oldestTimestamp, bufferTime + 1) // go back to the buffer time and add one to get the frame right before buffer
-
-    // get old world
-    let oldWorld = this.worldHistory.get(currentTimestamp)
-    if (!oldWorld) {
-      let i = 1
-      while (!oldWorld) {
-        oldWorld = this.worldHistory.get(Timestamp.sub(currentTimestamp, i))
-        if (oldWorld) {
-          this.worldHistory.set(currentTimestamp, oldWorld.clone())
+    for (const commandToApply of this.currentFrameCommandBuffer) {
+      if (commandToApply.timestamp <= this.simulatingTimestamp()) {
+        // its a command in the past
+        for (let i = commandToApply.timestamp; i <= this.lastCompletedTimestamp(); i++) {
+          const oldWorld = this.worldHistory.get(i)
+          if (oldWorld) {
+            oldWorld.applyCommand(commandToApply)
+          }
         }
-        i++
+
+        // apply to currentworld
+        this.timekeepingSimulation.stepper.scheduleCommand(commandToApply)
+      } else {
+        // its command in the future
+        const currentWorld = this.timekeepingSimulation.stepper.getWorld()
+
+        // create future worlds
+        // there are some edge cases here i haven't thought through
+        // like what happens if multiple commands from the future come in
+        // the future worlds should be overwritten? right now i'm only just creating them from
+        // some arbitrary point in the past
+        for (
+          let i = Timestamp.add(this.simulatingTimestamp(), 1);
+          i <= commandToApply.timestamp;
+          i++
+        ) {
+          const newWorld = this.worldHistory.get(i)
+          if (!newWorld) {
+            // create it
+            this.worldHistory.set(i, currentWorld.clone())
+          }
+        }
+
+        // now that the history has been created it in the future, apply the command to the commands timestamp
+        const futureWorld = this.worldHistory.get(commandToApply.timestamp)
+        if (futureWorld) {
+          futureWorld.applyCommand(commandToApply)
+        }
       }
-      oldWorld = this.worldHistory.get(currentTimestamp)
-      if (!oldWorld) throw new Error('Something went terribly wrong.')
+
+      commandToApply.dispose() // these were clones when added to the current frame command buffer
     }
 
-    const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
-      this.commandHistory
-        .filter(curr => Timestamp.cmp(curr.timestamp, currentTimestamp) > 0)
-        .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
-
-    // apply the command immediately and then fast forward
-    // console.log(
-    //   `old world is ${currentTimestamp}, position is ${JSON.stringify(
-    //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //     // @ts-ignore
-    //     oldWorld.players
-    //   )} commands${JSON.stringify(filteredSortedCommands.map(t => t.timestamp))}`
-    // )
-    this.timekeepingSimulation.stepper.rewind(oldWorld)
-    this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
-    this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
-    // console.log(
-    //   `old world after fast forward position is ${JSON.stringify(
-    //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //     // @ts-ignore
-    //     this.timekeepingSimulation.stepper.getWorld().players
-    //   )}`
-    // )
     this.currentFrameCommandBuffer = []
+
+    // const sortedBufferCommands: Array<Timestamp.Timestamped<$Command>> =
+    //   this.currentFrameCommandBuffer.sort((a, b) =>
+    //     Timestamp.cmp(a.timestamp, b.timestamp)
+    //   )
+    // /**
+    //  * Need to choose the oldest timestamp -
+    //  * 1. if there are no commands, just use now
+    //  * 2. if there are commands from the future (low ping) or the past (high ping)
+    //  * then choose the oldest timestamp and start working from there
+    //  */
+    // const oldestTimestamp = sortedBufferCommands?.[0]
+    //   ? Timestamp.cmp(sortedBufferCommands[0].timestamp, this.lastCompletedTimestamp()) <
+    //     0
+    //     ? sortedBufferCommands[0].timestamp
+    //     : this.lastCompletedTimestamp()
+    //   : this.lastCompletedTimestamp()
+    // // this fixes an issue at startup and an infinite loop
+    // if (this.worldHistory.size < 120) return
+    // const bufferTime = Math.round(
+    //   this.config.serverTimeDelayLatency / this.config.timestepSeconds
+    // )
+    // const currentTimestamp = Timestamp.sub(oldestTimestamp, bufferTime + 1) // go back to the buffer time and add one to get the frame right before buffer
+    // // get old world
+    // let oldWorld = this.worldHistory.get(currentTimestamp)
+    // if (!oldWorld) {
+    //   let i = 1
+    //   while (!oldWorld) {
+    //     oldWorld = this.worldHistory.get(Timestamp.sub(currentTimestamp, i))
+    //     if (oldWorld) {
+    //       this.worldHistory.set(currentTimestamp, oldWorld.clone())
+    //     }
+    //     i++
+    //   }
+    //   oldWorld = this.worldHistory.get(currentTimestamp)
+    //   if (!oldWorld) throw new Error('Something went terribly wrong.')
+    // }
+    // const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
+    //   this.commandHistory
+    //     .filter(curr => Timestamp.cmp(curr.timestamp, currentTimestamp) > 0)
+    //     .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
+    // // apply the command immediately and then fast forward
+    // // console.log(
+    // //   `old world is ${currentTimestamp}, position is ${JSON.stringify(
+    // //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // //     // @ts-ignore
+    // //     oldWorld.players
+    // //   )} commands${JSON.stringify(filteredSortedCommands.map(t => t.timestamp))}`
+    // // )
+    // this.timekeepingSimulation.stepper.rewind(oldWorld)
+    // this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
+    // this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
+    // // console.log(
+    // //   `old world after fast forward position is ${JSON.stringify(
+    // //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // //     // @ts-ignore
+    // //     this.timekeepingSimulation.stepper.getWorld().players
+    // //   )}`
+    // // )
+    // this.currentFrameCommandBuffer = []
   }
 
   update<$Net extends NetworkResource<$Command>>(
@@ -319,35 +348,6 @@ export class Server<
       this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
       this.timekeepingSimulation.stepper.getWorld().clone()
     )
-    // delete old commands
-    const commandHistoryStart = Date.now()
-    const deadCommands = this.commandHistory.filter(curr => {
-      return (
-        Timestamp.cmp(
-          curr.timestamp,
-          Timestamp.sub(
-            this.timekeepingSimulation.stepper.simulatingTimestamp(),
-            this.config.serverCommandHistoryFrameBufferSize * 2
-          )
-        ) <= 0
-      )
-    })
-    deadCommands.forEach(c => {
-      c.dispose()
-    })
-
-    this.commandHistory = this.commandHistory.filter(curr => {
-      return (
-        Timestamp.cmp(
-          curr.timestamp,
-          Timestamp.sub(
-            this.timekeepingSimulation.stepper.simulatingTimestamp(),
-            this.config.serverCommandHistoryFrameBufferSize * 2
-          )
-        ) > 0
-      )
-    })
-    const commandHistoryEnd = Date.now()
 
     const bufferTime = Math.round(
       this.config.serverTimeDelayLatency / this.config.timestepSeconds
@@ -361,7 +361,7 @@ export class Server<
           timestamp,
           Timestamp.sub(
             this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
-            this.config.serverCommandHistoryFrameBufferSize * 2 + bufferTime
+            this.config.serverCommandHistoryFrameBufferSize + bufferTime
           )
         ) < 0
       ) {
@@ -488,7 +488,6 @@ export class Server<
           worldManagementEnd - worldManagementStart
         }, count is ${count}`
       )
-      console.log(`command/allocation took: ${commandHistoryEnd - commandHistoryStart}`)
       console.log(`messages took: ${commandsEnd - commandsStart}`)
       console.log(`compensate took: ${compensateEnd - compensateForLagStart}`)
       console.log(`timekeeping took: ${timeKeepingUpdateEnd - timeKeepingUpdateStart}`)
