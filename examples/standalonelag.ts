@@ -273,6 +273,34 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     return true
   }
 
+  rollbackCommand(command: MyCommand) {
+    // console.log(`applying client ${JSON.stringify(command)}`)
+    switch (command.kind) {
+      case 'moveright':
+        // eslint-disable-next-line no-case-declarations
+        const p = this.players[1]
+        if (p) {
+          p.position[0] =
+            (this.players[1]?.position[0] ?? 0) - PLAYER_SPEED * TIMESTEP_SECONDS
+        }
+
+        break
+      case 'movebullet':
+        // eslint-disable-next-line no-case-declarations
+        const b = this.bullets[0]
+        if (b) {
+          b.position[0] =
+            (this.bullets[0]?.position[0] ?? 0) - (this.bullets[0]?.velocity[0] ?? 0)
+          b.position[1] =
+            (this.bullets[0]?.position[1] ?? 0) - (this.bullets[0]?.velocity[1] ?? 0)
+        }
+        break
+      case 'fire':
+        this.bullets = []
+        break
+    }
+  }
+
   applyCommand(command: MyCommand) {
     // console.log(`applying client ${JSON.stringify(command)}`)
     switch (command.kind) {
@@ -308,6 +336,7 @@ class ClientWorld implements Snowglobe.World<MyCommand, MySnapshot> {
   }
 
   applySnapshot(snapshot: MySnapshot) {
+    console.log(`client applying snapshot ${JSON.stringify(snapshot)}`)
     this.players = structuredClone(snapshot.players)
     this.bullets = structuredClone(snapshot.bullets)
   }
@@ -372,6 +401,34 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
     return true
   }
 
+  rollbackCommand(command: MyCommand) {
+    // console.log(`applying client ${JSON.stringify(command)}`)
+    switch (command.kind) {
+      case 'moveright':
+        // eslint-disable-next-line no-case-declarations
+        const p = this.players[1]
+        if (p) {
+          p.position[0] =
+            (this.players[1]?.position[0] ?? 0) - PLAYER_SPEED * TIMESTEP_SECONDS
+        }
+
+        break
+      case 'movebullet':
+        // eslint-disable-next-line no-case-declarations
+        const b = this.bullets[0]
+        if (b) {
+          b.position[0] =
+            (this.bullets[0]?.position[0] ?? 0) - (this.bullets[0]?.velocity[0] ?? 0)
+          b.position[1] =
+            (this.bullets[0]?.position[1] ?? 0) - (this.bullets[0]?.velocity[1] ?? 0)
+        }
+        break
+      case 'fire':
+        this.bullets = []
+        break
+    }
+  }
+
   applyCommand(command: MyCommand) {
     // console.log(`applying server ${JSON.stringify(command)}`)
     switch (command.kind) {
@@ -428,6 +485,9 @@ class ServerWorld implements Snowglobe.World<MyCommand, MySnapshot> {
 
 function main() {
   const [serverNet, [client1Net, client2Net]] = makeMockNetwork<MyCommand, MySnapshot>()
+  const serverTicks: number[] = []
+  const client1Ticks: number[] = []
+  const client2Ticks: number[] = []
 
   const makeWorldServer = (ident?: string) => new ServerWorld()
   const makeWorldClient = (ident?: string) => new ClientWorld(ident)
@@ -462,6 +522,14 @@ function main() {
     client1.update(deltaSeconds, secondsSinceStartup, client1Net)
     client2.update(deltaSeconds, secondsSinceStartup, client2Net)
     server.update(deltaSeconds, secondsSinceStartup, serverNet)
+
+    if (server) serverTicks.push(server.lastCompletedTimestamp())
+    if (client1.stage().ready) {
+      client1Ticks.push(client1.stage().ready!.lastCompletedTimestamp())
+    }
+    if (client2.stage().ready) {
+      client2Ticks.push(client2.stage().ready!.lastCompletedTimestamp())
+    }
 
     const serverWorld = server.getWorld() as unknown as ServerWorld
 
@@ -520,7 +588,7 @@ function main() {
       )
     }
 
-    if (server.lastCompletedTimestamp() > 600) {
+    if (server.lastCompletedTimestamp() > 4000) {
       loop.stop()
       console.log('The simulation has finished\n')
       server.analytics
@@ -549,6 +617,31 @@ function main() {
         .catch(() => {
           console.log('Error writting client2 data')
         })
+
+      // check the ticks
+      let tickPrev = serverTicks[0]
+      let ticksWrong = 0
+      for (let i = 1; i < serverTicks.length; i++) {
+        if (serverTicks[i] && serverTicks[i]! - 1 !== tickPrev) ticksWrong++
+        tickPrev = serverTicks[i]
+      }
+      console.log(`server missed ${ticksWrong} ticks this run`)
+
+      tickPrev = client1Ticks[0]
+      ticksWrong = 0
+      for (let i = 1; i < client1Ticks.length; i++) {
+        if (client1Ticks[i] && client1Ticks[i]! - 1 !== tickPrev) ticksWrong++
+        tickPrev = client1Ticks[i]
+      }
+      console.log(`client1 missed ${ticksWrong} ticks this run`)
+
+      tickPrev = client2Ticks[0]
+      ticksWrong = 0
+      for (let i = 1; i < client2Ticks.length; i++) {
+        if (client2Ticks[i] && client2Ticks[i]! - 1 !== tickPrev) ticksWrong++
+        tickPrev = client2Ticks[i]
+      }
+      console.log(`client2 missed ${ticksWrong} ticks this run`)
     }
     previousTime = currentTime
   }, TIMESTEP_MS)

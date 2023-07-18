@@ -14,6 +14,7 @@ export type World<
 > = Stepper & {
   commandIsValid: (command: $Command, clientId: number) => boolean
   applyCommand: (command: $Command) => void
+  rollbackCommand: (command: $Command) => void
   applySnapshot: (snapshot: $Snapshot) => void
   snapshot: () => $Snapshot
   displayState: () => $DisplayState
