@@ -29,18 +29,11 @@ export class Server<
     Simulation<$Command, $Snapshot, $DisplayState>
   >
 
-  // private readonly worldHistory: Map<
-  //   Timestamp.Timestamp,
-  //   World<$Command, $Snapshot, $DisplayState>
-  // >
-
   public readonly analytics = new Analytics('server')
 
-  // this variable keeps track of commands that are received
-  // in the same frame. we use this to determine the oldest
-  // world state to go back in time for when performing lag compensation
-  // all commands are added to command history and thus are processed in
-  // the compensateForLag function
+  // this variable tracks commands history for about 2 seconds.
+  // it is used as part of snapshot generation to roll back
+  // commands when moving back in time for lag compensation
   private commandHistory: Array<Timestamp.Timestamped<$Command>>
 
   private secondsSinceLastSnapshot = 0
@@ -52,7 +45,6 @@ export class Server<
     private readonly config: Config,
     secondsSinceStartup: number
   ) {
-    // this.worldHistory = new Map()
     this.commandHistory = []
     this.bufferTime = Math.round(
       this.config.serverTimeDelayLatency / this.config.timestepSeconds
@@ -105,13 +97,10 @@ export class Server<
       }
     }
 
-    if (ping <= 0) {
-      console.error(
-        `The ping is less than or equal to 0. probably should look into that: ${ping}`
-      )
+    if (ping < 0) {
+      console.error(`The ping is less than 0. probably should look into that: ${ping}`)
     }
 
-    // console.log(`pushing command for ${this.simulatingTimestamp()}`)
     this.commandHistory.push(Timestamp.set(command.clone(), this.simulatingTimestamp()))
 
     // schedule it for the current server world
@@ -188,135 +177,6 @@ export class Server<
     return displayState
   }
 
-  // getHistory() {
-  //   return this.worldHistory
-  // }
-
-  // compensateForLag() {
-  //   // loop over each command and then apply it to each world
-  //   // including the current world
-  //   // if it is in the future, then you need to create worlds
-  //   if (
-  //     this.worldHistory.size <
-  //     this.config.serverCommandHistoryFrameBufferSize * 2 + this.bufferTime // multiply by two to handle full ftt
-  //   ) {
-  //     return
-  //   }
-
-  //   for (const commandToApply of this.currentFrameCommandBuffer) {
-  //     this.analytics.store(
-  //       this.simulatingTimestamp(),
-  //       AnalyticType.recvcommand,
-  //       JSON.stringify(this.currentFrameCommandBuffer)
-  //     )
-  //     if (commandToApply.timestamp <= this.simulatingTimestamp()) {
-  //       // its a command in the past
-  //       for (let i = commandToApply.timestamp; i <= this.lastCompletedTimestamp(); i++) {
-  //         console.log(`running timestamp ${i} for ${JSON.stringify(commandToApply)}`)
-  //         const oldWorld = this.worldHistory.get(i)
-  //         if (oldWorld) {
-  //           oldWorld.applyCommand(commandToApply)
-  //         } else {
-  //           console.log('**********You should not be here**************')
-  //         }
-  //       }
-
-  //       // apply to currentworld
-  //       this.timekeepingSimulation.stepper.scheduleCommand(commandToApply)
-  //     } else {
-  //       // its command in the future
-  //       const currentWorld = this.timekeepingSimulation.stepper.getWorld()
-
-  //       // create future worlds
-  //       // there are some edge cases here i haven't thought through
-  //       // like what happens if multiple commands from the future come in
-  //       // the future worlds should be overwritten? right now i'm only just creating them from
-  //       // some arbitrary point in the past
-  //       for (
-  //         let i = Timestamp.add(this.simulatingTimestamp(), 1);
-  //         i <= commandToApply.timestamp;
-  //         i++
-  //       ) {
-  //         const newWorld = this.worldHistory.get(i)
-  //         if (!newWorld) {
-  //           // create it
-  //           this.worldHistory.set(i, currentWorld.clone())
-  //         }
-  //       }
-
-  //       // now that the history has been created it in the future, apply the command to the commands timestamp
-  //       const futureWorld = this.worldHistory.get(commandToApply.timestamp)
-  //       if (futureWorld) {
-  //         futureWorld.applyCommand(commandToApply)
-  //       }
-  //     }
-
-  //     // commandToApply.dispose() // these were clones when added to the current frame command buffer
-  //   }
-
-  //   this.currentFrameCommandBuffer = []
-
-  //   // const sortedBufferCommands: Array<Timestamp.Timestamped<$Command>> =
-  //   //   this.currentFrameCommandBuffer.sort((a, b) =>
-  //   //     Timestamp.cmp(a.timestamp, b.timestamp)
-  //   //   )
-  //   // /**
-  //   //  * Need to choose the oldest timestamp -
-  //   //  * 1. if there are no commands, just use now
-  //   //  * 2. if there are commands from the future (low ping) or the past (high ping)
-  //   //  * then choose the oldest timestamp and start working from there
-  //   //  */
-  //   // const oldestTimestamp = sortedBufferCommands?.[0]
-  //   //   ? Timestamp.cmp(sortedBufferCommands[0].timestamp, this.lastCompletedTimestamp()) <
-  //   //     0
-  //   //     ? sortedBufferCommands[0].timestamp
-  //   //     : this.lastCompletedTimestamp()
-  //   //   : this.lastCompletedTimestamp()
-  //   // // this fixes an issue at startup and an infinite loop
-  //   // if (this.worldHistory.size < 120) return
-  //   // const bufferTime = Math.round(
-  //   //   this.config.serverTimeDelayLatency / this.config.timestepSeconds
-  //   // )
-  //   // const currentTimestamp = Timestamp.sub(oldestTimestamp, bufferTime + 1) // go back to the buffer time and add one to get the frame right before buffer
-  //   // // get old world
-  //   // let oldWorld = this.worldHistory.get(currentTimestamp)
-  //   // if (!oldWorld) {
-  //   //   let i = 1
-  //   //   while (!oldWorld) {
-  //   //     oldWorld = this.worldHistory.get(Timestamp.sub(currentTimestamp, i))
-  //   //     if (oldWorld) {
-  //   //       this.worldHistory.set(currentTimestamp, oldWorld.clone())
-  //   //     }
-  //   //     i++
-  //   //   }
-  //   //   oldWorld = this.worldHistory.get(currentTimestamp)
-  //   //   if (!oldWorld) throw new Error('Something went terribly wrong.')
-  //   // }
-  //   // const filteredSortedCommands: Array<Timestamp.Timestamped<$Command>> =
-  //   //   this.commandHistory
-  //   //     .filter(curr => Timestamp.cmp(curr.timestamp, currentTimestamp) > 0)
-  //   //     .sort((a, b) => Timestamp.cmp(a.timestamp, b.timestamp))
-  //   // // apply the command immediately and then fast forward
-  //   // // console.log(
-  //   // //   `old world is ${currentTimestamp}, position is ${JSON.stringify(
-  //   // //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  //   // //     // @ts-ignore
-  //   // //     oldWorld.players
-  //   // //   )} commands${JSON.stringify(filteredSortedCommands.map(t => t.timestamp))}`
-  //   // // )
-  //   // this.timekeepingSimulation.stepper.rewind(oldWorld)
-  //   // this.timekeepingSimulation.stepper.scheduleHistoryCommands(filteredSortedCommands)
-  //   // this.timekeepingSimulation.stepper.fastforward(currentTimestamp)
-  //   // // console.log(
-  //   // //   `old world after fast forward position is ${JSON.stringify(
-  //   // //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  //   // //     // @ts-ignore
-  //   // //     this.timekeepingSimulation.stepper.getWorld().players
-  //   // //   )}`
-  //   // // )
-  //   // this.currentFrameCommandBuffer = []
-  // }
-
   update<$Net extends NetworkResource<$Command>>(
     deltaSeconds: number,
     secondsSinceStartup: number,
@@ -358,19 +218,9 @@ export class Server<
     }
     const commandsEnd = Date.now()
 
-    // const compensateForLagStart = Date.now()
-    // this.compensateForLag()
-    // const compensateEnd = Date.now()
-
     const timeKeepingUpdateStart = Date.now()
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
     const timeKeepingUpdateEnd = Date.now()
-
-    // console.log(`setting ${this.timekeepingSimulation.stepper.lastCompletedTimestamp()}`)
-    // this.worldHistory.set(
-    //   this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
-    //   this.timekeepingSimulation.stepper.getWorld().clone()
-    // )
 
     const deadCommands = this.commandHistory.filter(curr => {
       return (
@@ -407,38 +257,6 @@ export class Server<
       JSON.stringify(this.timekeepingSimulation.stepper.getWorld().players)
     )
 
-    // delete old worlds
-    // const worldManagementStart = Date.now()
-    // let count = 0
-    // this.worldHistory.forEach((val, timestamp) => {
-    //   if (
-    //     Timestamp.cmp(
-    //       timestamp,
-    //       Timestamp.sub(
-    //         this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
-    //         this.config.serverCommandHistoryFrameBufferSize * 2 + this.bufferTime
-    //       )
-    //     ) < 0
-    //   ) {
-    //     const world = this.worldHistory.get(timestamp)
-    //     world?.dispose()
-    //     count++
-    //     this.worldHistory.delete(timestamp)
-    //   }
-    // })
-    // const worldManagementEnd = Date.now()
-    // this.analytics.store(
-    //   this.lastCompletedTimestamp(),
-    //   AnalyticType.worldhistory,
-    //   JSON.stringify(
-    //     Array.from(this.worldHistory).map(h => {
-    //       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    //       // @ts-ignore
-    //       return { timestamp: h[0], players: h[1].players }
-    //     })
-    //   )
-    // )
-
     const snapShotStart = Date.now()
     this.secondsSinceLastSnapshot += positiveDeltaSeconds
     if (this.secondsSinceLastSnapshot > this.config.snapshotSendPeriod) {
@@ -468,27 +286,15 @@ export class Server<
           currentTimeStamp,
           halfRTT - this.bufferTime
         )
-        // console.log(
-        //   `\n\nstarting send snapshot process\n${currentTimeStamp}, ping: ${ping}, half: ${halfRTT}, snaptime: ${snapshotTimestamp}`
-        // )
 
         const nonOwnerHistoryTimestamp = Timestamp.sub(
           currentTimeStamp,
           halfRTT * 2 + this.bufferTime
         )
+
         const ownerHistoryTimestamp = Timestamp.sub(currentTimeStamp, this.bufferTime)
 
         const ownerWorld = this.world.clone()
-        // console.log(
-        //   `history: ${JSON.stringify(
-        //     this.commandHistory
-        //       .map(c => c.timestamp)
-        //       .sort((a, b) => {
-        //         return Timestamp.cmp(a, b)
-        //       })
-        //   )}`
-        // )
-        // console.log(`cloning old word from ${currentTimeStamp}`)
         for (
           let i = currentTimeStamp;
           Timestamp.cmp(i, ownerHistoryTimestamp) > 0;
@@ -497,67 +303,30 @@ export class Server<
           const commands = this.commandHistory.filter(
             c => Timestamp.cmp(c.timestamp, i) === 0
           )
-          // console.log(`rolling back for ${i} ${JSON.stringify(commands)}`)
           for (const c of commands) {
-            // console.log(
-            //   `for current time ${currentTimeStamp} we are rolling back ${JSON.stringify(
-            //     c
-            //   )}`
-            // )
             ownerWorld.rollbackCommand(c)
           }
         }
         const ownerSnapshot = ownerWorld.snapshot()
 
         const nonOwnerWorld = this.world.clone()
-        // console.log(
-        //   `sending snapshot for ${snapshotTimestamp}. ping: ${ping}, with rtt of ${halfRTT}. Current is ${currentTimeStamp}, ownersnapshot is ${JSON.stringify(
-        //     ownerSnapshot
-        //   )}, nonOwnerWorld = ${JSON.stringify(nonOwnerWorld)}`
-        // )
-        // console.log(`cloning non owner world from ${currentTimeStamp}`)
+
         for (
           let i = currentTimeStamp;
-          Timestamp.cmp(i, nonOwnerHistoryTimestamp) > 0;
+          Timestamp.cmp(i, nonOwnerHistoryTimestamp) >= 0;
           i = Timestamp.sub(i, 1)
         ) {
           const commands = this.commandHistory.filter(
             c => Timestamp.cmp(c.timestamp, i) === 0
           )
-          // console.log(`rolling non owner back for ${i} ${JSON.stringify(commands)}`)
           for (const c of commands) {
-            // console.log(
-            //   `for non owner current time ${currentTimeStamp} we are rolling back ${JSON.stringify(
-            //     c
-            //   )}`
-            // )
             nonOwnerWorld.rollbackCommand(c)
           }
         }
 
         const nonOwnerSnapshot = nonOwnerWorld.snapshot()
-        // console.log(`non owner snapshot is ${JSON.stringify(nonOwnerSnapshot)}`)
-
-        // const ownerHistoryTimestamp = Timestamp.sub(currentTimeStamp, this.bufferTime)
-
-        // const nonOwnerSnapshot = this.worldHistory
-        //   .get(nonOwnerHistoryTimestamp)
-        //   ?.snapshot()
-
-        // const ownerSnapshot = this.worldHistory.get(ownerHistoryTimestamp)?.snapshot()
-        // console.log(
-        //   `owner snapshot is: ${JSON.stringify(
-        //     ownerSnapshot
-        //   )} for timestamp: ${ownerHistoryTimestamp}`
-        // )
 
         if (!nonOwnerSnapshot || !ownerSnapshot) {
-          // console.log(
-          //   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          //   `the full history timestamps are ${Array.from(this.worldHistory).map(
-          //     h => h[0]
-          //   )}`
-          // )
           // should never really get here
           console.warn(
             `You have generated an invalid snapshot. For shame. The current timestamp is ${currentTimeStamp}. Nonowner is ${JSON.stringify(
@@ -569,11 +338,6 @@ export class Server<
           continue
         }
 
-        // console.log(
-        //   `attempting to merge ${JSON.stringify(ownerSnapshot)} with ${JSON.stringify(
-        //     nonOwnerSnapshot
-        //   )}`
-        // )
         const mergedWorldData = this.mergeSnapshot(
           handle,
           ownerSnapshot,
@@ -586,7 +350,7 @@ export class Server<
         clonedFakeWorld.applySnapshot(mergedWorldData)
         const clonedSnapshot = clonedFakeWorld.snapshot().clone()
         const finalSnapshot = Timestamp.set(clonedSnapshot, snapshotTimestamp)
-        // console.log(`\nsending final snapshot of ${JSON.stringify(finalSnapshot)}\n`)
+
         snapshots.push({
           handle,
           snapshot: finalSnapshot
@@ -616,13 +380,7 @@ export class Server<
 
     if (Date.now() - startTime > 10) {
       console.log(`updating took too long: ${Date.now() - startTime}`)
-      // console.log(
-      //   `world mgt/allocation took: ${
-      //     worldManagementEnd - worldManagementStart
-      //   }, count is ${count}`
-      // )
       console.log(`messages took: ${commandsEnd - commandsStart}`)
-      // console.log(`compensate took: ${compensateEnd - compensateForLagStart}`)
       console.log(`timekeeping took: ${timeKeepingUpdateEnd - timeKeepingUpdateStart}`)
       console.log(`snapshot took: ${snapShotEnd - snapShotStart}`)
     }

@@ -588,7 +588,7 @@ function main() {
       )
     }
 
-    if (server.lastCompletedTimestamp() > 4000) {
+    if (server.lastCompletedTimestamp() > 1000) {
       loop.stop()
       console.log('The simulation has finished\n')
       server.analytics
