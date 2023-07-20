@@ -88,7 +88,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
     this.stepper.postUpdate(this.timestepOvershootSeconds)
     const postEnd = Date.now()
 
-    if (Date.now() - startTime > 10) {
+    if (Date.now() - startTime > 15) {
       console.log(`updating timekeeper took too long: ${Date.now() - startTime}`)
       console.log(`updating drift took too long: ${compensateEnd - compensateStart}`)
       console.log(`updating step took too long: ${stepEnd - stepStart}`)

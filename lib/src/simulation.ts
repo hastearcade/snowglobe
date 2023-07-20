@@ -60,7 +60,7 @@ export class Simulation<
     this.world.step()
     this.commandBuffer.updateTimestamp(Timestamp.add(this.lastCompletedTimestamp(), 1))
     const endTime = Date.now()
-    if (endTime - startTime > 10) {
+    if (endTime - startTime > 15) {
       console.log(`simulation step took ${endTime - startTime}`)
     }
   }
