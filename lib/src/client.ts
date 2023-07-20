@@ -126,7 +126,7 @@ export class Client<
         break
     }
 
-    if (Date.now() - startTime > 5) {
+    if (Date.now() - startTime > 10) {
       console.log(`updating took too long: ${Date.now() - startTime}`)
     }
   }
