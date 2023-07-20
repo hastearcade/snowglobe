@@ -378,7 +378,7 @@ export class Server<
     }
     const snapShotEnd = Date.now()
 
-    if (Date.now() - startTime > 10) {
+    if (Date.now() - startTime > 15) {
       console.log(`updating took too long: ${Date.now() - startTime}`)
       console.log(`messages took: ${commandsEnd - commandsStart}`)
       console.log(`timekeeping took: ${timeKeepingUpdateEnd - timeKeepingUpdateStart}`)
