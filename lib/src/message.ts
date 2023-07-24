@@ -10,6 +10,7 @@ export function makeTypeId<$MessageType>() {
 }
 
 export interface ClockSyncMessage {
+  clientPing: number
   clientSendSecondsSinceStartup: number
   serverSecondsSinceStartup: number
   clientId: number

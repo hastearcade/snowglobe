@@ -30,6 +30,9 @@ export class Server<
   >
 
   public readonly analytics = new Analytics('server')
+  // this tracks the last 10 ping times and once it reaches 10
+  // it will set the connections ping based on the average of those 10
+  private readonly pingTimes = new Map<number, number[]>()
 
   // this variable tracks commands history for about 2 seconds.
   // it is used as part of snapshot generation to roll back
@@ -101,10 +104,11 @@ export class Server<
       console.error(`The ping is less than 0. probably should look into that: ${ping}`)
     }
 
-    this.commandHistory.push(Timestamp.set(command.clone(), this.simulatingTimestamp()))
+    const issuedCommand = Timestamp.set(command.clone(), this.simulatingTimestamp())
+    this.commandHistory.push(issuedCommand)
 
     // schedule it for the current server world
-    this.timekeepingSimulation.stepper.scheduleCommand(command)
+    this.timekeepingSimulation.stepper.scheduleCommand(issuedCommand)
 
     let result
 
@@ -114,7 +118,6 @@ export class Server<
       }
 
       if (this.config.lagCompensateCommands) {
-        const timeSinceIssue = this.lastCompletedTimestamp() - command.timestamp
         const ping = connection.getPing()
         const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
 
@@ -123,8 +126,8 @@ export class Server<
           Timestamp.set(
             command.clone(),
             Timestamp.add(
-              Timestamp.get(command),
-              pingTimestampDiff + this.bufferTime + timeSinceIssue
+              Timestamp.get(issuedCommand),
+              pingTimestampDiff + this.bufferTime + 3 // this is to account for the client render buffer (blending stuff)
             )
           )
         )
@@ -201,6 +204,24 @@ export class Server<
         newCommands.push([command, handle])
       }
       while ((clockSyncMessage = connection.recvClockSync()) != null) {
+        const ping = Math.round(Math.max(0, clockSyncMessage.clientPing))
+
+        if (!this.pingTimes.has(handle)) {
+          this.pingTimes.set(handle, [])
+        }
+
+        const pingArr = this.pingTimes.get(handle)
+        if (pingArr) {
+          pingArr.push(ping)
+          if (pingArr.length > 10) {
+            // set ping
+            const averagePingForLastTwenty =
+              pingArr.map(p => p).reduce((p, c) => (p += c)) / 10
+            connection.setPing(Math.ceil(averagePingForLastTwenty))
+            this.pingTimes.set(handle, [])
+          }
+        }
+
         clockSyncMessage.serverSecondsSinceStartup = secondsSinceStartup
         clockSyncMessage.clientId = handle
         clockSyncs.push([handle, clockSyncMessage])
@@ -278,6 +299,7 @@ export class Server<
       const snapshots: Array<{ handle: string | number; snapshot: $Snapshot }> = []
 
       for (const [handle, connection] of net.connections()) {
+        const connectionOwnerId = net.getOwnerIdFromHandle(handle)
         const ping = connection.getPing()
         const currentTimeStamp = this.lastCompletedTimestamp()
 
@@ -297,7 +319,7 @@ export class Server<
         const ownerWorld = this.world.clone()
         for (
           let i = currentTimeStamp;
-          Timestamp.cmp(i, ownerHistoryTimestamp) > 0;
+          Timestamp.cmp(i, ownerHistoryTimestamp) >= 0;
           i = Timestamp.sub(i, 1)
         ) {
           const commands = this.commandHistory.filter(
@@ -308,6 +330,7 @@ export class Server<
           }
         }
         const ownerSnapshot = ownerWorld.snapshot()
+        Timestamp.set(ownerSnapshot, ownerHistoryTimestamp)
 
         const nonOwnerWorld = this.world.clone()
 
@@ -325,6 +348,7 @@ export class Server<
         }
 
         const nonOwnerSnapshot = nonOwnerWorld.snapshot()
+        Timestamp.set(nonOwnerSnapshot, nonOwnerHistoryTimestamp)
 
         if (!nonOwnerSnapshot || !ownerSnapshot) {
           // should never really get here
@@ -339,7 +363,7 @@ export class Server<
         }
 
         const mergedWorldData = this.mergeSnapshot(
-          handle,
+          connectionOwnerId,
           ownerSnapshot,
           nonOwnerSnapshot
         )
@@ -387,7 +411,7 @@ export class Server<
   }
 
   mergeSnapshot(
-    handle: number,
+    ownerId: string,
     ownerSnapshot: $Snapshot,
     nonOwnerSnapshot: $Snapshot
   ): any {
@@ -402,12 +426,15 @@ export class Server<
         // eslint-disable-next-line no-prototype-builtins
         value[0].hasOwnProperty('owner')
       ) {
-        ownerData.push({ key, value: value.filter(o => o.owner === handle) })
+        ownerData.push({ key, value: value.filter(o => o.owner === ownerId) })
         // eslint-disable-next-line no-prototype-builtins
       } else if (value?.hasOwnProperty('owner')) {
-        if ((value as OwnedEntity).owner === handle) {
+        if ((value as OwnedEntity).owner === ownerId) {
           ownerData.push({ key, value })
         }
+      } else if (!isObject(value)) {
+        // if its just primitive data without an owner, just push it on
+        ownerData.push({ key, value })
       }
     }
 
@@ -421,15 +448,18 @@ export class Server<
         // eslint-disable-next-line no-prototype-builtins
         value[0].hasOwnProperty('owner')
       ) {
-        nonOwnerData.push({ key, value: value.filter(o => o.owner !== handle) })
+        nonOwnerData.push({ key, value: value.filter(o => o.owner !== ownerId) })
         // eslint-disable-next-line no-prototype-builtins
       } else if (value instanceof Array && value.length === 0) {
         nonOwnerData.push({ key, value: [] })
         // eslint-disable-next-line no-prototype-builtins
       } else if (value?.hasOwnProperty('owner')) {
-        if ((value as OwnedEntity).owner !== handle) {
+        if ((value as OwnedEntity).owner !== ownerId) {
           return { key, value }
         }
+      } else if (!isObject(value)) {
+        // if its just primitive data without an owner, just push it on
+        nonOwnerData.push({ key, value })
       }
     }
 
@@ -443,9 +473,44 @@ export class Server<
       ownerUnwoundData[k.key] = k.value
     })
 
-    const finalSnapshot = {}
-    mergeDeep(finalSnapshot, nonOwnerUnwoundData, ownerUnwoundData)
-    return finalSnapshot
+    const target = ownerUnwoundData
+    const source = nonOwnerUnwoundData
+
+    // I am deliberately not putting this in a function to
+    // avoid the overhead of a function call
+    if (isObject(target) && isObject(source)) {
+      for (const key in source) {
+        if (isObject(source[key])) {
+          if (!target[key]) {
+            Object.assign(target, { [key]: {} })
+            mergeDeep(target[key], source[key])
+          }
+        } else {
+          if (isArray(target[key]) && isArray(source[key])) {
+            Object.assign(
+              target[key],
+              target[key].concat(source[key]).sort((a: any, b: any) => {
+                if (a.owner < b.owner) {
+                  return -1
+                } else if (a.owner === b.owner) {
+                  return 0
+                } else {
+                  return 1
+                }
+              })
+            )
+          } else if (!isArray(target[key]) && isArray(source[key])) {
+            if (!target[key]) Object.assign(target, { [key]: [] })
+            Object.assign(target[key], [].concat(source[key]))
+          } else {
+            // we want the target to be the source of truth so not overwriting primitives
+            // Object.assign(target, { [key]: source[key] })
+          }
+        }
+      }
+    }
+
+    return ownerUnwoundData
   }
 }
 

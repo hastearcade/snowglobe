@@ -18,6 +18,8 @@ export interface Connection<$Command extends Command, $Snapshot extends Snapshot
   flush: (typeId: TypeId<AvailableMessages>) => void
   // should be in ms
   getPing: () => number
+  // should be in ms
+  setPing: (ping: number) => void
 }
 
 export interface NetworkResource<
@@ -31,4 +33,5 @@ export interface NetworkResource<
     message: $Type
   ) => $Type | void
   broadcastMessage: <$Type>(typeId: TypeId<AvailableMessages>, message: $Type) => void
+  getOwnerIdFromHandle: (id: number) => string
 }

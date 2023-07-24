@@ -12,8 +12,13 @@ export class ClockSyncer {
   private readonly _serverSecondsOffsetSamples: number[] = []
   private _secondsSinceLastRequestSent = 0
   private _clientId: Option<number>
+  private _pingArr: number[]
+  private _latestPing: number
 
-  constructor(private readonly _config: Config) {}
+  constructor(private readonly _config: Config) {
+    this._pingArr = []
+    this._latestPing = 30
+  }
 
   update(deltaSeconds: number, secondsSinceStartup: number, net: NetworkResource) {
     this._secondsSinceLastRequestSent += deltaSeconds
@@ -21,6 +26,7 @@ export class ClockSyncer {
     if (this._secondsSinceLastRequestSent > this._config.clockSyncRequestPeriod) {
       this._secondsSinceLastRequestSent = 0
       net.broadcastMessage(CLOCK_SYNC_MESSAGE_TYPE_ID, {
+        clientPing: this._latestPing,
         clientSendSecondsSinceStartup: secondsSinceStartup,
         serverSecondsSinceStartup: 0,
         clientId: 0
@@ -34,6 +40,19 @@ export class ClockSyncer {
         const { clientId, clientSendSecondsSinceStartup, serverSecondsSinceStartup } =
           sync
         const receivedTime = secondsSinceStartup
+        const ping = Math.round(
+          Math.max(0, ((receivedTime - clientSendSecondsSinceStartup) / 2) * 1000)
+        )
+
+        this._pingArr.push(ping)
+        if (this._pingArr.length > 10) {
+          // set ping
+          const averagePingForLastTwenty =
+            this._pingArr.map(p => p).reduce((p, c) => (p += c)) / 10
+          connection.setPing(Math.ceil(averagePingForLastTwenty))
+          this._latestPing = Math.ceil(averagePingForLastTwenty)
+          this._pingArr = []
+        }
         const correspondingClientTime = (clientSendSecondsSinceStartup + receivedTime) / 2
         const offset = serverSecondsSinceStartup - correspondingClientTime
         latestServerSecondsOffset = offset
