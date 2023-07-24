@@ -19,36 +19,10 @@ export class Simulation<
   hasInitialized: boolean
 
   constructor(
-    private world: World<$Command, $Snapshot, $DisplayState>,
+    private readonly world: World<$Command, $Snapshot, $DisplayState>,
     initializationType?: InitializationType
   ) {
     this.hasInitialized = initializationType === InitializationType.PreInitialized
-  }
-
-  rewind(oldWorld: World<$Command, $Snapshot, $DisplayState>) {
-    this.world.dispose() // destroy the old world
-    this.world = oldWorld.clone()
-  }
-
-  scheduleHistoryCommands(commands: Array<Timestamp.Timestamped<$Command>>) {
-    this.commandBuffer.drainAll()
-    for (const c of commands) {
-      this.commandBuffer.insert(c)
-    }
-  }
-
-  fastforward(
-    currentTimestamp: Timestamp.Timestamp,
-    endingTimestamp: Timestamp.Timestamp = this.lastCompletedTimestamp()
-  ) {
-    while (Timestamp.cmp(currentTimestamp, endingTimestamp) <= 0) {
-      const commands = this.commandBuffer.drainUpTo(endingTimestamp)
-      for (const command of commands) {
-        this.world.applyCommand(command)
-      }
-      this.world.step()
-      currentTimestamp = Timestamp.add(currentTimestamp, 1)
-    }
   }
 
   step(endingTimestamp: Timestamp.Timestamp = this.simulatingTimestamp()) {

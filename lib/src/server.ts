@@ -390,6 +390,7 @@ export class Server<
         // clean up, clean up, everybody get your friends.
         ownerSnapshot.dispose()
         nonOwnerSnapshot.dispose()
+        ownerWorld.dispose()
         nonOwnerWorld.dispose()
         clonedFakeWorld.dispose()
       }
