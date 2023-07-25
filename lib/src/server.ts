@@ -39,8 +39,6 @@ export class Server<
   // commands when moving back in time for lag compensation
   private commandHistory: Array<Timestamp.Timestamped<$Command>>
 
-  private secondsSinceLastSnapshot = 0
-
   private readonly bufferTime: number
 
   constructor(
@@ -185,7 +183,7 @@ export class Server<
     secondsSinceStartup: number,
     net: $Net
   ) {
-    const startTime = Date.now()
+    const startTime = performance.now()
     const positiveDeltaSeconds = Math.max(deltaSeconds, 0)
     if (deltaSeconds !== positiveDeltaSeconds) {
       console.warn(
@@ -193,7 +191,7 @@ export class Server<
       )
     }
 
-    const commandsStart = Date.now()
+    const commandsStart = performance.now()
     const newCommands: Array<[Timestamp.Timestamped<$Command>, ConnectionHandle]> = []
     const clockSyncs: Array<[ConnectionHandle, ClockSyncMessage]> = []
     for (const [handle, connection] of net.connections()) {
@@ -237,11 +235,11 @@ export class Server<
         )
       }
     }
-    const commandsEnd = Date.now()
+    const commandsEnd = performance.now()
 
-    const timeKeepingUpdateStart = Date.now()
+    const timeKeepingUpdateStart = performance.now()
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
-    const timeKeepingUpdateEnd = Date.now()
+    const timeKeepingUpdateEnd = performance.now()
 
     const deadCommands = this.commandHistory.filter(curr => {
       return (
@@ -280,12 +278,9 @@ export class Server<
       )
     }
 
-    const snapShotStart = Date.now()
-    this.secondsSinceLastSnapshot += positiveDeltaSeconds
-    if (this.secondsSinceLastSnapshot > this.config.snapshotSendPeriod) {
-      this.secondsSinceLastSnapshot = 0
-
-      /*
+    const snapShotStart = performance.now()
+    const numberOfTraunch = 6
+    /*
       When sending a snapshot, the snapshot data needs to take the receiving players perspective
       into account. This means that for each property in the world state we need to define
       who owns the data. This will allow us to parse out data owned by the receiving player
@@ -297,10 +292,12 @@ export class Server<
       - Datasnapshot time for the non owner current time - full rtt - buffer
       */
 
-      // eslint-disable-next-line
-      const snapshots: Array<{ handle: string | number; snapshot: $Snapshot }> = []
+    // eslint-disable-next-line
+    const snapshots: Array<{ handle: string | number; snapshot: $Snapshot }> = []
+    const timestepMod = this.lastCompletedTimestamp() % numberOfTraunch
 
-      for (const [handle, connection] of net.connections()) {
+    for (const [handle, connection] of net.connections()) {
+      if (handle % numberOfTraunch === timestepMod) {
         const connectionOwnerId = net.getOwnerIdFromHandle(handle)
         const ping = connection.getPing()
         const currentTimeStamp = this.lastCompletedTimestamp()
@@ -405,10 +402,11 @@ export class Server<
         )
       }
     }
-    const snapShotEnd = Date.now()
 
-    if (Date.now() - startTime > 15) {
-      console.log(`updating took too long: ${Date.now() - startTime}`)
+    const snapShotEnd = performance.now()
+
+    if (performance.now() - startTime > 15) {
+      console.log(`updating took too long: ${performance.now() - startTime}`)
       console.log(`messages took: ${commandsEnd - commandsStart}`)
       console.log(`timekeeping took: ${timeKeepingUpdateEnd - timeKeepingUpdateStart}`)
       console.log(`snapshot took: ${snapShotEnd - snapShotStart}`)
