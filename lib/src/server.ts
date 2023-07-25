@@ -187,12 +187,14 @@ export class Server<
     }
   }
 
-  issueCommand<$Net extends NetworkResource<$Command>>(command: $Command, net: $Net) {
-    this.applyValidatedCommand(
-      Timestamp.set(command, this.estimatedClientSimulatingTimestamp()),
-      undefined,
-      net
-    )
+  issueCommand<$Net extends NetworkResource<$Command>>(
+    command: $Command,
+    net: $Net,
+    timestampOverride = 0
+  ) {
+    let timestamp = this.estimatedClientLastCompletedTimestamp()
+    timestamp = Timestamp.sub(timestamp, timestampOverride)
+    this.applyValidatedCommand(Timestamp.set(command, timestamp), undefined, net)
   }
 
   bufferedCommands() {
