@@ -64,6 +64,36 @@ export class Server<
     this.timekeepingSimulation.stepper.resetLastCompletedTimestamp(initialTimestamp)
   }
 
+  filterCommands() {
+    const startTime = Date.now()
+    const keepCommands: Array<Timestamp.Timestamped<$Command>> = []
+    for (let i = 0; i < this.commandHistory.length; i++) {
+      const curr = this.commandHistory[i]
+      if (!curr) continue
+
+      const rangeMax =
+        this.config.serverCommandHistoryFrameBufferSize * 2 + this.bufferTime
+      const oldestTimestamp = Timestamp.sub(
+        this.timekeepingSimulation.stepper.simulatingTimestamp(),
+        rangeMax
+      )
+
+      // console.log(`maxrange is ${rangeMax}, oldest is ${oldestTimestamp}`)
+      if (Timestamp.cmp(curr.timestamp, oldestTimestamp) <= 0) {
+        curr.dispose()
+      } else {
+        // console.log(`keeping ${curr.timestamp}`)
+        keepCommands.push(curr)
+      }
+    }
+
+    this.commandHistory = keepCommands
+
+    if (Date.now() - startTime > 4) {
+      console.log(`filter commands took too long ${Date.now() - startTime}`)
+    }
+  }
+
   lastCompletedTimestamp() {
     return this.timekeepingSimulation.stepper.lastCompletedTimestamp()
   }
@@ -141,6 +171,10 @@ export class Server<
         console.error(`Failed to relay command to ${handle}: ${JSON.stringify(result)}`)
       }
     }
+
+    // the command created by recvCommand in the network resource
+    // we are done with it here.
+    command.dispose()
   }
 
   receiveCommand<$Net extends NetworkResource<$Command>>(
@@ -241,32 +275,7 @@ export class Server<
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
     const timeKeepingUpdateEnd = performance.now()
 
-    const deadCommands = this.commandHistory.filter(curr => {
-      return (
-        Timestamp.cmp(
-          curr.timestamp,
-          Timestamp.sub(
-            this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
-            this.config.serverCommandHistoryFrameBufferSize * 2 + this.bufferTime
-          )
-        ) <= 0
-      )
-    })
-    deadCommands.forEach(c => {
-      c.dispose()
-    })
-
-    this.commandHistory = this.commandHistory.filter(curr => {
-      return (
-        Timestamp.cmp(
-          curr.timestamp,
-          Timestamp.sub(
-            this.timekeepingSimulation.stepper.simulatingTimestamp(),
-            this.config.serverCommandHistoryFrameBufferSize * 2 + this.bufferTime
-          )
-        ) > 0
-      )
-    })
+    this.filterCommands()
 
     if (process.env['SNOWGLOBE_DEBUG']) {
       this.analytics.store(
@@ -380,11 +389,6 @@ export class Server<
         })
 
         connection.send(SNAPSHOT_MESSAGE_TYPE_ID, finalSnapshot)
-
-        // clean up
-        connection.onSendCompleted<$Snapshot>(SNAPSHOT_MESSAGE_TYPE_ID, sentSnapshot => {
-          ;(sentSnapshot as $Snapshot).dispose()
-        })
 
         // clean up, clean up, everybody get your friends.
         ownerSnapshot.dispose()
