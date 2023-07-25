@@ -270,13 +270,15 @@ export class Server<
       )
     })
 
-    this.analytics.store(
-      this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
-      AnalyticType.currentworld,
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      JSON.stringify(this.timekeepingSimulation.stepper.getWorld().players)
-    )
+    if (process.env['SNOWGLOBE_DEBUG']) {
+      this.analytics.store(
+        this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
+        AnalyticType.currentworld,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        JSON.stringify(this.timekeepingSimulation.stepper.getWorld().players)
+      )
+    }
 
     const snapShotStart = Date.now()
     this.secondsSinceLastSnapshot += positiveDeltaSeconds
@@ -372,7 +374,7 @@ export class Server<
         // genereate the actual snapshot object
         const clonedFakeWorld = this.world.clone()
         clonedFakeWorld.applySnapshot(mergedWorldData)
-        const clonedSnapshot = clonedFakeWorld.snapshot().clone()
+        const clonedSnapshot = clonedFakeWorld.snapshot()
         const finalSnapshot = Timestamp.set(clonedSnapshot, snapshotTimestamp)
 
         snapshots.push({
@@ -395,11 +397,13 @@ export class Server<
         clonedFakeWorld.dispose()
       }
 
-      this.analytics.store(
-        this.lastCompletedTimestamp(),
-        AnalyticType.snapshotgenerated,
-        JSON.stringify(snapshots)
-      )
+      if (process.env['SNOWGLOBE_DEBUG']) {
+        this.analytics.store(
+          this.lastCompletedTimestamp(),
+          AnalyticType.snapshotgenerated,
+          JSON.stringify(snapshots)
+        )
+      }
     }
     const snapShotEnd = Date.now()
 
