@@ -159,7 +159,7 @@ export class ActiveClient<
       'Active client can only be constructed with a synchronized clock'
     )
     // TODO: Proper assert function
-    const initialTimestamp = Timestamp.fromSeconds(serverTime!, config.timestepSeconds)
+    const initialTimestamp = Timestamp.fromSeconds(serverTime!, 1 / 60)
     this.clockSyncer = clockSyncer
     this.timekeepingSimulations = new TimeKeeper(
       new ClientWorldSimulations(makeWorld, config, initialTimestamp, fromInterpolation),
@@ -449,7 +449,11 @@ class ClientWorldSimulations<
     this.lastReceivedSnapshotTimestamp = timestamp
 
     if (Timestamp.cmp(timestamp, this.lastCompletedTimestamp()) === 1) {
-      console.warn('Received snapshot from the future! Ignoring snapshot.')
+      console.warn(
+        `Received snapshot from the future: ${JSON.stringify(
+          timestamp
+        )}! Ignoring snapshot ${this.lastCompletedTimestamp()}.`
+      )
       return
     }
 
