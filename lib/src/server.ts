@@ -305,7 +305,7 @@ export class Server<
 
     // eslint-disable-next-line
     const snapshots: Array<{ handle: string | number; snapshot: $Snapshot }> = []
-    const timestepMod = this.lastCompletedTimestamp() % numberOfTraunch
+    const timestepMod = Math.abs(this.lastCompletedTimestamp() % numberOfTraunch)
 
     for (const [handle, connection] of net.connections()) {
       if (handle % numberOfTraunch === timestepMod) {
