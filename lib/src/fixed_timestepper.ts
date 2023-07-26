@@ -172,7 +172,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
       const [correctedTimestamp, correctedOvershootSeconds] = decomposeFloatTimestamp(
         this.terminationCondition,
         this.targetLogicalTimestamp(serverSecondsSinceStartup),
-        1 / 60
+        this.config.timestepSeconds
       )
       this.stepper.resetLastCompletedTimestamp(correctedTimestamp)
       this.timestepOvershootSeconds = correctedOvershootSeconds

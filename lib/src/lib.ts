@@ -55,7 +55,7 @@ export function shapeInterpolationT(method: TweeningMethod, t: number) {
 }
 
 export function serverTimeDelayFrameCount(config: Config) {
-  return Math.round(config.serverTimeDelayLatency / config.timestepSeconds)
+  return Math.round(config.serverTimeDelayLatency / (1 / 60))
 }
 
 export function clockSyncSamplesToDiscardPerExtreme(config: Config) {
