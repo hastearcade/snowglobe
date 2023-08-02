@@ -100,6 +100,10 @@ export class MockNetwork<$Command extends Command, $Snapshot extends Snapshot>
 {
   _connections = new Map<ConnectionHandle, MockConnection<$Command, $Snapshot>>()
 
+  getOwnerIdFromHandle(id: number) {
+    return ''
+  }
+
   connect() {
     for (const [, connection] of this._connections) {
       connection.isConnected = true
@@ -177,6 +181,8 @@ class MockConnection<$Command extends Command, $Snapshot extends Snapshot>
   getPing() {
     return (this.channels.get(CLOCK_SYNC_MESSAGE_TYPE_ID)?.getDelay() ?? 0) * 1000
   }
+
+  setPing(ping: number) {}
 
   setDelay(delay: number) {
     for (const [, channel] of this.channels) {

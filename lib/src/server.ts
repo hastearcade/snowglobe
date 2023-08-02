@@ -78,11 +78,9 @@ export class Server<
         rangeMax
       )
 
-      // console.log(`maxrange is ${rangeMax}, oldest is ${oldestTimestamp}`)
       if (Timestamp.cmp(curr.timestamp, oldestTimestamp) <= 0) {
         curr.dispose()
       } else {
-        // console.log(`keeping ${curr.timestamp}`)
         keepCommands.push(curr)
       }
     }
@@ -116,55 +114,40 @@ export class Server<
     )
   }
 
-  applyValidatedCommand(
-    command: Timestamp.Timestamped<$Command>,
-    commandSource: ConnectionHandle | undefined,
+  applyValidatedCommands(
+    commands: Array<[Timestamp.Timestamped<$Command>, number | undefined]>,
     net: NetworkResource<$Command>
   ) {
-    let ping = 0
-    for (const [handle, connection] of net.connections()) {
-      if (handle === commandSource) {
-        ping = connection.getPing()
-      }
-    }
-
-    if (ping < 0) {
-      console.error(`The ping is less than 0. probably should look into that: ${ping}`)
-    }
-
-    const issuedCommand = Timestamp.set(command.clone(), this.simulatingTimestamp())
-    this.commandHistory.push(issuedCommand)
+    const issuedCommands = commands.map(([command, _], __) => {
+      return Timestamp.set(command.clone(), this.simulatingTimestamp())
+    })
+    this.commandHistory.concat(issuedCommands)
 
     // schedule it for the current server world
-    this.timekeepingSimulation.stepper.scheduleCommand(issuedCommand)
+    issuedCommands.forEach(issuedCommand => {
+      this.timekeepingSimulation.stepper.scheduleCommand(issuedCommand)
+    })
 
     let result
 
     for (const [handle, connection] of net.connections()) {
-      if (commandSource === handle) {
-        continue
-      }
+      const ping = connection.getPing()
+      const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
 
-      if (this.config.lagCompensateCommands) {
-        const ping = connection.getPing()
-        const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
-
-        result = connection.send(
-          COMMAND_MESSAGE_TYPE_ID,
-          Timestamp.set(
+      const commandsToSend = commands
+        .map(([command, _], ownerHandle) => {
+          if (ownerHandle === handle) return undefined
+          return Timestamp.set(
             command.clone(),
             Timestamp.add(
-              Timestamp.get(issuedCommand),
+              this.simulatingTimestamp(),
               pingTimestampDiff + this.bufferTime + 3 // this is to account for the client render buffer (blending stuff)
             )
           )
-        )
-      } else {
-        result = connection.send(
-          COMMAND_MESSAGE_TYPE_ID,
-          Timestamp.set(command.clone(), Timestamp.get(command))
-        )
-      }
+        })
+        .filter(c => c !== undefined)
+
+      result = connection.send(COMMAND_MESSAGE_TYPE_ID, commandsToSend)
 
       connection.flush(COMMAND_MESSAGE_TYPE_ID)
       if (result != null) {
@@ -174,17 +157,19 @@ export class Server<
 
     // the command created by recvCommand in the network resource
     // we are done with it here.
-    command.dispose()
+    commands.forEach(([command, _], __) => {
+      command.dispose()
+    })
   }
 
-  receiveCommand<$Net extends NetworkResource<$Command>>(
-    command: Timestamp.Timestamped<$Command>,
-    commandSource: ConnectionHandle,
+  receiveCommands<$Net extends NetworkResource<$Command>>(
+    commands: Array<[Timestamp.Timestamped<$Command>, number]>,
     net: $Net
   ) {
-    if (this.world.commandIsValid(command, commandSource)) {
-      this.applyValidatedCommand(command, commandSource, net)
-    }
+    const validCommands = commands.filter(([command, _], handle) =>
+      this.world.commandIsValid(command, handle)
+    )
+    this.applyValidatedCommands(validCommands, net)
   }
 
   issueCommand<$Net extends NetworkResource<$Command>>(
@@ -194,7 +179,7 @@ export class Server<
   ) {
     let timestamp = this.estimatedClientLastCompletedTimestamp()
     timestamp = Timestamp.sub(timestamp, timestampOverride)
-    this.applyValidatedCommand(Timestamp.set(command, timestamp), undefined, net)
+    this.applyValidatedCommands([[Timestamp.set(command, timestamp), undefined]], net)
   }
 
   bufferedCommands() {
@@ -227,7 +212,6 @@ export class Server<
       )
     }
 
-    const commandsStart = performance.now()
     const newCommands: Array<[Timestamp.Timestamped<$Command>, ConnectionHandle]> = []
     const clockSyncs: Array<[ConnectionHandle, ClockSyncMessage]> = []
     for (const [handle, connection] of net.connections()) {
@@ -261,9 +245,10 @@ export class Server<
         clockSyncs.push([handle, clockSyncMessage])
       }
     }
-    for (const [command, commandSource] of newCommands) {
-      this.receiveCommand(command, commandSource, net)
-    }
+    const commandsStart = performance.now()
+    this.receiveCommands(newCommands, net)
+    const commandsEnd = performance.now()
+
     for (const [handle, clockSyncMessage] of clockSyncs) {
       if (net.sendMessage(handle, CLOCK_SYNC_MESSAGE_TYPE_ID, clockSyncMessage) != null) {
         console.error(
@@ -271,7 +256,6 @@ export class Server<
         )
       }
     }
-    const commandsEnd = performance.now()
 
     const timeKeepingUpdateStart = performance.now()
     this.timekeepingSimulation.update(positiveDeltaSeconds, secondsSinceStartup)
@@ -415,7 +399,7 @@ export class Server<
       console.log(`updating took too long: ${performance.now() - startTime}`)
       console.log(`messages took: ${commandsEnd - commandsStart}`)
       console.log(`timekeeping took: ${timeKeepingUpdateEnd - timeKeepingUpdateStart}`)
-      console.log(`snapshot took: ${snapShotEnd - snapShotStart}`)
+      console.log(`snapshot took: ${snapShotEnd - snapShotStart}\n\n`)
     }
   }
 

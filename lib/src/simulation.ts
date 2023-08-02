@@ -35,7 +35,7 @@ export class Simulation<
     this.commandBuffer.updateTimestamp(Timestamp.add(this.lastCompletedTimestamp(), 1))
     const endTime = Date.now()
     if (endTime - startTime > 15) {
-      console.log(`simulation step took ${endTime - startTime}`)
+      console.log(`\n\nsimulation step took ${endTime - startTime}`)
     }
   }
 
