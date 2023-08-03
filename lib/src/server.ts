@@ -118,8 +118,8 @@ export class Server<
     commands: Array<[Timestamp.Timestamped<$Command>, number | undefined]>,
     net: NetworkResource<$Command>
   ) {
-    const issuedCommands = commands.map(([command, _], __) => {
-      return Timestamp.set(command.clone(), this.simulatingTimestamp())
+    const issuedCommands = commands.map(([timestampedCommand, _]) => {
+      return Timestamp.set(timestampedCommand.clone(), this.simulatingTimestamp())
     })
     if (issuedCommands.length > 0) {
       this.commandHistory = this.commandHistory.concat(issuedCommands)
@@ -131,13 +131,12 @@ export class Server<
     })
 
     let result
-
     for (const [handle, connection] of net.connections()) {
       const ping = connection.getPing()
       const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
 
       const commandsToSend = commands
-        .map(([command, _], ownerHandle) => {
+        .map(([command, ownerHandle]) => {
           if (ownerHandle === handle) return undefined
           return Timestamp.set(
             command.clone(),
@@ -159,7 +158,7 @@ export class Server<
 
     // the command created by recvCommand in the network resource
     // we are done with it here.
-    commands.forEach(([command, _], __) => {
+    commands.forEach(([command]) => {
       command.dispose()
     })
   }
