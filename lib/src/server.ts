@@ -118,6 +118,8 @@ export class Server<
     commands: Array<[Timestamp.Timestamped<$Command>, number | undefined]>,
     net: NetworkResource<$Command>
   ) {
+    if (commands.length < 1) return
+
     const issuedCommands = commands.map(([timestampedCommand, _]) => {
       return Timestamp.set(timestampedCommand.clone(), this.simulatingTimestamp())
     })
@@ -275,7 +277,7 @@ export class Server<
     }
 
     const snapShotStart = performance.now()
-    const numberOfTraunch = 6
+    const numberOfTraunch = 18
     /*
       When sending a snapshot, the snapshot data needs to take the receiving players perspective
       into account. This means that for each property in the world state we need to define
@@ -398,7 +400,11 @@ export class Server<
 
     if (performance.now() - startTime > 15) {
       console.log(`updating took too long: ${performance.now() - startTime}`)
-      console.log(`messages took: ${commandsEnd - commandsStart}`)
+      console.log(
+        `messages took: ${commandsEnd - commandsStart} with ${
+          newCommands.length
+        } commands`
+      )
       console.log(`timekeeping took: ${timeKeepingUpdateEnd - timeKeepingUpdateStart}`)
       console.log(`snapshot took: ${snapShotEnd - snapShotStart}\n\n`)
     }
