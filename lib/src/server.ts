@@ -238,11 +238,6 @@ export class Server<
         command.owner = handle
         newCommands.push([command, handle])
       }
-      // get any issued commands that have occurred
-      for (const command of this.issuedBuffer) {
-        newCommands.push([command, undefined])
-      }
-      this.issuedBuffer = []
 
       while ((clockSyncMessage = connection.recvClockSync()) != null) {
         const ping = Math.round(Math.max(0, clockSyncMessage.clientPing))
@@ -268,6 +263,13 @@ export class Server<
         clockSyncs.push([handle, clockSyncMessage])
       }
     }
+
+    // get any issued commands that have occurred
+    for (const command of this.issuedBuffer) {
+      newCommands.push([command, undefined])
+    }
+    this.issuedBuffer = []
+
     const commandsStart = performance.now()
     this.receiveCommands(newCommands, net)
     const commandsEnd = performance.now()

@@ -6,7 +6,7 @@
     "Keith La Force <keith@hastearcade.com>"
   ],
   "license": "Apache-2.0",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "description": "A TypeScript port of CrystalOrb, a high-level Rust game networking library",
   "keywords": [
     "netcode",
