@@ -121,7 +121,9 @@ export class Server<
     const issuedCommands = commands.map(([command, _], __) => {
       return Timestamp.set(command.clone(), this.simulatingTimestamp())
     })
-    this.commandHistory.concat(issuedCommands)
+    if (issuedCommands.length > 0) {
+      this.commandHistory = this.commandHistory.concat(issuedCommands)
+    }
 
     // schedule it for the current server world
     issuedCommands.forEach(issuedCommand => {
