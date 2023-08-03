@@ -29,6 +29,7 @@ export class Server<
     Simulation<$Command, $Snapshot, $DisplayState>
   >
 
+  private issuedBuffer: Array<Timestamp.Timestamped<$Command>> = []
   public readonly analytics = new Analytics('server')
   // this tracks the last 10 ping times and once it reaches 10
   // it will set the connections ping based on the average of those 10
@@ -120,9 +121,14 @@ export class Server<
   ) {
     if (commands.length < 1) return
 
-    const issuedCommands = commands.map(([timestampedCommand, _]) => {
-      return Timestamp.set(timestampedCommand.clone(), this.simulatingTimestamp())
-    })
+    const currentTimestamp = this.simulatingTimestamp()
+
+    const issuedCommands: Array<Timestamp.Timestamped<$Command>> = []
+
+    for (const [command] of commands) {
+      issuedCommands.push(Timestamp.set(command.clone(), currentTimestamp))
+    }
+
     if (issuedCommands.length > 0) {
       this.commandHistory = this.commandHistory.concat(issuedCommands)
     }
@@ -132,23 +138,25 @@ export class Server<
       this.timekeepingSimulation.stepper.scheduleCommand(issuedCommand)
     })
 
+    // const startSend = performance.now()
     let result
     for (const [handle, connection] of net.connections()) {
       const ping = connection.getPing()
       const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
 
-      const commandsToSend = commands
-        .map(([command, ownerHandle]) => {
-          if (ownerHandle === handle) return undefined
-          return Timestamp.set(
+      const commandsToSend: $Command[] = []
+      for (const [command, ownerHandle] of commands) {
+        if (ownerHandle === handle) continue
+        commandsToSend.push(
+          Timestamp.set(
             command.clone(),
             Timestamp.add(
-              this.simulatingTimestamp(),
+              currentTimestamp,
               pingTimestampDiff + this.bufferTime + 3 // this is to account for the client render buffer (blending stuff)
             )
           )
-        })
-        .filter(c => c !== undefined)
+        )
+      }
 
       result = connection.send(COMMAND_MESSAGE_TYPE_ID, commandsToSend)
 
@@ -157,6 +165,8 @@ export class Server<
         console.error(`Failed to relay command to ${handle}: ${JSON.stringify(result)}`)
       }
     }
+    // const endSend = performance.now()
+    // console.log(`sending took ${endSend - startSend} for  ${commands.length}`)
 
     // the command created by recvCommand in the network resource
     // we are done with it here.
@@ -166,12 +176,14 @@ export class Server<
   }
 
   receiveCommands<$Net extends NetworkResource<$Command>>(
-    commands: Array<[Timestamp.Timestamped<$Command>, number]>,
+    commands: Array<[Timestamp.Timestamped<$Command>, number | undefined]>,
     net: $Net
   ) {
-    const validCommands = commands.filter(([command, _], handle) =>
-      this.world.commandIsValid(command, handle)
-    )
+    const validCommands: Array<[Timestamp.Timestamped<$Command>, number | undefined]> = []
+    for (const c of commands) {
+      if (this.world.commandIsValid(c[0], c[1] ?? -1)) validCommands.push(c)
+    }
+
     this.applyValidatedCommands(validCommands, net)
   }
 
@@ -182,7 +194,7 @@ export class Server<
   ) {
     let timestamp = this.estimatedClientLastCompletedTimestamp()
     timestamp = Timestamp.sub(timestamp, timestampOverride)
-    this.applyValidatedCommands([[Timestamp.set(command, timestamp), undefined]], net)
+    this.issuedBuffer.push(Timestamp.set(command, timestamp))
   }
 
   bufferedCommands() {
@@ -215,7 +227,9 @@ export class Server<
       )
     }
 
-    const newCommands: Array<[Timestamp.Timestamped<$Command>, ConnectionHandle]> = []
+    const newCommands: Array<
+      [Timestamp.Timestamped<$Command>, ConnectionHandle | undefined]
+    > = []
     const clockSyncs: Array<[ConnectionHandle, ClockSyncMessage]> = []
     for (const [handle, connection] of net.connections()) {
       let command: Timestamp.Timestamped<$Command> | undefined
@@ -224,6 +238,12 @@ export class Server<
         command.owner = handle
         newCommands.push([command, handle])
       }
+      // get any issued commands that have occurred
+      for (const command of this.issuedBuffer) {
+        newCommands.push([command, undefined])
+      }
+      this.issuedBuffer = []
+
       while ((clockSyncMessage = connection.recvClockSync()) != null) {
         const ping = Math.round(Math.max(0, clockSyncMessage.clientPing))
 
