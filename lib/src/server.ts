@@ -299,7 +299,7 @@ export class Server<
     }
 
     const snapShotStart = performance.now()
-    const numberOfTraunch = 18
+    const numberOfTraunch = 36
     /*
       When sending a snapshot, the snapshot data needs to take the receiving players perspective
       into account. This means that for each property in the world state we need to define
