@@ -26,7 +26,7 @@ export interface NetworkResource<
   $Command extends Command = Command,
   $Snapshot extends Snapshot = Snapshot
 > {
-  connections: () => IterableIterator<[ConnectionHandle, Connection<$Command, $Snapshot>]>
+  connections: () => Array<[ConnectionHandle, Connection<$Command, $Snapshot>]>
   sendMessage: <$Type>(
     handle: ConnectionHandle,
     typeId: TypeId<AvailableMessages>,

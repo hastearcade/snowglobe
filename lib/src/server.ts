@@ -145,17 +145,25 @@ export class Server<
       const pingTimestampDiff = Math.round(ping / 1000 / this.config.timestepSeconds)
 
       const commandsToSend: $Command[] = []
-      for (const [command, ownerHandle] of commands) {
-        if (ownerHandle === handle) continue
-        commandsToSend.push(
-          Timestamp.set(
-            command.clone(),
-            Timestamp.add(
-              currentTimestamp,
-              pingTimestampDiff + this.bufferTime + 3 // this is to account for the client render buffer (blending stuff)
+      const commandLength = commands.length
+
+      for (let i = 0; i < commandLength; i++) {
+        const a = commands[i]
+        if (a) {
+          if (a[1] === handle) {
+            continue
+          }
+
+          commandsToSend.push(
+            Timestamp.set(
+              a[0].clone(),
+              Timestamp.add(
+                currentTimestamp,
+                pingTimestampDiff + this.bufferTime + 3 // this is to account for the client render buffer (blending stuff)
+              )
             )
           )
-        )
+        }
       }
 
       result = connection.send(COMMAND_MESSAGE_TYPE_ID, commandsToSend)
