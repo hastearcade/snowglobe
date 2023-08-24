@@ -349,9 +349,10 @@ export class Server<
           Timestamp.cmp(i, ownerHistoryTimestamp) >= 0;
           i = Timestamp.sub(i, 1)
         ) {
-          const commands = this.commandHistory.filter(
-            c => Timestamp.cmp(c.timestamp, i) === 0
-          )
+          const commands: $Command[] = []
+          for (const c of this.commandHistory) {
+            if (Timestamp.cmp(c.timestamp, i) === 0) commands.push(c)
+          }
           for (const c of commands) {
             ownerWorld.rollbackCommand(c)
           }
@@ -361,15 +362,13 @@ export class Server<
 
         const nonOwnerWorld = this.world.clone()
 
-        for (
-          let i = currentTimeStamp;
-          Timestamp.cmp(i, nonOwnerHistoryTimestamp) >= 0;
-          i = Timestamp.sub(i, 1)
-        ) {
-          const commands = this.commandHistory.filter(
-            c => Timestamp.cmp(c.timestamp, i) === 0
-          )
-          for (const c of commands) {
+        for (let i = this.commandHistory.length - 1; i >= 0; i--) {
+          const c = this.commandHistory[i]
+          if (
+            c &&
+            Timestamp.cmp(c.timestamp, currentTimeStamp) <= 0 &&
+            Timestamp.cmp(c.timestamp, nonOwnerHistoryTimestamp) >= 0
+          ) {
             nonOwnerWorld.rollbackCommand(c)
           }
         }
@@ -394,7 +393,6 @@ export class Server<
           ownerSnapshot,
           nonOwnerSnapshot
         )
-
         // merged snapshot is not actually a true snapshot, its just data so apply it to some random world and have it
         // genereate the actual snapshot object
         const clonedFakeWorld = this.world.clone()
@@ -456,7 +454,11 @@ export class Server<
         // eslint-disable-next-line no-prototype-builtins
         value[0].hasOwnProperty('owner')
       ) {
-        ownerData.push({ key, value: value.filter(o => o.owner === ownerId) })
+        const newValue = []
+        for (const v of value) {
+          if (v.owner === ownerId) newValue.push(v)
+        }
+        ownerData.push({ key, value: newValue })
         // eslint-disable-next-line no-prototype-builtins
       } else if (value?.hasOwnProperty('owner')) {
         if ((value as OwnedEntity).owner === ownerId) {
@@ -478,7 +480,11 @@ export class Server<
         // eslint-disable-next-line no-prototype-builtins
         value[0].hasOwnProperty('owner')
       ) {
-        nonOwnerData.push({ key, value: value.filter(o => o.owner !== ownerId) })
+        const newValue = []
+        for (const v of value) {
+          if (v.owner !== ownerId) newValue.push(v)
+        }
+        nonOwnerData.push({ key, value: newValue })
         // eslint-disable-next-line no-prototype-builtins
       } else if (value instanceof Array && value.length === 0) {
         nonOwnerData.push({ key, value: [] })
