@@ -77,7 +77,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
     const compensateEnd = Date.now()
 
     const stepStart = Date.now()
-    this.advanceStepper(compensatedDeltaSeconds)
+    const stepCount = this.advanceStepper(compensatedDeltaSeconds)
     const stepEnd = Date.now()
 
     const skipStart = Date.now()
@@ -85,7 +85,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
     const skipEnd = Date.now()
 
     const postStart = Date.now()
-    this.stepper.postUpdate(this.timestepOvershootSeconds)
+    if (stepCount > 0) this.stepper.postUpdate(this.timestepOvershootSeconds)
     const postEnd = Date.now()
 
     if (Date.now() - startTime > 15) {
@@ -148,6 +148,7 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
   }
 
   advanceStepper(deltaSeconds: number) {
+    let stepCount = 0
     this.timestepOvershootSeconds -= deltaSeconds
     while (true) {
       const nextOvershootSeconds =
@@ -162,8 +163,10 @@ export class TimeKeeper<$Stepper extends FixedTimestepper> {
         break
       }
       this.stepper.step()
+      stepCount++
       this.timestepOvershootSeconds = nextOvershootSeconds
     }
+    return stepCount
   }
 
   timeskipIfNeeded(serverSecondsSinceStartup: number) {
