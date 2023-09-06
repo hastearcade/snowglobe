@@ -181,13 +181,13 @@ export class ActiveClient<
     this.timekeepingSimulations.stepper.receiveCommand(timestampCommand)
     net.broadcastMessage(COMMAND_MESSAGE_TYPE_ID, timestampCommand)
 
-    if (process.env['SNOWGLOBE_DEBUG']) {
-      this.analytics.store(
-        this.simulatingTimestamp(),
-        AnalyticType.issuecommand,
-        JSON.stringify(timestampCommand)
-      )
-    }
+    // if (process.env['SNOWGLOBE_DEBUG']) {
+    //   this.analytics.store(
+    //     this.simulatingTimestamp(),
+    //     AnalyticType.issuecommand,
+    //     JSON.stringify(timestampCommand)
+    //   )
+    // }
   }
 
   bufferedCommands() {
@@ -235,38 +235,38 @@ export class ActiveClient<
       throw Error('Clock should be synced')
     }
 
-    if (process.env['SNOWGLOBE_DEBUG']) {
-      this.analytics.store(
-        this.simulatingTimestamp(),
-        AnalyticType.recvcommand,
-        JSON.stringify(recvCommand)
-      )
+    // if (process.env['SNOWGLOBE_DEBUG']) {
+    //   this.analytics.store(
+    //     this.simulatingTimestamp(),
+    //     AnalyticType.recvcommand,
+    //     JSON.stringify(recvCommand)
+    //   )
 
-      this.analytics.store(
-        this.simulatingTimestamp(),
-        AnalyticType.snapshotapplied,
-        JSON.stringify(this.timekeepingSimulations.stepper.queuedSnapshot)
-      )
-    }
+    //   this.analytics.store(
+    //     this.simulatingTimestamp(),
+    //     AnalyticType.snapshotapplied,
+    //     JSON.stringify(this.timekeepingSimulations.stepper.queuedSnapshot)
+    //   )
+    // }
 
     this.timekeepingSimulations.update(
       deltaSeconds,
       timeSinceSync + this.timekeepingSimulations.config.serverTimeDelayLatency
     )
 
-    if (process.env['SNOWGLOBE_DEBUG']) {
-      this.analytics.store(
-        this.lastCompletedTimestamp(),
-        AnalyticType.currentworld,
-        JSON.stringify(
-          this.worldSimulations()
-            .get()
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            .new.getWorld().players
-        )
-      )
-    }
+    // if (process.env['SNOWGLOBE_DEBUG']) {
+    //   this.analytics.store(
+    //     this.lastCompletedTimestamp(),
+    //     AnalyticType.currentworld,
+    //     JSON.stringify(
+    //       this.worldSimulations()
+    //         .get()
+    //         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //         // @ts-ignore
+    //         .new.getWorld().players
+    //     )
+    //   )
+    // }
   }
 }
 

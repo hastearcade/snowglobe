@@ -296,15 +296,15 @@ export class Server<
 
     this.filterCommands()
 
-    if (process.env['SNOWGLOBE_DEBUG']) {
-      this.analytics.store(
-        this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
-        AnalyticType.currentworld,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        JSON.stringify(this.timekeepingSimulation.stepper.getWorld().players)
-      )
-    }
+    // if (process.env['SNOWGLOBE_DEBUG']) {
+    //   this.analytics.store(
+    //     this.timekeepingSimulation.stepper.lastCompletedTimestamp(),
+    //     AnalyticType.currentworld,
+    //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //     // @ts-ignore
+    //     JSON.stringify(this.timekeepingSimulation.stepper.getWorld().players)
+    //   )
+    // }
 
     const snapShotStart = performance.now()
     const numberOfTraunch = 18
@@ -415,13 +415,13 @@ export class Server<
         clonedFakeWorld.dispose()
       }
 
-      if (process.env['SNOWGLOBE_DEBUG']) {
-        this.analytics.store(
-          this.lastCompletedTimestamp(),
-          AnalyticType.snapshotgenerated,
-          JSON.stringify(snapshots)
-        )
-      }
+      // if (process.env['SNOWGLOBE_DEBUG']) {
+      //   this.analytics.store(
+      //     this.lastCompletedTimestamp(),
+      //     AnalyticType.snapshotgenerated,
+      //     JSON.stringify(snapshots)
+      //   )
+      // }
     }
 
     const snapShotEnd = performance.now()
