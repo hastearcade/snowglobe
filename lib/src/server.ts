@@ -13,7 +13,7 @@ import { type Snapshot, type World } from './world'
 import { type DisplayState } from './display_state'
 import { InitializationType, Simulation } from './simulation'
 import { type OwnedEntity } from './types'
-import { AnalyticType, Analytics } from './analytics'
+import { Analytics } from './analytics'
 
 interface KeyValue {
   key: string

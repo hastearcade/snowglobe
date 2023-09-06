@@ -1,4 +1,4 @@
-import { AnalyticType, Analytics } from './analytics'
+import { Analytics } from './analytics'
 import { ClockSyncer } from './clock_sync'
 import { type Command, CommandBuffer } from './command'
 import {
